@@ -652,7 +652,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
         <div>
           {/* Docket number on its own row */}
           <p className="font-bold">
-            {caseData.plaintiff?.type === 'llc' ? caseData.plaintiff.llcName : caseData.plaintiff?.name} <br/>v. {Array.isArray(caseData.opposingParty) ? caseData.opposingParty.map(op => op.name || op.email).join(', ') : caseData.opposingParty?.name || caseData.opposingParty?.email || 'Unknown Opposing Party'}
+            {caseData.plaintiff?.type === 'llc' ? caseData.plaintiff.llcName : caseData.plaintiff?.name} <br/>v. {Array.isArray(caseData.opposingParty) ? caseData.opposingParty.map(op => op.name || op.tenantName).join(', ') : caseData.opposingParty?.name || caseData.opposingParty?.tenantName || 'Unknown Opposing Party'}
           </p>
           {/* Docket number on its own row */}
           <h3 className="text-2xl font-bold">
