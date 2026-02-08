@@ -185,8 +185,7 @@ export default function AdminCasesPage() {
   const totalCases = filteredCases.length;
   const openCases = filteredCases.filter(c => c.status === 'open').length;
   const casesWithHearings = filteredCases.filter(c => c.nextCourtDate).length;
-  const casesNeedingAttention = filteredCases.filter(c => c.openTaskCount > 0).length;
-
+  
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -201,7 +200,7 @@ export default function AdminCasesPage() {
       <h1 className="text-2xl font-bold mb-6">All Legal Cases</h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-secondary/30 rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Cases</div>
           <div className="text-2xl font-bold">{totalCases}</div>
@@ -213,12 +212,6 @@ export default function AdminCasesPage() {
         <div className="bg-secondary/30 rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Upcoming Hearings</div>
           <div className="text-2xl font-bold text-purple-600">{casesWithHearings}</div>
-        </div>
-        <div className="bg-secondary/30 rounded-lg p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Needs Attention</div>
-          <div className={`text-2xl font-bold ${casesNeedingAttention > 0 ? 'text-orange-600' : ''}`}>
-            {casesNeedingAttention}
-          </div>
         </div>
       </div>
 
