@@ -46,6 +46,7 @@ function formatDate(iso: string): string {
 export default function DocumentsPage({ params }: DocumentsPageProps) {
   const { llcId, caseId } = use(params);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [caseName, setCaseName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -60,13 +61,25 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents`);
-      const data = await res.json();
+      const [docsRes, caseRes] = await Promise.all([
+        fetch(`/api/llcs/${llcId}/cases/${caseId}/documents`),
+        fetch(`/api/llcs/${llcId}/cases/${caseId}`),
+      ]);
+      const [docsData, caseData] = await Promise.all([docsRes.json(), caseRes.json()]);
 
-      if (data.ok) {
-        setDocuments(data.data);
+      if (docsData.ok) {
+        setDocuments(docsData.data);
       } else {
-        setError(data.error?.message || 'Failed to load documents');
+        setError(docsData.error?.message || 'Failed to load documents');
+      }
+
+      if (caseData.ok) {
+        const c = caseData.data;
+        const opposing = Array.isArray(c.opposingParty)
+          ? c.opposingParty[0]
+          : c.opposingParty;
+        const partyName = opposing?.tenantName || opposing?.name || 'Unknown';
+        setCaseName(c.docketNumber || partyName);
       }
     } catch {
       setError('Failed to load documents');
@@ -193,12 +206,21 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
   return (
     <div>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
+        <Link href={`/llcs/${llcId}/legal`} className="hover:text-foreground">
+          Cases
+        </Link>
+        <span>&nbsp;/</span>
+        <Link href={`/llcs/${llcId}/legal/${caseId}`} className="hover:text-foreground">
+          {caseName || 'Case'}
+        </Link>
+        <span>&nbsp;/</span>
+        <span className="text-foreground font-medium">Documents</span>
+      </nav>
+
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link href={`/llcs/${llcId}/legal/${caseId}`}
-            className="text-muted-foreground hover:text-foreground text-sm">&larr; Case</Link>
-          <h1 className="text-2xl font-bold">Documents</h1>
-        </div>
+        <h1 className="text-2xl font-bold">Documents</h1>
         <button onClick={() => setShowUpload(!showUpload)}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm">
           {showUpload ? 'Cancel' : '+ Upload'}
