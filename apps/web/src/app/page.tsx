@@ -42,9 +42,8 @@ export default function HomePage() {
       // Fallback: has tenant role but no active role set
       router.replace('/portal');
     } else {
-      // User has no roles yet (shouldn't happen with invitation flow)
-      // Send to portal as default since new users are tenants by default
-      router.replace('/portal');
+      // User has no roles detected - default to /llcs for staff-type users
+      router.replace('/llcs');
     }
   }, [
     user,

@@ -59,6 +59,36 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     null
   );
 
+  const applyRoleContext = useCallback((ctx: UserRoleContext) => {
+    setHasStaffRole(ctx.hasStaffRole);
+    setHasTenantRole(ctx.hasTenantRole);
+    setEffectiveRole(ctx.effectiveRole);
+
+    // Read active role from cookie
+    const savedRole = getCookie(ACTIVE_ROLE_COOKIE) as
+      | 'staff'
+      | 'tenant'
+      | null;
+
+    // Validate saved role against actual roles
+    if (savedRole === 'staff' && ctx.hasStaffRole) {
+      setActiveRoleState('staff');
+    } else if (savedRole === 'tenant' && ctx.hasTenantRole) {
+      setActiveRoleState('tenant');
+    } else if (ctx.hasStaffRole && !ctx.hasTenantRole) {
+      // Only staff role - auto-select
+      setActiveRoleState('staff');
+      setCookie(ACTIVE_ROLE_COOKIE, 'staff');
+    } else if (ctx.hasTenantRole && !ctx.hasStaffRole) {
+      // Only tenant role - auto-select
+      setActiveRoleState('tenant');
+      setCookie(ACTIVE_ROLE_COOKIE, 'tenant');
+    } else {
+      // Both roles or no roles - need selection
+      setActiveRoleState(null);
+    }
+  }, []);
+
   const fetchRoleContext = useCallback(async () => {
     if (!user) {
       setHasStaffRole(false);
@@ -75,40 +105,29 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
       if (data.ok && data.data) {
         const ctx: UserRoleContext = data.data;
-        setHasStaffRole(ctx.hasStaffRole);
-        setHasTenantRole(ctx.hasTenantRole);
-        setEffectiveRole(ctx.effectiveRole);
 
-        // Read active role from cookie
-        const savedRole = getCookie(ACTIVE_ROLE_COOKIE) as
-          | 'staff'
-          | 'tenant'
-          | null;
-
-        // Validate saved role against actual roles
-        if (savedRole === 'staff' && ctx.hasStaffRole) {
-          setActiveRoleState('staff');
-        } else if (savedRole === 'tenant' && ctx.hasTenantRole) {
-          setActiveRoleState('tenant');
-        } else if (ctx.hasStaffRole && !ctx.hasTenantRole) {
-          // Only staff role - auto-select
-          setActiveRoleState('staff');
-          setCookie(ACTIVE_ROLE_COOKIE, 'staff');
-        } else if (ctx.hasTenantRole && !ctx.hasStaffRole) {
-          // Only tenant role - auto-select
-          setActiveRoleState('tenant');
-          setCookie(ACTIVE_ROLE_COOKIE, 'tenant');
-        } else {
-          // Both roles or no roles - need selection
-          setActiveRoleState(null);
+        // If the API says unauthenticated but we have a Firebase user,
+        // the session cookie may not be established yet — retry once
+        if (!ctx.isAuthenticated && user) {
+          await new Promise((r) => setTimeout(r, 1000));
+          const retryRes = await fetch('/api/me/context');
+          const retryData = await retryRes.json();
+          if (retryData.ok && retryData.data) {
+            const retryCtx: UserRoleContext = retryData.data;
+            if (retryCtx.isAuthenticated) {
+              return applyRoleContext(retryCtx);
+            }
+          }
         }
+
+        applyRoleContext(ctx);
       }
     } catch (error) {
       console.error('Failed to fetch role context:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, applyRoleContext]);
 
   useEffect(() => {
     if (!authLoading) {

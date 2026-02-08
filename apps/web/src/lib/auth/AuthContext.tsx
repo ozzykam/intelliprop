@@ -27,11 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-
       if (firebaseUser) {
-        // Create/refresh session cookie when user is authenticated
+        // Create/refresh session cookie BEFORE marking auth as ready
         const idToken = await firebaseUser.getIdToken();
         await fetch('/api/auth/session', {
           method: 'POST',
@@ -39,12 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ idToken }),
         });
       }
+      setUser(firebaseUser);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Clear stale active role so fresh login goes through role detection
+    document.cookie = '__active_role=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+
     const credential = await signInWithEmailAndPassword(auth, email, password);
     const idToken = await credential.user.getIdToken();
 
