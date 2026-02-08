@@ -403,7 +403,7 @@ export default function AdminCasesPage() {
                     return (
                       <div key={`${task.llcId}-${task.caseId}-${task.id}`} className="p-3">
                         <Link
-                          href={`/llcs/${task.llcId}/legal/${task.caseId}`}
+                          href={`/llcs/${task.llcId}/legal/${task.caseId}/tasks`}
                           className="text-sm font-medium hover:underline text-primary block"
                         >
                           {task.title}
