@@ -33,8 +33,9 @@ export async function GET() {
     const context = await buildPermissionContext(user);
 
     // Determine if user has staff role
-    // Staff role = superAdmin OR admin of any LLC OR has any assignments (manager/employee)
+    // Staff role = userType is 'staff' OR superAdmin OR admin of any LLC OR has any assignments (manager/employee)
     const hasStaffRole =
+      context.userType === 'staff' ||
       context.isSuperAdmin ||
       context.adminOfLlcIds.length > 0 ||
       context.assignments.length > 0;

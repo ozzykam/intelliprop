@@ -96,6 +96,12 @@ export default async function AdminDashboardPage() {
           >
             + New Assignment
           </Link>
+          <Link
+            href="/admin/cases"
+            className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
+          >
+            Legal Cases
+          </Link>
         </div>
       </div>
 
@@ -122,6 +128,22 @@ export default async function AdminDashboardPage() {
             <li>
               <Link href="/admin/users?filter=employees" className="text-primary hover:underline">
                 View employees
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div className="border rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Data Views</h3>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <Link href="/admin/leases" className="text-primary hover:underline">
+                All Leases
+              </Link>
+            </li>
+            <li>
+              <Link href="/admin/cases" className="text-primary hover:underline">
+                All Legal Cases
               </Link>
             </li>
           </ul>
