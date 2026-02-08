@@ -290,6 +290,10 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  // Task detail modal state
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+
   // Ref for court dates section
   const courtDatesSectionRef = useRef<HTMLDivElement>(null);
 
@@ -586,6 +590,29 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
       }
     } catch {
       alert('Failed to update court date');
+    }
+  };
+
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    setUpdatingTaskId(taskId);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? data.data : t)));
+        setSelectedTask(null);
+      } else {
+        alert(data.error?.message || 'Failed to update task');
+      }
+    } catch {
+      alert('Failed to update task');
+    } finally {
+      setUpdatingTaskId(null);
     }
   };
 
@@ -1124,7 +1151,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 href={`/llcs/${llcId}/legal/${caseId}/tasks`}
                 className="text-sm text-primary hover:underline"
               >
-                + Add Task
+                Manage Tasks
               </Link>
             </div>
 
@@ -1133,7 +1160,11 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
             ) : (
               <div className="space-y-3">
                 {pendingTasks.map(task => (
-                  <div key={task.id} className="flex items-start gap-3 p-3 bg-secondary/30 rounded-md">
+                  <button
+                    key={task.id}
+                    onClick={() => setSelectedTask(task)}
+                    className="flex items-start gap-3 p-3 bg-secondary/30 rounded-md w-full text-left hover:bg-secondary/50 transition-colors"
+                  >
                     <div className={`mt-0.5 ${PRIORITY_COLORS[task.priority]}`}>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1141,12 +1172,9 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <Link
-                          href={`/llcs/${llcId}/legal/${caseId}/tasks/${task.id}`}
-                          className="font-medium text-sm hover:underline truncate"
-                        >
+                        <span className="font-medium text-sm truncate">
                           {task.title}
-                        </Link>
+                        </span>
                         <span className={`px-1.5 py-0.5 rounded text-xs ${TASK_STATUS_COLORS[task.status]}`}>
                           {task.status.replace('_', ' ')}
                         </span>
@@ -1156,7 +1184,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                         {task.assignedToUserId && ` • Assigned to ${getMemberName(task.assignedToUserId)}`}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))}
 
                 {completedTasks.length > 0 && (
@@ -1166,12 +1194,16 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                     </summary>
                     <div className="mt-2 space-y-2 opacity-60">
                       {completedTasks.map(task => (
-                        <div key={task.id} className="flex items-center gap-2 p-2 text-sm">
+                        <button
+                          key={task.id}
+                          onClick={() => setSelectedTask(task)}
+                          className="flex items-center gap-2 p-2 text-sm w-full text-left hover:opacity-80"
+                        >
                           <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           <span className="line-through">{task.title}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </details>
@@ -1391,6 +1423,90 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setSelectedTask(null)} />
+          <div className="relative bg-background border rounded-lg shadow-lg w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="text-lg font-semibold">Task Details</h2>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="text-muted-foreground hover:text-foreground text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <h3 className="font-medium">{selectedTask.title}</h3>
+                {selectedTask.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTask.description}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-muted-foreground text-xs mb-0.5">Due Date</dt>
+                  <dd className={`font-medium ${
+                    selectedTask.status !== 'completed' && selectedTask.status !== 'canceled' && new Date(selectedTask.dueDate) < new Date()
+                      ? 'text-red-600' : ''
+                  }`}>
+                    {formatDate(selectedTask.dueDate)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs mb-0.5">Priority</dt>
+                  <dd className={`font-medium capitalize ${PRIORITY_COLORS[selectedTask.priority]}`}>
+                    {selectedTask.priority}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs mb-0.5">Status</dt>
+                  <dd>
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${TASK_STATUS_COLORS[selectedTask.status]}`}>
+                      {selectedTask.status.replace('_', ' ')}
+                    </span>
+                  </dd>
+                </div>
+                {selectedTask.assignedToUserId && (
+                  <div>
+                    <dt className="text-muted-foreground text-xs mb-0.5">Assigned To</dt>
+                    <dd className="font-medium">{getMemberName(selectedTask.assignedToUserId)}</dd>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pt-2 border-t">
+                {selectedTask.status !== 'completed' ? (
+                  <button
+                    onClick={() => handleTaskStatusChange(selectedTask.id, 'completed')}
+                    disabled={updatingTaskId === selectedTask.id}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:opacity-50"
+                  >
+                    {updatingTaskId === selectedTask.id ? 'Updating...' : 'Mark Complete'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleTaskStatusChange(selectedTask.id, 'pending')}
+                    disabled={updatingTaskId === selectedTask.id}
+                    className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm disabled:opacity-50"
+                  >
+                    {updatingTaskId === selectedTask.id ? 'Updating...' : 'Reopen Task'}
+                  </button>
+                )}
+                <Link
+                  href={`/llcs/${llcId}/legal/${caseId}/tasks`}
+                  className="px-4 py-2 border rounded-md text-sm hover:bg-secondary"
+                >
+                  Edit in Tasks
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

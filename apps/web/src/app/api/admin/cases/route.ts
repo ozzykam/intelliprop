@@ -3,6 +3,23 @@ import { requireSuperAdmin } from '@/lib/auth/checkPermission';
 import { adminDb } from '@/lib/firebase/admin';
 
 /**
+ * Active task data for admin sidebar
+ */
+interface AdminTaskView {
+  id: string;
+  caseId: string;
+  llcId: string;
+  llcName: string;
+  opposingPartyName: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+}
+
+/**
  * Enriched case data for admin view
  */
 interface AdminCaseView {
@@ -57,6 +74,7 @@ export async function GET(request: NextRequest) {
     const casesSnap = await adminDb.collectionGroup('cases').get();
 
     const cases: AdminCaseView[] = [];
+    const activeTasks: AdminTaskView[] = [];
     const today = new Date().toISOString().slice(0, 10);
 
     for (const caseDoc of casesSnap.docs) {
@@ -148,7 +166,7 @@ export async function GET(request: NextRequest) {
         // courtDates subcollection may not exist or may lack index
       }
 
-      // Get task counts
+      // Get task counts and collect active tasks
       let taskCount = 0;
       let openTaskCount = 0;
       try {
@@ -160,10 +178,26 @@ export async function GET(request: NextRequest) {
           .collection('tasks')
           .get();
         taskCount = tasksSnap.size;
-        openTaskCount = tasksSnap.docs.filter(d => {
-          const status = d.data().status;
-          return status === 'pending' || status === 'in_progress';
-        }).length;
+        for (const taskDoc of tasksSnap.docs) {
+          const taskData = taskDoc.data();
+          const taskStatus = taskData.status;
+          if (taskStatus === 'pending' || taskStatus === 'in_progress') {
+            openTaskCount++;
+            activeTasks.push({
+              id: taskDoc.id,
+              caseId: caseDoc.id,
+              llcId,
+              llcName: llcMap.get(llcId) || 'Unknown LLC',
+              opposingPartyName: opposingPartyNames[0] || 'Unknown',
+              title: taskData.title || 'Untitled Task',
+              description: taskData.description || undefined,
+              dueDate: taskData.dueDate || undefined,
+              status: taskStatus,
+              priority: taskData.priority || 'medium',
+              createdAt: taskData.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+            });
+          }
+        }
       } catch {
         // tasks subcollection may not exist
       }
@@ -227,7 +261,15 @@ export async function GET(request: NextRequest) {
       return b.createdAt.localeCompare(a.createdAt);
     });
 
-    return NextResponse.json({ ok: true, data: cases });
+    // Sort active tasks by dueDate ascending (soonest first), tasks without due dates last
+    activeTasks.sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+    return NextResponse.json({ ok: true, data: cases, activeTasks });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '';
     if (message.includes('PERMISSION_DENIED') || message.includes('Super-admin')) {

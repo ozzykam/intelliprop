@@ -27,6 +27,20 @@ interface AdminCase {
   createdAt: string;
 }
 
+interface AdminTask {
+  id: string;
+  caseId: string;
+  llcId: string;
+  llcName: string;
+  opposingPartyName: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+}
+
 interface LLC {
   id: string;
   legalName: string;
@@ -38,6 +52,13 @@ const STATUS_STYLES: Record<string, string> = {
   settled: 'bg-green-100 text-green-800',
   judgment: 'bg-purple-100 text-purple-800',
   closed: 'bg-gray-100 text-gray-600',
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-600',
+  medium: 'bg-blue-100 text-blue-800',
+  high: 'bg-orange-100 text-orange-800',
+  urgent: 'bg-red-100 text-red-800',
 };
 
 const CASE_TYPE_LABELS: Record<string, string> = {
@@ -91,6 +112,7 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function AdminCasesPage() {
   const [cases, setCases] = useState<AdminCase[]>([]);
+  const [activeTasks, setActiveTasks] = useState<AdminTask[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -128,6 +150,7 @@ export default function AdminCasesPage() {
 
       if (data.ok) {
         setCases(data.data);
+        setActiveTasks(data.activeTasks || []);
       } else {
         setError(data.error?.message || 'Failed to fetch cases');
       }
@@ -262,99 +285,155 @@ export default function AdminCasesPage() {
         <div className="text-center py-8 text-muted-foreground">Loading cases...</div>
       )}
 
-      {/* Table */}
-      {!loading && filteredCases.length > 0 && (
-        <div className="border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium">LLC</th>
-                  <th className="text-left px-4 py-3 font-medium">Opposing Party</th>
-                  <th className="text-left px-4 py-3 font-medium">Court / Jurisdiction</th>
-                  <th className="text-left px-4 py-3 font-medium">Type</th>
-                  <th className="text-center px-4 py-3 font-medium">Status</th>
-                  <th className="text-left px-4 py-3 font-medium">Next Hearing</th>
-                  <th className="text-center px-4 py-3 font-medium">Tasks</th>
-                  <th className="text-left px-4 py-3 font-medium">Filed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCases.map((c) => (
-                  <tr key={`${c.llcId}-${c.id}`} className="border-t hover:bg-secondary/20">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/llcs/${c.llcId}`}
-                        className="text-primary hover:underline"
-                      >
-                        {c.llcName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/llcs/${c.llcId}/legal/${c.id}`}
-                        className="hover:underline"
-                      >
-                        {c.opposingPartyNames.length > 0
-                          ? c.opposingPartyNames[0]
-                          : 'Unknown'}
-                      </Link>
-                      {c.opposingPartyNames.length > 1 && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          +{c.opposingPartyNames.length - 1}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{c.court}</div>
-                      <div className="text-xs text-muted-foreground">{c.jurisdiction}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {CASE_TYPE_LABELS[c.caseType] || c.caseType}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_STYLES[c.status] || 'bg-gray-100'}`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {c.nextCourtDate ? (
-                        <div>
-                          <div>{formatDate(c.nextCourtDate.date)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {COURT_DATE_TYPE_LABELS[c.nextCourtDate.type] || c.nextCourtDate.type}
-                          </div>
-                        </div>
-                      ) : c.nextHearingDate ? (
-                        <div>{formatDate(c.nextHearingDate)}</div>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {c.taskCount > 0 ? (
-                        <span className={c.openTaskCount > 0 ? 'text-orange-600 font-medium' : ''}>
-                          {c.openTaskCount}/{c.taskCount}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {formatDate(c.filingDate)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Main content: Table + Sidebar */}
+      {!loading && (
+        <div className="flex flex-col xl:flex-row gap-6">
+          {/* Table Section */}
+          <div className="flex-1 min-w-0">
+            {filteredCases.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-secondary/50">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium">LLC</th>
+                        <th className="text-left px-4 py-3 font-medium">Opposing Party</th>
+                        <th className="text-left px-4 py-3 font-medium">Court / Jurisdiction</th>
+                        <th className="text-left px-4 py-3 font-medium">Type</th>
+                        <th className="text-center px-4 py-3 font-medium">Status</th>
+                        <th className="text-left px-4 py-3 font-medium">Next Hearing</th>
+                        <th className="text-center px-4 py-3 font-medium">Tasks</th>
+                        <th className="text-left px-4 py-3 font-medium">Filed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCases.map((c) => (
+                        <tr key={`${c.llcId}-${c.id}`} className="border-t hover:bg-secondary/20">
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/llcs/${c.llcId}`}
+                              className="text-primary hover:underline"
+                            >
+                              {c.llcName}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/llcs/${c.llcId}/legal/${c.id}`}
+                              className="hover:underline"
+                            >
+                              {c.opposingPartyNames.length > 0
+                                ? c.opposingPartyNames[0]
+                                : 'Unknown'}
+                            </Link>
+                            {c.opposingPartyNames.length > 1 && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                +{c.opposingPartyNames.length - 1}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>{c.court}</div>
+                            <div className="text-xs text-muted-foreground">{c.jurisdiction}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {CASE_TYPE_LABELS[c.caseType] || c.caseType}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_STYLES[c.status] || 'bg-gray-100'}`}>
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {c.nextCourtDate ? (
+                              <div>
+                                <div>{formatDate(c.nextCourtDate.date)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {COURT_DATE_TYPE_LABELS[c.nextCourtDate.type] || c.nextCourtDate.type}
+                                </div>
+                              </div>
+                            ) : c.nextHearingDate ? (
+                              <div>{formatDate(c.nextHearingDate)}</div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {c.taskCount > 0 ? (
+                              <span className={c.openTaskCount > 0 ? 'text-orange-600 font-medium' : ''}>
+                                {c.openTaskCount}/{c.taskCount}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatDate(c.filingDate)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 border rounded-lg">
+                <p className="text-muted-foreground">No cases found</p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Empty State */}
-      {!loading && filteredCases.length === 0 && (
-        <div className="text-center py-8 border rounded-lg">
-          <p className="text-muted-foreground">No cases found</p>
+          {/* Active Tasks Sidebar */}
+          <div className="w-full xl:w-80 flex-shrink-0">
+            <div className="border rounded-lg">
+              <div className="px-4 py-3 border-b bg-secondary/30">
+                <h2 className="font-semibold text-sm">
+                  Active Tasks{' '}
+                  <span className="text-muted-foreground font-normal">({activeTasks.length})</span>
+                </h2>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(100vh-300px)] divide-y">
+                {activeTasks.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No active tasks
+                  </div>
+                ) : (
+                  activeTasks.map((task) => {
+                    const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10);
+                    return (
+                      <div key={`${task.llcId}-${task.caseId}-${task.id}`} className="p-3">
+                        <Link
+                          href={`/llcs/${task.llcId}/legal/${task.caseId}`}
+                          className="text-sm font-medium hover:underline text-primary block"
+                        >
+                          {task.title}
+                        </Link>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {task.opposingPartyName} &middot; {task.llcName}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          {task.dueDate && (
+                            <span className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                              {isOverdue ? 'Overdue: ' : 'Due: '}
+                              {formatDate(task.dueDate)}
+                            </span>
+                          )}
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>
+                            {task.priority}
+                          </span>
+                        </div>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
