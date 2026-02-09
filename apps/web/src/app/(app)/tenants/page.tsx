@@ -15,12 +15,16 @@ interface TenantItem {
   email: string;
   phone?: string;
   createdAt: string;
+  userId?: string;
   // Residential
   firstName?: string;
   lastName?: string;
+  dateOfBirth?: string;
+  ssn4?: string;
   // Commercial
   businessName?: string;
   businessType?: string;
+  einLast4?: string;
   primaryContact?: { name: string };
 }
 
@@ -39,6 +43,16 @@ export default function GlobalTenantsPage() {
     search: '',
     type: '',
   });
+
+  // Invite modal state
+  const [inviteTenant, setInviteTenant] = useState<TenantItem | null>(null);
+  const [inviteDateOfBirth, setInviteDateOfBirth] = useState('');
+  const [inviteSsn4, setInviteSsn4] = useState('');
+  const [inviteEinLast4, setInviteEinLast4] = useState('');
+  const [inviteBusinessName, setInviteBusinessName] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   const fetchTenants = useCallback(async () => {
     try {
@@ -60,6 +74,68 @@ export default function GlobalTenantsPage() {
   useEffect(() => {
     fetchTenants();
   }, [fetchTenants]);
+
+  const openInviteModal = (tenant: TenantItem) => {
+    setInviteTenant(tenant);
+    setInviteDateOfBirth(tenant.dateOfBirth || '');
+    setInviteSsn4(tenant.ssn4 || '');
+    setInviteEinLast4(tenant.einLast4 || '');
+    setInviteBusinessName(tenant.businessName || '');
+    setInviteError('');
+    setInviteSuccess(false);
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteTenant) return;
+    setInviteError('');
+
+    if (inviteTenant.type === 'residential' && inviteSsn4.length !== 4) {
+      setInviteError('Please enter exactly 4 digits for SSN');
+      return;
+    }
+    if (inviteTenant.type === 'commercial' && inviteEinLast4.length !== 4) {
+      setInviteError('Please enter exactly 4 digits for EIN');
+      return;
+    }
+
+    setInviteLoading(true);
+
+    try {
+      const base = {
+        role: 'tenant' as const,
+        firstName: inviteTenant.firstName || (inviteTenant.primaryContact?.name.split(' ')[0] ?? ''),
+        middleInitial: undefined,
+        lastName: inviteTenant.lastName || (inviteTenant.primaryContact?.name.split(' ').slice(1).join(' ') ?? ''),
+        dateOfBirth: inviteDateOfBirth,
+        tenantId: inviteTenant.id,
+        llcIds: [],
+      };
+
+      const body = inviteTenant.type === 'residential'
+        ? { ...base, type: 'residential' as const, ssn4: inviteSsn4 }
+        : { ...base, type: 'commercial' as const, einLast4: inviteEinLast4, businessName: inviteBusinessName };
+
+      const res = await fetch('/api/activations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        setInviteError(data.error?.message || data.error || 'Failed to create activation');
+        return;
+      }
+
+      setInviteSuccess(true);
+    } catch {
+      setInviteError('Failed to create activation');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   // Apply filters
   const filteredTenants = useMemo(() => {
@@ -168,6 +244,7 @@ export default function GlobalTenantsPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Name</th>
                 <th className="text-left px-4 py-3 font-medium">Type</th>
+                <th className="text-left px-4 py-3 font-medium">Status</th>
                 <th className="text-left px-4 py-3 font-medium">Email</th>
                 <th className="text-left px-4 py-3 font-medium">Phone</th>
                 <th className="text-right px-4 py-3 font-medium">Actions</th>
@@ -202,9 +279,28 @@ export default function GlobalTenantsPage() {
                         {tenant.type}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-xs ${
+                          tenant.userId
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {tenant.userId ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{tenant.email}</td>
                     <td className="px-4 py-3 text-muted-foreground">{tenant.phone || '—'}</td>
                     <td className="px-4 py-3 text-right">
+                      {!tenant.userId && (
+                        <button
+                          onClick={() => openInviteModal(tenant)}
+                          className="text-xs text-primary hover:underline mr-3"
+                        >
+                          Activate
+                        </button>
+                      )}
                       <Link
                         href={`/tenants/${tenant.id}`}
                         className="text-xs text-muted-foreground hover:text-foreground mr-3"
@@ -223,6 +319,143 @@ export default function GlobalTenantsPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Invite Tenant Modal */}
+      {inviteTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background border rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {inviteSuccess ? (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Activation Created</h2>
+                  <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm mb-4">
+                    Activation created for {getTenantDisplayName(inviteTenant)}. They can now visit <span className="font-mono font-medium">/activate</span> to create their account using their date of birth and {inviteTenant.type === 'residential' ? 'SSN (last 4)' : 'EIN (last 4) + business name'}.
+                  </div>
+                  <button
+                    onClick={() => setInviteTenant(null)}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleInviteSubmit}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-semibold">
+                      Activate: {getTenantDisplayName(inviteTenant)}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setInviteTenant(null)}
+                      className="text-muted-foreground hover:text-foreground text-lg"
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  {inviteError && (
+                    <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm mb-4">
+                      {inviteError}
+                    </div>
+                  )}
+
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Enter the verification details this tenant will use at <span className="font-mono">/activate</span> to create their account.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="inviteDateOfBirth" className="block text-sm font-medium mb-2">
+                        Date of Birth *
+                      </label>
+                      <input
+                        id="inviteDateOfBirth"
+                        type="date"
+                        value={inviteDateOfBirth}
+                        onChange={(e) => setInviteDateOfBirth(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {inviteTenant.type === 'residential' ? (
+                      <div>
+                        <label htmlFor="inviteSsn4" className="block text-sm font-medium mb-2">
+                          SSN (last 4) *
+                        </label>
+                        <input
+                          id="inviteSsn4"
+                          type="text"
+                          value={inviteSsn4}
+                          onChange={(e) => setInviteSsn4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          maxLength={4}
+                          required
+                          pattern="\d{4}"
+                          className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="1234"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label htmlFor="inviteEinLast4" className="block text-sm font-medium mb-2">
+                            EIN (last 4) *
+                          </label>
+                          <input
+                            id="inviteEinLast4"
+                            type="text"
+                            value={inviteEinLast4}
+                            onChange={(e) => setInviteEinLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            maxLength={4}
+                            required
+                            pattern="\d{4}"
+                            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="1234"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="inviteBusinessName" className="block text-sm font-medium mb-2">
+                            Business Name *
+                          </label>
+                          <input
+                            id="inviteBusinessName"
+                            type="text"
+                            value={inviteBusinessName}
+                            onChange={(e) => setInviteBusinessName(e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-4 mb-6">
+                    The tenant will visit /activate and verify using these details to create their login.
+                  </p>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={inviteLoading || !inviteDateOfBirth}
+                      className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 text-sm"
+                    >
+                      {inviteLoading ? 'Creating...' : 'Create Activation'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInviteTenant(null)}
+                      className="px-6 py-2 border border-input rounded-md hover:bg-secondary transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

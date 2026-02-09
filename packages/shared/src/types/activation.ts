@@ -159,6 +159,7 @@ export interface VerificationResult {
 export interface ConfirmationResult {
   confirmationToken: string;
   activationId: string;
+  email?: string;
 }
 
 /**

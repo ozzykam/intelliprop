@@ -9,11 +9,13 @@ interface ConfirmationData {
   activationId: string;
   name: string;
   role: string;
+  email?: string;
 }
 
 export default function CreateAccountPage() {
   const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null);
   const [email, setEmail] = useState('');
+  const [editingEmail, setEditingEmail] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -31,6 +33,27 @@ export default function CreateAccountPage() {
     try {
       const data = JSON.parse(stored) as ConfirmationData;
       setConfirmationData(data);
+      if (data.email) {
+        setEmail(data.email);
+      } else if (data.confirmationToken) {
+        // Fetch email from server if not in sessionStorage
+        fetch('/api/activate/prefill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmationToken: data.confirmationToken }),
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (result.ok && result.data.email) {
+              setEmail(result.data.email);
+              // Update sessionStorage so it's available on re-renders
+              const updated = { ...data, email: result.data.email };
+              setConfirmationData(updated);
+              sessionStorage.setItem('confirmationData', JSON.stringify(updated));
+            }
+          })
+          .catch(() => { /* email prefill is best-effort */ });
+      }
     } catch {
       router.push('/activate');
     }
@@ -115,16 +138,61 @@ export default function CreateAccountPage() {
             <label htmlFor="email" className="block text-sm font-medium mb-2">
               Email Address
             </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="you@example.com"
-            />
+            {confirmationData?.email && !editingEmail ? (
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 border border-input rounded-md bg-secondary/30 text-sm">
+                    {email}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingEmail(true)}
+                    className="px-3 py-2 text-xs text-primary hover:underline shrink-0"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This email was set by your property manager.
+                </p>
+              </div>
+            ) : confirmationData?.email && editingEmail ? (
+              <div>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="you@example.com"
+                />
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-muted-foreground flex-1">
+                    Updating your email will change the address used for your account.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail(confirmationData.email!); setEditingEmail(false); }}
+                    className="text-xs text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="you@example.com"
+              />
+            )}
           </div>
 
           <div>

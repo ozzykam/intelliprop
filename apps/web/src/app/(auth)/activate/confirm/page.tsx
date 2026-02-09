@@ -92,6 +92,7 @@ export default function ConfirmPage() {
         activationId: data.data.activationId,
         name: formatName(activationData),
         role: activationData.role,
+        email: data.data.email || '',
       }));
 
       // Navigate to create account step

@@ -16,34 +16,11 @@ import {
 const COLLECTION = 'pendingActivations';
 const EXPIRATION_DAYS = 30;
 
-// In-memory token store (in production, use Redis or similar)
-// Maps verificationToken -> { activationId, expiresAt }
-const verificationTokens = new Map<string, { activationId: string; expiresAt: number }>();
-// Maps confirmationToken -> { activationId, expiresAt }
-const confirmationTokens = new Map<string, { activationId: string; expiresAt: number }>();
-
 /**
  * Generate a secure random token
  */
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
-}
-
-/**
- * Clean up expired tokens
- */
-function cleanupTokens() {
-  const now = Date.now();
-  for (const [token, data] of verificationTokens.entries()) {
-    if (data.expiresAt < now) {
-      verificationTokens.delete(token);
-    }
-  }
-  for (const [token, data] of confirmationTokens.entries()) {
-    if (data.expiresAt < now) {
-      confirmationTokens.delete(token);
-    }
-  }
 }
 
 /**
@@ -162,8 +139,6 @@ export async function cancelActivation(activationId: string): Promise<void> {
  * Returns verification token and masked name if match found
  */
 export async function verifyIdentity(input: VerificationInput): Promise<VerificationResult | null> {
-  cleanupTokens();
-
   // Build query based on input type
   let query = adminDb.collection(COLLECTION)
     .where('status', '==', 'pending')
@@ -209,7 +184,10 @@ export async function verifyIdentity(input: VerificationInput): Promise<Verifica
   // Generate verification token (valid for 15 minutes)
   const verificationToken = generateToken();
   const tokenExpiresAt = Date.now() + 15 * 60 * 1000;
-  verificationTokens.set(verificationToken, { activationId: activation.id, expiresAt: tokenExpiresAt });
+  await adminDb.collection(COLLECTION).doc(activation.id).update({
+    verificationToken,
+    verificationTokenExpiresAt: tokenExpiresAt,
+  });
 
   return {
     activationId: activation.id,
@@ -229,31 +207,49 @@ export async function confirmName(
   activationId: string,
   verificationToken: string
 ): Promise<ConfirmationResult | null> {
-  cleanupTokens();
-
-  // Validate verification token
-  const tokenData = verificationTokens.get(verificationToken);
-  if (!tokenData || tokenData.activationId !== activationId || tokenData.expiresAt < Date.now()) {
-    return null;
-  }
-
   // Verify activation still exists and is pending
   const activation = await getActivation(activationId);
   if (!activation || activation.status !== 'pending') {
     return null;
   }
 
-  // Invalidate verification token
-  verificationTokens.delete(verificationToken);
+  // Validate verification token from the activation document
+  const doc = activation as PendingActivation & {
+    verificationToken?: string;
+    verificationTokenExpiresAt?: number;
+  };
+  if (
+    !doc.verificationToken ||
+    doc.verificationToken !== verificationToken ||
+    !doc.verificationTokenExpiresAt ||
+    doc.verificationTokenExpiresAt < Date.now()
+  ) {
+    return null;
+  }
 
-  // Generate confirmation token (valid for 30 minutes)
+  // Generate confirmation token (valid for 30 minutes) and clear verification token
   const confirmationToken = generateToken();
   const tokenExpiresAt = Date.now() + 30 * 60 * 1000;
-  confirmationTokens.set(confirmationToken, { activationId, expiresAt: tokenExpiresAt });
+  await adminDb.collection(COLLECTION).doc(activationId).update({
+    verificationToken: FieldValue.delete(),
+    verificationTokenExpiresAt: FieldValue.delete(),
+    confirmationToken,
+    confirmationTokenExpiresAt: tokenExpiresAt,
+  });
+
+  // Look up tenant email if this is a tenant activation
+  let email: string | undefined;
+  if (activation.tenantId) {
+    const tenantDoc = await adminDb.collection('tenants').doc(activation.tenantId).get();
+    if (tenantDoc.exists) {
+      email = tenantDoc.data()?.email;
+    }
+  }
 
   return {
     confirmationToken,
     activationId,
+    email,
   };
 }
 
@@ -266,16 +262,26 @@ export async function createAccount(
   password: string,
   confirmationToken: string
 ): Promise<{ userId: string; userType: UserType }> {
-  cleanupTokens();
+  // Look up the activation by confirmation token
+  const snapshot = await adminDb.collection(COLLECTION)
+    .where('confirmationToken', '==', confirmationToken)
+    .where('status', '==', 'pending')
+    .limit(1)
+    .get();
 
-  // Validate confirmation token
-  const tokenData = confirmationTokens.get(confirmationToken);
-  if (!tokenData || tokenData.expiresAt < Date.now()) {
+  if (snapshot.empty) {
     throw new Error('Invalid or expired confirmation token');
   }
 
-  const activationId = tokenData.activationId;
-  const activation = await getActivation(activationId);
+  const activationDoc = snapshot.docs[0]!;
+  const activationData = activationDoc.data() as { confirmationTokenExpiresAt?: number };
+
+  if (!activationData.confirmationTokenExpiresAt || activationData.confirmationTokenExpiresAt < Date.now()) {
+    throw new Error('Invalid or expired confirmation token');
+  }
+
+  const activationId = activationDoc.id;
+  const activation = { id: activationId, ...activationDoc.data() } as PendingActivation;
 
   if (!activation || activation.status !== 'pending') {
     throw new Error('Activation not found or already used');
@@ -373,15 +379,14 @@ export async function createAccount(
     });
   }
 
-  // Mark activation as activated
+  // Mark activation as activated and clear confirmation token
   await adminDb.collection(COLLECTION).doc(activationId).update({
     status: 'activated',
     activatedAt: FieldValue.serverTimestamp(),
     activatedUserId: userId,
+    confirmationToken: FieldValue.delete(),
+    confirmationTokenExpiresAt: FieldValue.delete(),
   });
-
-  // Invalidate confirmation token
-  confirmationTokens.delete(confirmationToken);
 
   return { userId, userType };
 }

@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       data: {
         confirmationToken: result.confirmationToken,
         activationId: result.activationId,
+        email: result.email,
       },
     });
   } catch (error) {
