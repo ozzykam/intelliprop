@@ -110,11 +110,22 @@ export async function createLease(
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
 
   const status = input.status || 'draft';
+
+  // Look up Firebase Auth userIds for tenants that have activated accounts
+  const tenantUserIds: string[] = [];
+  for (const tenantId of input.tenantIds) {
+    const tenantDoc = await adminDb.collection('tenants').doc(tenantId).get();
+    if (tenantDoc.exists && tenantDoc.data()?.userId) {
+      tenantUserIds.push(tenantDoc.data()!.userId);
+    }
+  }
+
   const leaseData = {
     llcId,
     propertyId: input.propertyId,
     unitId: input.unitId,
     tenantIds: input.tenantIds,
+    tenantUserIds,
     startDate: input.startDate,
     endDate: input.endDate,
     rentAmount: input.rentAmount,

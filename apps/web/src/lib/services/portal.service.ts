@@ -88,7 +88,7 @@ export interface PaginationOptions {
  * Get tenant links for a user directly from the user document.
  * This avoids needing the full AuthenticatedUser object.
  */
-async function getTenantLinksForUser(userId: string): Promise<TenantLink[]> {
+export async function getTenantLinksForUser(userId: string): Promise<TenantLink[]> {
   const userDoc = await adminDb.collection('users').doc(userId).get();
   if (!userDoc.exists) {
     return [];
@@ -112,25 +112,49 @@ export async function getTenantLeaseIds(
 
   // For each tenant link, find leases where tenantUserIds contains this user
   for (const link of tenantLinks) {
-    // Skip invalid tenant links
-    if (!link.llcId || !link.tenantId) {
-      console.warn('Skipping invalid tenant link:', link);
+    if (!link.tenantId) {
       continue;
     }
 
-    const leasesSnapshot = await adminDb
-      .collection('llcs')
-      .doc(link.llcId)
-      .collection('leases')
-      .where('tenantUserIds', 'array-contains', userId)
-      .get();
+    if (link.llcId) {
+      // LLC-scoped lookup
+      const leasesSnapshot = await adminDb
+        .collection('llcs')
+        .doc(link.llcId)
+        .collection('leases')
+        .where('tenantUserIds', 'array-contains', userId)
+        .get();
 
-    for (const doc of leasesSnapshot.docs) {
-      leaseIds.push({
-        llcId: link.llcId,
-        leaseId: doc.id,
-        tenantId: link.tenantId,
-      });
+      for (const doc of leasesSnapshot.docs) {
+        leaseIds.push({
+          llcId: link.llcId,
+          leaseId: doc.id,
+          tenantId: link.tenantId,
+        });
+      }
+    } else {
+      // No LLC specified — search each LLC's leases subcollection
+      const llcsSnapshot = await adminDb
+        .collection('llcs')
+        .where('status', '!=', 'archived')
+        .get();
+
+      for (const llcDoc of llcsSnapshot.docs) {
+        const leasesSnapshot = await adminDb
+          .collection('llcs')
+          .doc(llcDoc.id)
+          .collection('leases')
+          .where('tenantUserIds', 'array-contains', userId)
+          .get();
+
+        for (const doc of leasesSnapshot.docs) {
+          leaseIds.push({
+            llcId: llcDoc.id,
+            leaseId: doc.id,
+            tenantId: link.tenantId,
+          });
+        }
+      }
     }
   }
 
@@ -147,9 +171,11 @@ export async function validateTenantAccessToLease(
 ): Promise<boolean> {
   const tenantLinks = await getTenantLinksForUser(userId);
 
-  // Check user has a valid tenant link to this LLC
-  const hasLlcLink = tenantLinks.some(link => link.llcId && link.llcId === llcId);
-  if (!hasLlcLink) {
+  // Check user has a valid tenant link (either to this specific LLC or a global link)
+  const hasValidLink = tenantLinks.some(
+    link => link.tenantId && (link.llcId === llcId || !link.llcId)
+  );
+  if (!hasValidLink) {
     return false;
   }
 

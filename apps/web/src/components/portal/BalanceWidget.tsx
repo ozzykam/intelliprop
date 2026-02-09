@@ -109,13 +109,21 @@ export function BalanceWidget() {
       )}
 
       {summary.openChargesCount > 0 && (
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 pt-4 border-t flex items-center justify-between">
           <Link
             href="/portal/billing"
             className="text-sm text-primary hover:underline"
           >
             View {summary.openChargesCount} open charge{summary.openChargesCount !== 1 ? 's' : ''} →
           </Link>
+          {summary.totalBalance > 0 && (
+            <Link
+              href="/portal/billing/pay"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm font-medium"
+            >
+              Make a Payment
+            </Link>
+          )}
         </div>
       )}
     </div>

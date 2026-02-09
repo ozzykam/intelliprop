@@ -80,9 +80,9 @@ function getPaymentMethodDisplay(method: TenantPayment['paymentMethod']): { labe
       detail: method.checkNumber ? `Check #${method.checkNumber}` : 'Paper check',
     };
   }
-  if (method.type === 'ach') {
+  if (method.type === 'us_bank_account' || method.type === 'ach') {
     return {
-      label: 'ACH Bank Transfer',
+      label: 'Bank Account (ACH)',
       detail: method.last4 ? `Account ending in ${method.last4}` : 'Bank account',
     };
   }
@@ -103,6 +103,8 @@ function PaymentDetailContent() {
   const searchParams = useSearchParams();
   const paymentId = params.paymentId as string;
   const llcId = searchParams.get('llcId');
+  const paymentStatus = searchParams.get('status');
+  const isPostPayment = paymentStatus === 'success';
 
   const [payment, setPayment] = useState<TenantPayment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,14 +126,31 @@ function PaymentDetailContent() {
         } else {
           setError(data.error || 'Failed to load payment');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load payment');
       } finally {
         setLoading(false);
       }
     }
     fetchPayment();
-  }, [paymentId, llcId]);
+
+    // For post-payment, poll for status updates (webhook may not have processed yet)
+    if (isPostPayment) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/portal/billing/payments/${paymentId}?llcId=${llcId}`);
+          const data = await res.json();
+          if (data.ok) {
+            setPayment(data.data);
+            if (data.data.status === 'succeeded' || data.data.status === 'failed') {
+              clearInterval(interval);
+            }
+          }
+        } catch { /* polling is best-effort */ }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [paymentId, llcId, isPostPayment]);
 
   if (loading) {
     return (
@@ -176,6 +195,24 @@ function PaymentDetailContent() {
       >
         ← Back to Billing
       </Link>
+
+      {/* Success Banner */}
+      {isPostPayment && (
+        <div className="p-4 mb-6 rounded-lg bg-green-100 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
+          <p className="font-medium text-green-800 dark:text-green-400">
+            Payment submitted successfully!
+          </p>
+          <p className="text-sm text-green-700 dark:text-green-500 mt-1">
+            {payment.status === 'succeeded'
+              ? 'Your payment has been confirmed and applied to your charges.'
+              : payment.status === 'processing'
+                ? 'Your payment is being processed. This may take a few minutes for card payments or a few days for bank transfers.'
+                : payment.status === 'failed'
+                  ? 'Unfortunately, your payment could not be processed. Please try again.'
+                  : 'Your payment is being confirmed. This page will update automatically.'}
+          </p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">

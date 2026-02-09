@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface UserProfile {
   id: string;
@@ -254,7 +255,7 @@ export default function ProfilePage() {
         {/* Header with avatar */}
         <div className="bg-muted/30 p-6 flex items-center gap-4">
           {profile.photoURL ? (
-            <img
+            <Image
               src={profile.photoURL}
               alt={profile.displayName || 'Profile'}
               className="w-20 h-20 rounded-full object-cover"

@@ -211,6 +211,18 @@ function ChargeDetailContent() {
             </span>
           </div>
         </div>
+
+        {/* Pay Button */}
+        {(charge.status === 'open' || charge.status === 'partial') && charge.balance > 0 && (
+          <div className="mt-6 pt-6 border-t">
+            <Link
+              href={`/portal/billing/pay?chargeId=${charge.id}&llcId=${charge.llcId}`}
+              className="block w-full py-3 px-4 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-center font-medium"
+            >
+              Pay {formatCurrency(charge.balance)}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

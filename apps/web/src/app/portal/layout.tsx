@@ -44,6 +44,12 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
             {user && (
               <>
                 <Link
+                  href="/portal/payment-methods"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Payment Methods
+                </Link>
+                <Link
                   href="/portal/profile"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >

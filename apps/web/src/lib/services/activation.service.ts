@@ -8,7 +8,6 @@ import {
   VerificationResult,
   ConfirmationResult,
   UserType,
-  TenantLink,
   CreateActivationInput,
   VerificationInput,
 } from '@shared/types';
@@ -323,13 +322,37 @@ export async function createAccount(
     createdAt: FieldValue.serverTimestamp(),
   };
 
-  // For tenants, add tenant link
+  // For tenants, add tenant links
   if (activation.role === 'tenant' && activation.tenantId) {
-    const tenantLink: TenantLink = {
-      llcId: activation.llcIds[0] || '',
-      tenantId: activation.tenantId,
-    };
-    userData.tenantLinks = [tenantLink];
+    let llcIdsForLinks = activation.llcIds.filter(id => id);
+
+    // If no LLCs specified, discover them from existing leases
+    if (llcIdsForLinks.length === 0) {
+      const leasesSnap = await adminDb
+        .collectionGroup('leases')
+        .where('tenantIds', 'array-contains', activation.tenantId)
+        .where('status', 'in', ['draft', 'active'])
+        .get();
+
+      const discoveredLlcIds = new Set<string>();
+      for (const doc of leasesSnap.docs) {
+        const leaseData = doc.data();
+        if (leaseData.llcId) {
+          discoveredLlcIds.add(leaseData.llcId);
+        }
+      }
+      llcIdsForLinks = Array.from(discoveredLlcIds);
+    }
+
+    if (llcIdsForLinks.length > 0) {
+      userData.tenantLinks = llcIdsForLinks.map(llcId => ({
+        llcId,
+        tenantId: activation.tenantId!,
+      }));
+    } else {
+      // No LLCs found yet — store link without llcId so it can be populated later
+      userData.tenantLinks = [{ llcId: '', tenantId: activation.tenantId }];
+    }
   } else {
     userData.tenantLinks = [];
   }
@@ -368,7 +391,7 @@ export async function createAccount(
     }
   }
 
-  // For tenants, update the tenant record with userId
+  // For tenants, update the tenant record with userId and add userId to leases
   if (activation.role === 'tenant' && activation.tenantId) {
     await adminDb.collection('tenants').doc(activation.tenantId).update({
       userId,
@@ -377,6 +400,18 @@ export async function createAccount(
         updatedBy: userId,
       }),
     });
+
+    // Add userId to tenantUserIds on all leases that reference this tenant
+    const leaseSnap = await adminDb
+      .collectionGroup('leases')
+      .where('tenantIds', 'array-contains', activation.tenantId)
+      .get();
+
+    for (const leaseDoc of leaseSnap.docs) {
+      await leaseDoc.ref.update({
+        tenantUserIds: FieldValue.arrayUnion(userId),
+      });
+    }
   }
 
   // Mark activation as activated and clear confirmation token
