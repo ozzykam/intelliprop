@@ -1,7 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { Response } from 'express';
 import { z } from 'zod';
+import Stripe from 'stripe';
 import { verifyFirebaseToken } from '../../auth/verifyFirebaseToken';
-import { requireLlcAccess } from '../../auth/requireLlcAccess';
 import { collections, db } from '../../firebase/admin';
 import { getStripe } from '../../stripe/stripe';
 
@@ -10,7 +11,6 @@ const createIntentSchema = z.object({
   leaseId: z.string().min(1),
   tenantId: z.string().min(1),
   chargeIds: z.array(z.string()).min(1),
-  amountCents: z.number().positive(),
   currency: z.string().default('usd'),
 });
 
@@ -23,7 +23,7 @@ interface ApiResponse<T> {
   };
 }
 
-function jsonResponse<T>(res: any, status: number, body: ApiResponse<T>) {
+function jsonResponse<T>(res: Response, status: number, body: ApiResponse<T>) {
   res.status(status).json(body);
 }
 
@@ -59,24 +59,21 @@ export const createPaymentIntent = onRequest(
     const { llcId, leaseId, tenantId, chargeIds, currency } = parseResult.data;
 
     try {
-      // Verify LLC membership
-      const member = await requireLlcAccess(user.uid, llcId);
-      if (!member) {
-        return jsonResponse(res, 403, {
+      // Verify tenant can only pay their own charges (use global tenants collection)
+      const tenantDoc = await collections.globalTenants().doc(tenantId).get();
+      if (!tenantDoc.exists) {
+        return jsonResponse(res, 404, {
           ok: false,
-          error: { code: 'PERMISSION_DENIED', message: 'No access to this LLC' },
+          error: { code: 'NOT_FOUND', message: 'Tenant not found' },
         });
       }
 
-      // Verify tenant can only pay their own charges
-      if (member.role === 'tenant') {
-        const tenantDoc = await collections.tenants(llcId).doc(tenantId).get();
-        if (!tenantDoc.exists || tenantDoc.data()?.userId !== user.uid) {
-          return jsonResponse(res, 403, {
-            ok: false,
-            error: { code: 'PERMISSION_DENIED', message: 'Cannot pay charges for another tenant' },
-          });
-        }
+      const tenantData = tenantDoc.data()!;
+      if (tenantData.userId !== user.uid) {
+        return jsonResponse(res, 403, {
+          ok: false,
+          error: { code: 'PERMISSION_DENIED', message: 'Cannot pay charges for another tenant' },
+        });
       }
 
       // Get LLC for Stripe connected account
@@ -90,8 +87,9 @@ export const createPaymentIntent = onRequest(
       const llc = llcDoc.data();
       const connectedAccountId = llc?.stripeConnectedAccountId;
 
-      // Compute authoritative amount from open charges
+      // Compute authoritative amount from charge balances and build FIFO allocations
       let totalAmountCents = 0;
+      const allocations: { chargeId: string; amount: number }[] = [];
       const chargeRefs = chargeIds.map((id) => collections.charges(llcId).doc(id));
       const chargeDocs = await db.getAll(...chargeRefs);
 
@@ -102,29 +100,40 @@ export const createPaymentIntent = onRequest(
             error: { code: 'INVALID_CHARGE', message: `Charge ${doc.id} not found` },
           });
         }
-        const charge = doc.data();
-        if (charge?.status !== 'open') {
+        const charge = doc.data()!;
+        if (charge.status !== 'open' && charge.status !== 'partial') {
           return jsonResponse(res, 400, {
             ok: false,
-            error: { code: 'INVALID_CHARGE', message: `Charge ${doc.id} is not open` },
+            error: { code: 'INVALID_CHARGE', message: `Charge ${doc.id} is not payable (status: ${charge.status})` },
           });
         }
-        if (charge?.leaseId !== leaseId) {
+        if (charge.leaseId !== leaseId) {
           return jsonResponse(res, 400, {
             ok: false,
             error: { code: 'INVALID_CHARGE', message: `Charge ${doc.id} does not belong to lease` },
           });
         }
-        totalAmountCents += charge.amount;
+        const chargeBalance = charge.amount - (charge.paidAmount || 0);
+        if (chargeBalance > 0) {
+          totalAmountCents += chargeBalance;
+          allocations.push({ chargeId: doc.id, amount: chargeBalance });
+        }
+      }
+
+      if (totalAmountCents <= 0) {
+        return jsonResponse(res, 400, {
+          ok: false,
+          error: { code: 'INVALID_AMOUNT', message: 'No balance due on selected charges' },
+        });
       }
 
       // Create payment record in Firestore
       const paymentRef = collections.payments(llcId).doc();
       const paymentId = paymentRef.id;
 
-      // Create Stripe PaymentIntent
+      // Build Stripe PaymentIntent params
       const stripe = getStripe();
-      const paymentIntentParams: any = {
+      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
         amount: totalAmountCents,
         currency,
         metadata: {
@@ -134,8 +143,13 @@ export const createPaymentIntent = onRequest(
           tenantId,
           chargeIds: chargeIds.join(','),
         },
-        payment_method_types: ['us_bank_account', 'card'], // ACH first, then card
+        payment_method_types: ['us_bank_account', 'card'],
       };
+
+      // Attach Stripe Customer if tenant has one
+      if (tenantData.stripeCustomerId) {
+        paymentIntentParams.customer = tenantData.stripeCustomerId;
+      }
 
       // If LLC has connected account, use destination charges
       if (connectedAccountId) {
@@ -146,15 +160,16 @@ export const createPaymentIntent = onRequest(
 
       const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
-      // Save payment record
+      // Save payment record with correct allocations
       await paymentRef.set({
+        llcId,
         leaseId,
         tenantId,
         amount: totalAmountCents,
         currency,
         status: 'requires_payment_method',
         stripePaymentIntentId: paymentIntent.id,
-        appliedTo: chargeIds.map((id) => ({ chargeId: id, amount: 0 })), // Will be updated on success
+        appliedTo: allocations,
         createdAt: new Date(),
       });
 

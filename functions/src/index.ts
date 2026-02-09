@@ -13,7 +13,7 @@ initializeApp();
 // Payment Routes
 // =============================================================================
 export { createPaymentIntent } from './routes/payments/createIntent';
-// export { stripeWebhook } from './routes/payments/webhook';
+export { stripeWebhook } from './routes/payments/webhook';
 
 // =============================================================================
 // Storage Routes (Signed URLs)
