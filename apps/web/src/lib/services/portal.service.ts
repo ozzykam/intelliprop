@@ -205,8 +205,10 @@ export async function validateTenantAccessToCharge(
 ): Promise<boolean> {
   const tenantLinks = await getTenantLinksForUser(userId);
 
-  const hasLlcLink = tenantLinks.some(link => link.llcId && link.llcId === llcId);
-  if (!hasLlcLink) {
+  const hasValidLink = tenantLinks.some(
+    link => link.tenantId && (link.llcId === llcId || !link.llcId)
+  );
+  if (!hasValidLink) {
     return false;
   }
 
@@ -235,8 +237,10 @@ export async function validateTenantAccessToPayment(
 ): Promise<boolean> {
   const tenantLinks = await getTenantLinksForUser(userId);
 
-  const hasLlcLink = tenantLinks.some(link => link.llcId && link.llcId === llcId);
-  if (!hasLlcLink) {
+  const hasValidLink = tenantLinks.some(
+    link => link.tenantId && (link.llcId === llcId || !link.llcId)
+  );
+  if (!hasValidLink) {
     return false;
   }
 

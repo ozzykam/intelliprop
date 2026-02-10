@@ -1,5 +1,6 @@
 import { collections } from '../firebase/admin';
-import { MemberRole } from '@shared/types';
+
+type MemberRole = 'admin' | 'manager' | 'accounting' | 'maintenance' | 'legal' | 'tenant' | 'readOnly';
 
 export interface LlcMember {
   userId: string;
