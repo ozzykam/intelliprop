@@ -404,13 +404,15 @@ export default function PaymentsPage({ params }: PaymentsPageProps) {
                   <td className="px-4 py-3">{formatDate(payment.createdAt)}</td>
                   <td className="px-4 py-3">{getTenantName(payment.tenantId)}</td>
                   <td className="px-4 py-3">
-                    <div>{PAYMENT_METHOD_LABELS[payment.paymentMethod.type] || payment.paymentMethod.type}</div>
-                    {payment.paymentMethod.checkNumber && (
+                    <div>{payment.paymentMethod
+                      ? (PAYMENT_METHOD_LABELS[payment.paymentMethod.type] || payment.paymentMethod.type)
+                      : 'Pending'}</div>
+                    {payment.paymentMethod?.checkNumber && (
                       <div className="text-xs text-muted-foreground">
                         #{payment.paymentMethod.checkNumber}
                       </div>
                     )}
-                    {payment.paymentMethod.last4 && (
+                    {payment.paymentMethod?.last4 && (
                       <div className="text-xs text-muted-foreground">
                         ****{payment.paymentMethod.last4}
                       </div>
