@@ -587,14 +587,16 @@ export default function PaymentsPage({ params }: PaymentsPageProps) {
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                      {PAYMENT_METHOD_LABELS[payment.paymentMethod.type] || payment.paymentMethod.type}
+                      {payment.paymentMethod
+                        ? (PAYMENT_METHOD_LABELS[payment.paymentMethod.type] || payment.paymentMethod.type)
+                        : 'Pending'}
                     </span>
-                    {payment.paymentMethod.checkNumber && (
+                    {payment.paymentMethod?.checkNumber && (
                       <span className="ml-1 text-xs text-muted-foreground">
                         #{payment.paymentMethod.checkNumber}
                       </span>
                     )}
-                    {payment.paymentMethod.last4 && (
+                    {payment.paymentMethod?.last4 && (
                       <span className="ml-1 text-xs text-muted-foreground">
                         ****{payment.paymentMethod.last4}
                       </span>

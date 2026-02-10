@@ -21,7 +21,7 @@ function jsonResponse<T>(res: Response, status: number, body: ApiResponse<T>) {
 }
 
 export const stripeWebhook = onRequest(
-  { cors: false },
+  { cors: false, invoker: 'public' },
   async (req, res) => {
     if (req.method !== 'POST') {
       return jsonResponse(res, 405, {
