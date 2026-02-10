@@ -299,7 +299,7 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground mb-1">Account Status</p>
               <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-medium ${
                 profile.status === 'active'
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-400 dark:text-green-800'
                   : 'bg-muted text-muted-foreground'
               }`}>
                 {profile.status.charAt(0).toUpperCase() + profile.status.slice(1)}

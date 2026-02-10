@@ -52,12 +52,12 @@ export default function WorkOrdersPage({ params }: PageProps) {
     fetchWorkOrders();
   }, [fetchWorkOrders]);
 
-  const formatDate = (timestamp: { seconds: number } | string | undefined) => {
+  const formatDate = (timestamp: { seconds?: number; _seconds?: number } | string | undefined) => {
     if (!timestamp) return '-';
-    const date = typeof timestamp === 'string'
-      ? new Date(timestamp)
-      : new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString();
+    if (typeof timestamp === 'string') return new Date(timestamp).toLocaleDateString();
+    const seconds = timestamp.seconds ?? timestamp._seconds;
+    if (!seconds) return '-';
+    return new Date(seconds * 1000).toLocaleDateString();
   };
 
   return (

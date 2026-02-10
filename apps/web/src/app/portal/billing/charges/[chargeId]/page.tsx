@@ -30,7 +30,9 @@ function formatCurrency(cents: number): string {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return '-';
+  const date = new Date(dateStr.split('T')[0] + 'T00:00:00');
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',

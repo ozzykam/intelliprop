@@ -31,7 +31,9 @@ function formatCurrency(cents: number): string {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return '-';
+  const date = new Date(dateStr.split('T')[0] + 'T00:00:00');
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -42,7 +44,7 @@ function formatDate(dateStr: string): string {
 function getStatusBadge(status: LeaseStatus) {
   const styles: Record<LeaseStatus, string> = {
     draft: 'bg-muted text-muted-foreground',
-    active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    active: 'bg-green-100 text-green-800 dark:bg-green-400 dark:text-green-800',
     ended: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     eviction: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     terminated: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',

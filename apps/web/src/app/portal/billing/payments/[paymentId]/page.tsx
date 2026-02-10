@@ -46,7 +46,7 @@ function getStatusBadge(status: PaymentStatus) {
     requires_payment_method: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     requires_confirmation: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    succeeded: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    succeeded: 'bg-green-800 text-green-200 dark:bg-green-600 dark:text-green-100',
     failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     canceled: 'bg-muted text-muted-foreground',
     refunded: 'bg-muted text-muted-foreground',
@@ -198,11 +198,11 @@ function PaymentDetailContent() {
 
       {/* Success Banner */}
       {isPostPayment && (
-        <div className="p-4 mb-6 rounded-lg bg-green-100 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
-          <p className="font-medium text-green-800 dark:text-green-400">
+        <div className="p-4 mb-6 rounded-lg bg-green-800 border border-green-200 dark:bg-green-300 dark:border-green-800">
+          <p className="font-medium text-black dark:text-green-900">
             Payment submitted successfully!
           </p>
-          <p className="text-sm text-green-700 dark:text-green-500 mt-1">
+          <p className="text-sm text-green-700 dark:text-black mt-1">
             {payment.status === 'succeeded'
               ? 'Your payment has been confirmed and applied to your charges.'
               : payment.status === 'processing'

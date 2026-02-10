@@ -56,8 +56,15 @@ function formatCurrency(cents: number): string {
   }).format(cents / 100);
 }
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+function formatDate(dateStr: string | { seconds?: number; _seconds?: number }): string {
+  if (!dateStr) return '-';
+  let date: Date;
+  if (typeof dateStr === 'string') {
+    date = new Date(dateStr.split('T')[0] + 'T00:00:00');
+  } else {
+    date = new Date((dateStr.seconds ?? dateStr._seconds ?? 0) * 1000);
+  }
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -65,8 +72,12 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatDateTime(dateStr: string): string {
-  const date = new Date(dateStr);
+function formatDateTime(dateStr: string | { seconds?: number; _seconds?: number }): string {
+  if (!dateStr) return '-';
+  const date = typeof dateStr === 'string'
+    ? new Date(dateStr)
+    : new Date((dateStr.seconds ?? dateStr._seconds ?? 0) * 1000);
+  if (isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

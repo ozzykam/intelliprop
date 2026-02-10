@@ -22,6 +22,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [propertyName, setPropertyName] = useState('');
+  const [unitNumber, setUnitNumber] = useState('');
 
   // Note form
   const [noteContent, setNoteContent] = useState('');
@@ -37,6 +39,27 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       }
 
       setWorkOrder(data.data);
+
+      // Fetch property name and unit number
+      const wo = data.data;
+      if (wo.propertyId) {
+        try {
+          const propRes = await fetch(`/api/llcs/${llcId}/properties/${wo.propertyId}`);
+          const propData = await propRes.json();
+          if (propData.ok) {
+            setPropertyName(propData.data.name || propData.data.address?.street1 || 'Unknown Property');
+          }
+          if (wo.unitId) {
+            const unitRes = await fetch(`/api/llcs/${llcId}/properties/${wo.propertyId}/units/${wo.unitId}`);
+            const unitData = await unitRes.json();
+            if (unitData.ok) {
+              setUnitNumber(unitData.data.unitNumber || '-');
+            }
+          }
+        } catch {
+          // Silently fail - IDs will remain as fallback
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -110,12 +133,12 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     }
   };
 
-  const formatDate = (timestamp: { seconds: number } | string | undefined) => {
+  const formatDate = (timestamp: { seconds?: number; _seconds?: number } | string | undefined) => {
     if (!timestamp) return '-';
-    const date = typeof timestamp === 'string'
-      ? new Date(timestamp)
-      : new Date(timestamp.seconds * 1000);
-    return date.toLocaleString();
+    if (typeof timestamp === 'string') return new Date(timestamp).toLocaleString();
+    const seconds = timestamp.seconds ?? timestamp._seconds;
+    if (!seconds) return '-';
+    return new Date(seconds * 1000).toLocaleString();
   };
 
   if (loading) {
@@ -183,12 +206,12 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           </div>
           <div>
             <span className="text-muted-foreground">Property:</span>{' '}
-            {workOrder.propertyId}
+            {propertyName || workOrder.propertyId}
           </div>
           {workOrder.unitId && (
             <div>
               <span className="text-muted-foreground">Unit:</span>{' '}
-              {workOrder.unitId}
+              {unitNumber || workOrder.unitId}
             </div>
           )}
           {workOrder.scheduledDate && (

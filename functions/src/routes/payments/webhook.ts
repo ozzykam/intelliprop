@@ -118,7 +118,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   // Get payment method details
-  const paymentMethodDetails = extractPaymentMethodDetails(paymentIntent);
+  const paymentMethodDetails = await extractPaymentMethodDetails(paymentIntent);
 
   // Get receipt URL from the charge if available
   let receiptUrl: string | undefined;
@@ -191,11 +191,22 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   console.log(`Payment ${paymentId} failed: ${failureReason}`);
 }
 
-function extractPaymentMethodDetails(
+async function extractPaymentMethodDetails(
   paymentIntent: Stripe.PaymentIntent
-): { type: string; last4?: string; brand?: string; bankName?: string } | null {
-  const pm = paymentIntent.payment_method;
-  if (!pm || typeof pm === 'string') return null;
+): Promise<{ type: string; last4?: string; brand?: string; bankName?: string } | null> {
+  let pm = paymentIntent.payment_method;
+  if (!pm) return null;
+
+  // If payment_method is just a string ID, retrieve the full object from Stripe
+  if (typeof pm === 'string') {
+    try {
+      const stripe = getStripe();
+      pm = await stripe.paymentMethods.retrieve(pm);
+    } catch (err) {
+      console.warn('Could not retrieve payment method:', err);
+      return null;
+    }
+  }
 
   if (pm.type === 'card' && pm.card) {
     return {
