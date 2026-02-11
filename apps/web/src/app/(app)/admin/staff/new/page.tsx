@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 interface LlcOption {
   id: string;
-  name: string;
+  legalName: string;
 }
 
 interface PropertyOption {
@@ -159,7 +159,7 @@ export default function NewStaffPage() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl p-6">
       <div className="mb-6">
         <Link
           href="/admin/users"
@@ -307,7 +307,7 @@ export default function NewStaffPage() {
                     onChange={() => handleLlcToggle(llc.id)}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm">{llc.name}</span>
+                  <span className="text-sm">{llc.legalName}</span>
                 </label>
               ))
             )}
