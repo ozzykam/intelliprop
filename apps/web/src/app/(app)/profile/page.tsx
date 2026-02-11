@@ -165,7 +165,7 @@ function EditProfileModal({ profile, onClose, onSave }: EditProfileModalProps) {
   );
 }
 
-export default function ProfilePage() {
+export default function AdminProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -261,7 +261,7 @@ export default function ProfilePage() {
     return (
       <div>
         <Link
-          href="/portal"
+          href="/llcs"
           className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
         >
           &larr; Back to Dashboard
@@ -278,7 +278,7 @@ export default function ProfilePage() {
     return (
       <div>
         <Link
-          href="/portal"
+          href="/llcs"
           className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
         >
           &larr; Back to Dashboard
@@ -291,9 +291,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
+    <div className="p-6">
+    <div className="mb-6">
       <Link
-        href="/portal"
+        href="/llcs"
         className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
       >
         &larr; Back to Dashboard
@@ -464,6 +465,7 @@ export default function ProfilePage() {
           onSave={handleSave}
         />
       )}
+    </div>
     </div>
   );
 }
