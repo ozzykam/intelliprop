@@ -43,9 +43,9 @@ async function getUserLlcs(userId: string): Promise<{ id: string; legalName: str
 /**
  * Check if string matches query (case-insensitive)
  */
-function matches(str: string | undefined | null, query: string): boolean {
+function matches(str: unknown, query: string): boolean {
   if (!str) return false;
-  return str.toLowerCase().includes(query.toLowerCase());
+  return String(str).toLowerCase().includes(query.toLowerCase());
 }
 
 /**
@@ -97,35 +97,6 @@ async function searchLlc(
     if (results.length >= limit) break;
   }
 
-  // Search tenants (check global tenants collection)
-  if (results.length < limit) {
-    const tenantsSnap = await adminDb.collection('tenants').limit(100).get();
-    for (const doc of tenantsSnap.docs) {
-      const data = doc.data();
-      let name = '';
-      let subtitle = 'Tenant';
-
-      if (data.type === 'residential') {
-        name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
-      } else if (data.type === 'commercial') {
-        name = data.businessName || '';
-        subtitle = 'Commercial Tenant';
-      }
-
-      if (matches(name, query) || matches(data.email, query)) {
-        results.push({
-          type: 'tenant',
-          id: doc.id,
-          title: name || 'Unnamed Tenant',
-          subtitle,
-          href: `/tenants/${doc.id}`,
-        });
-      }
-
-      if (results.length >= limit) break;
-    }
-  }
-
   // Search leases
   if (results.length < limit) {
     const leasesSnap = await llcRef.collection('leases').limit(50).get();
@@ -133,8 +104,10 @@ async function searchLlc(
       const data = doc.data();
       const status = data.status || 'draft';
 
-      // We'll search by property/unit info if available
-      if (results.length < limit) {
+      if (
+        matches(data.notes, query) ||
+        matches(status, query)
+      ) {
         results.push({
           type: 'lease',
           id: doc.id,
@@ -145,6 +118,8 @@ async function searchLlc(
           href: `/llcs/${llcId}/leases/${doc.id}`,
         });
       }
+
+      if (results.length >= limit) break;
     }
   }
 
@@ -155,13 +130,21 @@ async function searchLlc(
       const data = doc.data();
       const caseType = data.caseType || 'case';
       const docketNumber = data.docketNumber || '';
-      const plaintiff = data.plaintiff?.name || '';
-      const opposingParty = data.opposingParty?.name || '';
+      // Plaintiff can be individual (name) or LLC (llcName)
+      const plaintiffName = data.plaintiff?.name || data.plaintiff?.llcName || '';
+      // Opposing party is an array - collect all names
+      const opposingPartyNames: string[] = [];
+      if (Array.isArray(data.opposingParty)) {
+        for (const op of data.opposingParty) {
+          const opName = op.tenantName || op.name || '';
+          if (opName) opposingPartyNames.push(opName);
+        }
+      }
 
       if (
         matches(docketNumber, query) ||
-        matches(plaintiff, query) ||
-        matches(opposingParty, query) ||
+        matches(plaintiffName, query) ||
+        opposingPartyNames.some(name => matches(name, query)) ||
         matches(caseType, query)
       ) {
         results.push({
@@ -177,6 +160,41 @@ async function searchLlc(
 
       if (results.length >= limit) break;
     }
+  }
+
+  return results;
+}
+
+/**
+ * Search tenants from the global tenants collection (runs once, not per-LLC)
+ */
+async function searchGlobalTenants(query: string, limit: number): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  const tenantsSnap = await adminDb.collection('tenants').limit(100).get();
+
+  for (const doc of tenantsSnap.docs) {
+    const data = doc.data();
+    let name = '';
+    let subtitle = 'Tenant';
+
+    if (data.type === 'residential') {
+      name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    } else if (data.type === 'commercial') {
+      name = data.businessName || '';
+      subtitle = 'Commercial Tenant';
+    }
+
+    if (matches(name, query) || matches(data.email, query)) {
+      results.push({
+        type: 'tenant',
+        id: doc.id,
+        title: name || 'Unnamed Tenant',
+        subtitle,
+        href: `/tenants/${doc.id}`,
+      });
+    }
+
+    if (results.length >= limit) break;
   }
 
   return results;
@@ -200,14 +218,29 @@ export async function globalSearch(
     return [];
   }
 
-  // Search all LLCs in parallel
+  // Search all LLCs in parallel + search global tenants
+  // Use Promise.allSettled so one failure doesn't kill all results
   const searchPromises = userLlcs.map(llc =>
     searchLlc(llc.id, llc.legalName, query, limit)
   );
-  const searchResults = await Promise.all(searchPromises);
+  const settled = await Promise.allSettled([
+    searchGlobalTenants(query, limit),
+    ...searchPromises,
+  ]);
+  const [tenantSettled, ...llcSettled] = settled;
+  const tenantResults = tenantSettled.status === 'fulfilled' ? tenantSettled.value : [];
+  const searchResults = llcSettled
+    .filter((r): r is PromiseFulfilledResult<SearchResult[]> => r.status === 'fulfilled')
+    .map(r => r.value);
 
-  // Flatten and deduplicate
-  const allResults = searchResults.flat();
+  // Flatten and deduplicate by type+id
+  const seen = new Set<string>();
+  const allResults = [...tenantResults, ...searchResults.flat()].filter((result) => {
+    const key = `${result.type}-${result.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   // Sort by relevance (exact matches first, then by type)
   const q = query.toLowerCase();
