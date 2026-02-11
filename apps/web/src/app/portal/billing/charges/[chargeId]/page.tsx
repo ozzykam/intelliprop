@@ -181,7 +181,7 @@ function ChargeDetailContent() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Created</p>
-            <p className="font-medium">{formatDate(charge.createdAt.slice(0, 10))}</p>
+            <p className="font-medium">{new Date(charge.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
         </div>
 

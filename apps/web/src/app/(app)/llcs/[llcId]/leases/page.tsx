@@ -56,9 +56,10 @@ const STATUS_COLORS: Record<string, string> = {
 function formatDate(iso: string): string {
   if (!iso) return '—';
 
-  const d = new Date(iso);
-  const day = d.toLocaleDateString('en-US', { day: '2-digit' });
+  const d = new Date(iso.split('T')[0] + 'T00:00:00');
+  if (isNaN(d.getTime())) return '—';
   const month = d.toLocaleDateString('en-US', { month: '2-digit' });
+  const day = d.toLocaleDateString('en-US', { day: '2-digit' });
   const year = d.getFullYear().toString().slice(-2);
 
   return `${month}/${day}/${year}`;

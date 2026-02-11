@@ -85,13 +85,22 @@ function formatCurrency(cents: number): string {
 }
 
 function formatDate(iso: string): string {
-  const dateStr = iso.substring(0, 10);
+  if (!iso) return '—';
+  const dateStr = iso.split('T')[0];
+  if (!dateStr) return iso;
   const parts = dateStr.split('-').map(Number);
   const year = parts[0];
   const month = parts[1];
   const day = parts[2];
   if (!year || !month || !day) return iso;
   return new Date(year, month - 1, day).toLocaleDateString();
+}
+
+function formatTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString();
 }
 
 export default function PaymentsPage({ params }: PaymentsPageProps) {
@@ -583,7 +592,7 @@ export default function PaymentsPage({ params }: PaymentsPageProps) {
               {payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-4 py-3">
-                    {formatDate(payment.createdAt)}
+                    {formatTimestamp(payment.createdAt)}
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">

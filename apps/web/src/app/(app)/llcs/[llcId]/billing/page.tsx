@@ -115,13 +115,22 @@ function formatCurrency(cents: number): string {
 }
 
 function formatDate(iso: string): string {
-  const dateStr = iso.substring(0, 10);
+  if (!iso) return '—';
+  const dateStr = iso.split('T')[0];
+  if (!dateStr) return iso;
   const parts = dateStr.split('-').map(Number);
   const year = parts[0];
   const month = parts[1];
   const day = parts[2];
   if (!year || !month || !day) return iso;
   return new Date(year, month - 1, day).toLocaleDateString();
+}
+
+function formatTimestamp(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString();
 }
 
 const CHARGE_TYPE_LABELS: Record<string, string> = {
@@ -296,7 +305,7 @@ export default async function BillingPage({ params }: BillingPageProps) {
                       +{formatCurrency(payment.amount)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod} &bull; {formatDate(payment.createdAt)}
+                      {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod} &bull; {formatTimestamp(payment.createdAt)}
                     </div>
                   </div>
                   <Link
