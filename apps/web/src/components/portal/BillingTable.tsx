@@ -89,7 +89,7 @@ function getChargeStatusBadge(status: ChargeStatus) {
   const styles: Record<ChargeStatus, string> = {
     open: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     partial: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    paid: 'bg-green-100 text-green-800 dark:bg-green-600 dark:text-white',
     void: 'bg-muted text-muted-foreground',
   };
   return (
@@ -104,7 +104,7 @@ function getPaymentStatusBadge(status: PaymentStatus) {
     requires_payment_method: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     requires_confirmation: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    succeeded: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    succeeded: 'bg-green-100 text-green-800 dark:bg-green-600 dark:text-white',
     failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     canceled: 'bg-muted text-muted-foreground',
     refunded: 'bg-muted text-muted-foreground',

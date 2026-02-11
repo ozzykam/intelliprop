@@ -42,6 +42,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
   const searchParams = useSearchParams();
   const created = searchParams.get('created') === 'true';
   const [tenants, setTenants] = useState<TenantItem[]>([]);
+  const [activeLeaseTenantIds, setActiveLeaseTenantIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<FilterValues>({
@@ -52,13 +53,29 @@ function TenantsContent({ llcId }: { llcId: string }) {
 
   const fetchTenants = useCallback(async () => {
     try {
-      const res = await fetch(`/api/llcs/${llcId}/tenants`);
-      const data = await res.json();
+      const [tenantsRes, leasesRes] = await Promise.all([
+        fetch(`/api/llcs/${llcId}/tenants`),
+        fetch(`/api/llcs/${llcId}/leases?status=active`),
+      ]);
+      const [tenantsData, leasesData] = await Promise.all([
+        tenantsRes.json(),
+        leasesRes.json(),
+      ]);
 
-      if (data.ok) {
-        setTenants(data.data);
+      if (tenantsData.ok) {
+        setTenants(tenantsData.data);
       } else {
-        setError(data.error?.message || 'Failed to load tenants');
+        setError(tenantsData.error?.message || 'Failed to load tenants');
+      }
+
+      if (leasesData.ok) {
+        const tenantIds = new Set<string>();
+        for (const lease of leasesData.data) {
+          for (const tid of lease.tenantIds || []) {
+            tenantIds.add(tid);
+          }
+        }
+        setActiveLeaseTenantIds(tenantIds);
       }
     } catch {
       setError('Failed to load tenants');
@@ -95,13 +112,13 @@ function TenantsContent({ llcId }: { llcId: string }) {
 
     // Filter by lease status
     if (filters.hasActiveLease === 'active') {
-      result = result.filter((t) => t.leaseIds && t.leaseIds.length > 0);
+      result = result.filter((t) => activeLeaseTenantIds.has(t.id));
     } else if (filters.hasActiveLease === 'inactive') {
-      result = result.filter((t) => !t.leaseIds || t.leaseIds.length === 0);
+      result = result.filter((t) => !activeLeaseTenantIds.has(t.id));
     }
 
     return result;
-  }, [tenants, filters]);
+  }, [tenants, filters, activeLeaseTenantIds]);
 
   const handleDelete = async (tenantId: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {

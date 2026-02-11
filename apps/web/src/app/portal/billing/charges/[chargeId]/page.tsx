@@ -44,7 +44,7 @@ function getStatusBadge(status: ChargeStatus) {
   const styles: Record<ChargeStatus, string> = {
     open: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     partial: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    paid: 'bg-green-100 text-green-800 dark:bg-green-500/90 dark:text-white',
     void: 'bg-muted text-muted-foreground',
   };
   return (
@@ -201,14 +201,14 @@ function ChargeDetailContent() {
           {charge.paidAmount > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Amount Paid</span>
-              <span className="font-medium text-green-600 dark:text-green-400">
+              <span className="font-medium text-green-600 dark:text-green-500">
                 -{formatCurrency(charge.paidAmount)}
               </span>
             </div>
           )}
           <div className="flex justify-between pt-3 border-t">
             <span className="font-semibold">Balance Due</span>
-            <span className={`font-bold text-lg ${charge.balance > 0 ? 'text-destructive' : 'text-green-600 dark:text-green-400'}`}>
+            <span className={`font-bold text-lg ${charge.balance > 0 ? 'text-destructive' : 'text-green-800 dark:text-green-600'}`}>
               {formatCurrency(charge.balance)}
             </span>
           </div>
