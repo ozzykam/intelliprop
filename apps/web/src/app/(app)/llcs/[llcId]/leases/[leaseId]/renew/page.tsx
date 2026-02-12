@@ -251,7 +251,7 @@ export default function RenewLeasePage({ params }: RenewLeasePageProps) {
               <input
                 id="rentAmount"
                 type="number"
-                step="0.01"
+                step="any"
                 min="0"
                 value={rentAmount}
                 onChange={(e) => setRentAmount(e.target.value)}

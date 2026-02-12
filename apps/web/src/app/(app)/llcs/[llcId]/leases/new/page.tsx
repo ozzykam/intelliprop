@@ -329,7 +329,7 @@ export default function NewLeasePage({ params }: NewLeasePageProps) {
               <input
                 id="rentAmount"
                 type="number"
-                step="0.01"
+                step="any"
                 min="0"
                 value={rentAmount}
                 onChange={(e) => setRentAmount(e.target.value)}

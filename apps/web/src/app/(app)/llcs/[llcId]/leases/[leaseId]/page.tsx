@@ -293,7 +293,7 @@ export default function EditLeasePage({ params }: EditLeasePageProps) {
               <input
                 id="rentAmount"
                 type="number"
-                step="0.01"
+                step="any"
                 min="0"
                 value={rentAmount}
                 onChange={(e) => setRentAmount(e.target.value)}

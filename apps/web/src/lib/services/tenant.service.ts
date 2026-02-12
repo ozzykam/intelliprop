@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import type { Tenant } from '@shared/types/tenant';
 
 export interface CreateResidentialTenantInput {
   type: 'residential';
@@ -237,7 +238,7 @@ export async function getTenantsByIds(tenantIds: string[]) {
     chunks.push(tenantIds.slice(i, i + 30));
   }
 
-  const results: Array<{ id: string; [key: string]: unknown }> = [];
+  const results: (Tenant & { id: string })[] = [];
 
   for (const chunk of chunks) {
     const snapshot = await adminDb
@@ -246,7 +247,7 @@ export async function getTenantsByIds(tenantIds: string[]) {
       .get();
 
     snapshot.docs.forEach((doc) => {
-      results.push({ id: doc.id, ...doc.data() });
+      results.push({ id: doc.id, ...doc.data() } as Tenant & { id: string });
     });
   }
 

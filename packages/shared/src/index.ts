@@ -13,6 +13,7 @@ export * from './types/workOrder';
 export * from './types/globalTask';
 export * from './types/mortgage';
 export * from './types/activation';
+export * from './types/leaseBuilder';
 
 // Constants
 export * from './constants/roles';
@@ -29,6 +30,7 @@ export * from './validators/payments';
 export * from './validators/rbac';
 export * from './validators/mortgage';
 export * from './validators/activation';
+export * from './validators/leaseBuilder';
 
 // Utils
 export * from './utils/ids';

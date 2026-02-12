@@ -1,5 +1,6 @@
 import { Timestamp } from './common';
 import { LeaseStatus } from '../constants/statuses';
+import type { LeaseClass } from './leaseBuilder';
 
 /**
  * Lease - agreement between LLC and tenant(s) for a unit
@@ -21,6 +22,10 @@ export interface Lease {
   renewalOf?: string; // Previous lease ID if renewal
   lastChargeGeneratedPeriod?: string; // YYYY-MM - last period for which rent charge was generated
   notes?: string;
+  // Lease Builder integration
+  leaseClass?: LeaseClass; // residential or commercial
+  leasePackageId?: string; // ID of generated LeasePackage
+  builderDraftId?: string; // ID of LeaseBuilderDraft used to create this lease
   createdAt: Timestamp;
   updatedAt?: Timestamp;
 }
