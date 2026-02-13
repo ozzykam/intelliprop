@@ -130,9 +130,9 @@ export const residentialStateRules: ValidationRule[] = [
     leaseClass: 'residential',
     description: 'Unit must be selected',
     severity: 'error',
-    field: 'unitId',
+    field: 'unitIds',
     condition: { type: 'required' },
-    message: 'A unit must be selected.',
+    message: 'At least one unit must be selected.',
     appliesTo: 'state',
   },
   {

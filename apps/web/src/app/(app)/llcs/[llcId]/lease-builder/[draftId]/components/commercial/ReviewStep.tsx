@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LeaseBuilderDraft } from '@shared/types/leaseBuilder';
 
 interface StepProps {
@@ -8,6 +8,14 @@ interface StepProps {
   llcId: string;
   updateDraft: (updates: Partial<LeaseBuilderDraft>) => void;
   saveDraft: (updates: Partial<LeaseBuilderDraft>) => Promise<boolean>;
+}
+
+interface MemberOption {
+  userId: string;
+  displayName: string | null;
+  email: string;
+  role: string;
+  status: string;
 }
 
 function cents(val?: number) {
@@ -20,10 +28,13 @@ function dollars(val?: number) {
   return `$${val.toLocaleString()}`;
 }
 
-export default function ReviewStep({ draft, llcId }: StepProps) {
+export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
   const [preview, setPreview] = useState<{ documents: { title: string; type: string }[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [signerUserId, setSignerUserId] = useState(draft.signerUserId || '');
 
   const structure = draft.commercial?.leaseStructure;
   const financial = draft.commercial?.financial;
@@ -31,6 +42,39 @@ export default function ReviewStep({ draft, llcId }: StepProps) {
   const use = draft.commercial?.useAndBuildout;
   const ops = draft.commercial?.operations;
   const risk = draft.commercial?.risk;
+
+  // Fetch LLC members for signer selection
+  useEffect(() => {
+    async function fetchMembers() {
+      setLoadingMembers(true);
+      try {
+        const res = await fetch(`/api/llcs/${llcId}/members`);
+        const data = await res.json();
+        if (data.ok) {
+          const eligible = (data.data as MemberOption[]).filter(
+            (m) => m.status === 'active' && (m.role === 'admin' || m.role === 'manager')
+          );
+          setMembers(eligible);
+        }
+      } catch {
+        // silent
+      } finally {
+        setLoadingMembers(false);
+      }
+    }
+    fetchMembers();
+  }, [llcId]);
+
+  function handleSignerChange(userId: string) {
+    setSignerUserId(userId);
+    updateDraft({ signerUserId: userId || undefined });
+  }
+
+  function getMemberLabel(m: MemberOption): string {
+    const name = m.displayName || m.email;
+    const roleLabel = m.role === 'admin' ? 'Managing Member' : 'Authorized Representative';
+    return `${name} (${roleLabel})`;
+  }
 
   async function handleAssemblePreview() {
     setLoading(true);
@@ -53,6 +97,32 @@ export default function ReviewStep({ draft, llcId }: StepProps) {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-medium">Review Lease Summary</h2>
+
+      {/* Landlord Signer */}
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium border-b pb-1">Landlord Signer</h3>
+        <p className="text-sm text-muted-foreground">
+          Select the LLC member who will sign this lease on behalf of the landlord.
+        </p>
+        {loadingMembers ? (
+          <p className="text-sm text-muted-foreground">Loading members...</p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No eligible members found. Only active admins and managers can sign leases.</p>
+        ) : (
+          <select
+            value={signerUserId}
+            onChange={(e) => handleSignerChange(e.target.value)}
+            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Select a signer</option>
+            {members.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {getMemberLabel(m)}
+              </option>
+            ))}
+          </select>
+        )}
+      </section>
 
       {/* Property */}
       <section className="space-y-2">

@@ -283,7 +283,7 @@ export const commercialTermsSchema = z.object({
 export const createLeaseBuilderDraftSchema = z.object({
   leaseClass: leaseClassSchema,
   propertyId: z.string().optional(),
-  unitId: z.string().optional(),
+  unitIds: z.array(z.string()).default([]),
   tenantIds: z.array(z.string()).default([]),
   leaseType: z.enum(['fixed_term', 'month_to_month']).optional(),
 });
@@ -310,8 +310,9 @@ const wizardStepEnum = z.enum([
 export const updateLeaseBuilderDraftSchema = z.object({
   currentStep: wizardStepEnum.optional(),
   propertyId: z.string().optional(),
-  unitId: z.string().optional(),
+  unitIds: z.array(z.string()).optional(),
   tenantIds: z.array(z.string()).optional(),
+  signerUserId: z.string().optional(),
   leaseType: z.enum(['fixed_term', 'month_to_month']).optional(),
   propertyProfile: propertyProfileSchema.optional(),
   residential: residentialTermsSchema.optional(),

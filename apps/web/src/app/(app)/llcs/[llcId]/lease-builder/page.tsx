@@ -201,14 +201,25 @@ export default function LeaseBuilderPage({ params }: PageProps) {
   );
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(value: unknown): string {
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    let date: Date;
+    if (typeof value === 'string') {
+      date = new Date(value);
+    } else if (value && typeof value === 'object' && '_seconds' in value) {
+      date = new Date((value as { _seconds: number })._seconds * 1000);
+    } else if (value && typeof value === 'object' && 'seconds' in value) {
+      date = new Date((value as { seconds: number }).seconds * 1000);
+    } else {
+      return String(value);
+    }
+    if (isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   } catch {
-    return dateStr;
+    return String(value);
   }
 }

@@ -122,9 +122,11 @@ export const residentialCoreClauses: ClauseDefinition[] = [
     htmlContent: `<h3>Signatures</h3>
 <p>By signing below, the parties acknowledge that they have read, understood, and agree to be bound by all terms and conditions of this Lease, including all addenda, disclosures, and attachments incorporated herein.</p>
 <p><strong>LANDLORD:</strong></p>
-<p>Signature: ___________________________________</p>
-<p>Printed Name: {{landlord.name}}</p>
-<p>Title: {{landlord.title}}</p>
+<p>{{landlord.name}}<br/>
+a Minnesota limited liability company</p>
+<p>By: ___________________________________</p>
+<p>Printed Name: {{landlord.representativeName}}</p>
+<p>Title: {{landlord.represetativeTitle}}</p>
 <p>Date: ___________________________________</p>
 <br/>
 <p><strong>TENANT(S):</strong></p>
@@ -138,7 +140,8 @@ export const residentialCoreClauses: ClauseDefinition[] = [
     isRequired: true,
     placeholders: [
       'landlord.name',
-      'landlord.title',
+      'landlord.representativeName',
+      'landlord.represetativeTitle',
       'tenant.name1',
       'tenant.name2',
     ],

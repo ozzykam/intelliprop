@@ -136,6 +136,16 @@ export async function listMembers(llcId: string): Promise<MemberWithProfile[]> {
       email = data.email || 'unknown';
     }
 
+    // Fallback: check Firestore users collection if Auth didn't have displayName
+    if (!displayName) {
+      try {
+        const userDoc = await adminDb.collection('users').doc(doc.id).get();
+        displayName = userDoc.data()?.displayName || null;
+      } catch {
+        // silent
+      }
+    }
+
     members.push({
       userId: doc.id,
       email,
@@ -182,6 +192,16 @@ export async function getMember(llcId: string, userId: string): Promise<MemberWi
     displayName = userRecord.displayName || null;
   } catch {
     email = data.email || 'unknown';
+  }
+
+  // Fallback: check Firestore users collection if Auth didn't have displayName
+  if (!displayName) {
+    try {
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      displayName = userDoc.data()?.displayName || null;
+    } catch {
+      // silent
+    }
   }
 
   return {

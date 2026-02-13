@@ -61,6 +61,7 @@ import type { Tenant, ResidentialTenant, CommercialTenant } from '@shared/types/
 import type { Property } from '@shared/types/property';
 import type { Unit } from '@shared/types/property';
 import type { LLC } from '@shared/types/llc';
+import { getMember } from '@/lib/services/member.service';
 
 // ============================================================================
 // TEMPLATE MAPS
@@ -204,21 +205,25 @@ async function buildTemplateContext(
   llcId: string
 ): Promise<Record<string, string>> {
   // Fetch external data in parallel
-  const [llcRaw, propertyRaw, unitRaw, tenantsRaw] = await Promise.all([
+  const [llcRaw, propertyRaw, tenantsRaw] = await Promise.all([
     getLlc(llcId),
     draft.propertyId ? getProperty(llcId, draft.propertyId) : Promise.resolve(null),
-    draft.propertyId && draft.unitId
-      ? getUnit(llcId, draft.propertyId, draft.unitId)
-      : Promise.resolve(null),
     draft.tenantIds?.length
       ? getTenantsByIds(draft.tenantIds)
       : Promise.resolve([]),
   ]);
 
+  // Fetch all selected units
+  const unitResults = draft.propertyId && draft.unitIds?.length
+    ? await Promise.all(
+        draft.unitIds.map((uid) => getUnit(llcId, draft.propertyId!, uid))
+      )
+    : [];
+  const units = unitResults.filter(Boolean) as (Unit & { id: string })[];
+
   // Cast Firestore results to typed interfaces (service functions return untyped doc data)
   const llc = llcRaw as LLC | null;
   const property = propertyRaw as Property | null;
-  const unit = unitRaw as (Unit & { id: string }) | null;
   const tenants = tenantsRaw;
 
   const ctx: Record<string, string> = {};
@@ -229,14 +234,17 @@ async function buildTemplateContext(
   });
   ctx['templateVersion'] = draft.templateVersion || '';
 
-  // ── Landlord (from LLC) ───────────────────────────────────────────────
-  populateLandlord(ctx, llc);
+  // ── Landlord (from LLC + signer member) ──────────────────────────────
+  const signerMember = draft.signerUserId
+    ? await getMember(llcId, draft.signerUserId)
+    : null;
+  populateLandlord(ctx, llc, signerMember);
 
   // ── Tenant(s) ─────────────────────────────────────────────────────────
   populateTenants(ctx, tenants as Tenant[], draft);
 
-  // ── Property & Unit ───────────────────────────────────────────────────
-  populatePropertyAndUnit(ctx, property, unit, draft);
+  // ── Property & Unit(s) ──────────────────────────────────────────────
+  populatePropertyAndUnit(ctx, property, units, draft);
 
   // ── Lease dates & terms ───────────────────────────────────────────────
   populateLeaseDates(ctx, draft);
@@ -262,16 +270,29 @@ async function buildTemplateContext(
 
 // ── Landlord ──────────────────────────────────────────────────────────────
 
-function populateLandlord(ctx: Record<string, string>, llc: LLC | null) {
+function populateLandlord(
+  ctx: Record<string, string>,
+  llc: LLC | null,
+  signer: { displayName: string | null; role: string } | null
+) {
   ctx['landlord.name'] = llc?.legalName || '';
   ctx['landlord.address'] = '';
   ctx['landlord.email'] = '';
   ctx['landlord.phone'] = '';
   ctx['landlord.entityType'] = 'LLC';
   ctx['landlord.stateOfFormation'] = 'Minnesota';
-  ctx['landlord.signerName'] = '';
-  ctx['landlord.signerTitle'] = 'Managing Member';
-  ctx['landlord.title'] = 'Managing Member';
+
+  const signerName = signer?.displayName || '';
+  const signerTitle = signer?.role === 'admin' ? 'Managing Member' : 'Authorized Representative';
+
+  // Commercial placeholders
+  ctx['landlord.signerName'] = signerName;
+  ctx['landlord.signerTitle'] = signerTitle;
+  // Residential placeholders (user-modified clause template)
+  ctx['landlord.representativeName'] = signerName;
+  ctx['landlord.represetativeTitle'] = signerTitle;
+  // Legacy
+  ctx['landlord.title'] = signerTitle;
 }
 
 // ── Tenants ───────────────────────────────────────────────────────────────
@@ -329,21 +350,30 @@ function populateTenants(
 function populatePropertyAndUnit(
   ctx: Record<string, string>,
   property: Property | null,
-  unit: (Unit & { id: string }) | null,
+  units: (Unit & { id: string })[],
   draft: LeaseBuilderDraft
 ) {
   ctx['property.address'] = formatAddress(property);
   ctx['property.buildingName'] = property?.name || '';
   ctx['property.yearBuilt'] = property?.yearBuilt ? String(property.yearBuilt) : '';
 
-  ctx['unit.number'] = unit?.unitNumber || '';
+  // Multi-unit support: join unit numbers, sum sqft
+  const unitNumbers = units.map((u) => u.unitNumber).filter(Boolean);
+  ctx['unit.number'] = unitNumbers.join(', ');
 
-  ctx['premises.sqft'] = String(
-    draft.propertyProfile?.premisesSqft || unit?.sqft || ''
-  );
-  ctx['premises.description'] = unit
-    ? `Unit ${unit.unitNumber}${unit.sqft ? ` (approx. ${unit.sqft} sq. ft.)` : ''}`
-    : '';
+  const totalSqft = draft.propertyProfile?.premisesSqft ||
+    units.reduce((sum, u) => sum + (u.sqft || 0), 0) || '';
+  ctx['premises.sqft'] = String(totalSqft);
+
+  if (units.length > 1) {
+    const sqftLabel = totalSqft ? ` (approx. ${totalSqft} sq. ft. combined)` : '';
+    ctx['premises.description'] = `Units ${unitNumbers.join(', ')}${sqftLabel}`;
+  } else if (units.length === 1) {
+    const u = units[0]!;
+    ctx['premises.description'] = `Unit ${u.unitNumber}${u.sqft ? ` (approx. ${u.sqft} sq. ft.)` : ''}`;
+  } else {
+    ctx['premises.description'] = '';
+  }
 
   ctx['building.totalSqft'] = property?.totalSqft ? String(property.totalSqft) : '';
 }
@@ -806,7 +836,7 @@ export async function createDraft(
     currentStep: 'property_selection' as WizardStep,
     status: 'in_progress',
     propertyId: '',
-    unitId: '',
+    unitIds: [],
     tenantIds: [],
     leaseType: 'fixed_term',
     propertyProfile: {

@@ -166,15 +166,18 @@ export const commercialCoreClauses: ClauseDefinition[] = [
     htmlContent: `<h3>Signatures</h3>
 <p>IN WITNESS WHEREOF, the Parties have executed this Lease as of the date last written below, each by a duly authorized representative.</p>
 <p><strong>LANDLORD:</strong></p>
-<p>{{landlord.name}}</p>
-<p>Signature: ___________________________________</p>
+<p>
+  {{landlord.name}}<br/>
+  a Minnesota limited liability company
+</p>
+<p>By: ___________________________________</p>
 <p>Printed Name: {{landlord.signerName}}</p>
 <p>Title: {{landlord.signerTitle}}</p>
 <p>Date: ___________________________________</p>
 <br/>
 <p><strong>TENANT:</strong></p>
 <p>{{tenant.name}}</p>
-<p>Signature: ___________________________________</p>
+<p>By: ___________________________________</p>
 <p>Printed Name: {{tenant.signerName}}</p>
 <p>Title: {{tenant.signerTitle}}</p>
 <p>Date: ___________________________________</p>`,

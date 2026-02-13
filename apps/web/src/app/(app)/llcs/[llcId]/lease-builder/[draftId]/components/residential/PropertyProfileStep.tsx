@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LeaseBuilderDraft, PropertyProfile } from '@shared/types/leaseBuilder';
 
 interface StepProps {
@@ -24,7 +24,7 @@ const UNIT_TYPES: { value: NonNullable<PropertyProfile['unitType']>; label: stri
   { value: 'condo', label: 'Condo' },
 ];
 
-export default function PropertyProfileStep({ draft, updateDraft }: StepProps) {
+export default function PropertyProfileStep({ draft, llcId, updateDraft }: StepProps) {
   const [profile, setProfile] = useState<PropertyProfile>(
     draft.propertyProfile || {
       city: '',
@@ -32,6 +32,36 @@ export default function PropertyProfileStep({ draft, updateDraft }: StepProps) {
       hasSharedUtilities: false,
     }
   );
+
+  // Pre-fill from property data when step loads
+  useEffect(() => {
+    if (!draft.propertyId) return;
+    // Skip if profile already has city filled (user already edited)
+    if (profile.city) return;
+
+    async function fetchProperty() {
+      try {
+        const res = await fetch(`/api/llcs/${llcId}/properties/${draft.propertyId}`);
+        const data = await res.json();
+        if (data.ok && data.data) {
+          const prop = data.data;
+          const prefilled: Partial<PropertyProfile> = {};
+          if (prop.address?.city && !profile.city) prefilled.city = prop.address.city;
+          if (prop.county && !profile.county) prefilled.county = prop.county;
+          if (prop.yearBuilt && !profile.yearBuilt) prefilled.yearBuilt = prop.yearBuilt;
+          if (Object.keys(prefilled).length > 0) {
+            const updated = { ...profile, ...prefilled };
+            setProfile(updated);
+            updateDraft({ propertyProfile: updated });
+          }
+        }
+      } catch {
+        // silent — user can fill manually
+      }
+    }
+    fetchProperty();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.propertyId, llcId]);
 
   function update(changes: Partial<PropertyProfile>) {
     const updated = { ...profile, ...changes };

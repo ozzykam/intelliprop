@@ -17,11 +17,18 @@ export function buildPrintableHtml(documents: LeasePackageDocument[]): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Lease Package</title>
+  <title></title>
   <style>
     @page {
       size: letter;
       margin: 1in;
+      /* Suppress browser-generated headers and footers (URL, date, title) */
+      @top-left { content: none; }
+      @top-center { content: none; }
+      @top-right { content: none; }
+      @bottom-left { content: none; }
+      @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; font-family: 'Times New Roman', Times, serif; color: #666; }
+      @bottom-right { content: none; }
     }
     body {
       font-family: 'Times New Roman', Times, serif;

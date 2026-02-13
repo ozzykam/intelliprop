@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { LeaseBuilderDraft } from '@shared/types/leaseBuilder';
+import { TenantSelectorDialog, TenantOption } from '@/components/TenantSelectorDialog';
 
 interface StepProps {
   draft: LeaseBuilderDraft & { id: string };
@@ -10,39 +11,62 @@ interface StepProps {
   saveDraft: (updates: Partial<LeaseBuilderDraft>) => Promise<boolean>;
 }
 
-interface Property {
+interface PropertyOption {
   id: string;
   name: string;
-  address: string;
+  address?: { street1?: string; city?: string; state?: string };
 }
 
-interface Unit {
+interface UnitOption {
   id: string;
   name: string;
   unitNumber: string;
 }
 
-interface Tenant {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+function getTenantLabel(t: TenantOption): string {
+  if (t.type === 'commercial') return t.businessName || t.email;
+  return `${t.firstName || ''} ${t.lastName || ''}`.trim() || t.email;
 }
 
 export default function PropertySelectionStep({ draft, llcId, updateDraft }: StepProps) {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [properties, setProperties] = useState<PropertyOption[]>([]);
+  const [units, setUnits] = useState<UnitOption[]>([]);
+  const [selectedTenants, setSelectedTenants] = useState<TenantOption[]>([]);
+  const [tenantDialogOpen, setTenantDialogOpen] = useState(false);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [loadingTenants, setLoadingTenants] = useState(true);
 
   const [propertyId, setPropertyId] = useState(draft.propertyId || '');
-  const [unitId, setUnitId] = useState(draft.unitId || '');
-  const [tenantIds, setTenantIds] = useState<string[]>(draft.tenantIds || []);
+  const [unitIds, setUnitIds] = useState<string[]>(draft.unitIds || []);
   const [leaseType, setLeaseType] = useState<'fixed_term' | 'month_to_month'>(
     draft.leaseType || 'fixed_term'
   );
+
+  // Fetch initial tenant data for pre-selected tenantIds
+  useEffect(() => {
+    if (!draft.tenantIds?.length) {
+      setLoadingTenants(false);
+      return;
+    }
+    async function fetchSelectedTenants() {
+      setLoadingTenants(true);
+      try {
+        const res = await fetch(`/api/llcs/${llcId}/tenants`);
+        const data = await res.json();
+        if (data.ok) {
+          const allTenants: TenantOption[] = data.data || [];
+          const selected = allTenants.filter((t: TenantOption) => draft.tenantIds.includes(t.id));
+          setSelectedTenants(selected);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoadingTenants(false);
+      }
+    }
+    fetchSelectedTenants();
+  }, [llcId, draft.tenantIds]);
 
   const fetchProperties = useCallback(async () => {
     setLoadingProperties(true);
@@ -74,53 +98,45 @@ export default function PropertySelectionStep({ draft, llcId, updateDraft }: Ste
     }
   }, [llcId]);
 
-  const fetchTenants = useCallback(async () => {
-    setLoadingTenants(true);
-    try {
-      const res = await fetch(`/api/llcs/${llcId}/tenants`);
-      const data = await res.json();
-      if (data.ok) {
-        setTenants(data.data || []);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoadingTenants(false);
-    }
-  }, [llcId]);
-
   useEffect(() => {
     fetchProperties();
-    fetchTenants();
-  }, [fetchProperties, fetchTenants]);
+  }, [fetchProperties]);
 
   useEffect(() => {
     if (propertyId) {
       fetchUnits(propertyId);
     } else {
       setUnits([]);
-      setUnitId('');
+      setUnitIds([]);
     }
   }, [propertyId, fetchUnits]);
 
   function handlePropertyChange(value: string) {
     setPropertyId(value);
-    setUnitId('');
-    updateDraft({ propertyId: value, unitId: '' });
+    setUnitIds([]);
+    updateDraft({ propertyId: value, unitIds: [] });
   }
 
-  function handleUnitChange(value: string) {
-    setUnitId(value);
-    updateDraft({ unitId: value });
+  function handleUnitToggle(uid: string) {
+    const updated = unitIds.includes(uid)
+      ? unitIds.filter((id) => id !== uid)
+      : [...unitIds, uid];
+    setUnitIds(updated);
+    updateDraft({ unitIds: updated });
   }
 
-  function handleTenantToggle(tenantId: string) {
-    const updated = tenantIds.includes(tenantId)
-      ? tenantIds.filter((id) => id !== tenantId)
-      : [...tenantIds, tenantId];
-    setTenantIds(updated);
-    updateDraft({ tenantIds: updated });
-  }
+  const handleAddTenant = useCallback((tenant: TenantOption) => {
+    if (selectedTenants.some((t) => t.id === tenant.id)) return;
+    const updated = [...selectedTenants, tenant];
+    setSelectedTenants(updated);
+    updateDraft({ tenantIds: updated.map((t) => t.id) });
+  }, [selectedTenants, updateDraft]);
+
+  const handleRemoveTenant = useCallback((tenantId: string) => {
+    const updated = selectedTenants.filter((t) => t.id !== tenantId);
+    setSelectedTenants(updated);
+    updateDraft({ tenantIds: updated.map((t) => t.id) });
+  }, [selectedTenants, updateDraft]);
 
   function handleLeaseTypeChange(value: 'fixed_term' | 'month_to_month') {
     setLeaseType(value);
@@ -146,34 +162,44 @@ export default function PropertySelectionStep({ draft, llcId, updateDraft }: Ste
               <option value="">Select a property</option>
               {properties.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} - {p.address}
+                  {p.name}{p.address?.street1 ? ` - ${p.address.street1}${p.address.city ? `, ${p.address.city}` : ''}` : ''}
                 </option>
               ))}
             </select>
           )}
         </div>
 
-        {/* Unit Selection */}
+        {/* Unit Selection (multi-select checkboxes) */}
         {propertyId && (
           <div>
-            <label className="block text-sm font-medium mb-2">Unit</label>
+            <label className="block text-sm font-medium mb-2">Units</label>
             {loadingUnits ? (
               <p className="text-sm text-muted-foreground">Loading units...</p>
             ) : units.length === 0 ? (
               <p className="text-sm text-muted-foreground">No units found for this property.</p>
             ) : (
-              <select
-                value={unitId}
-                onChange={(e) => handleUnitChange(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Select a unit</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.unitNumber} - {u.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <div className="space-y-2">
+                  {units.map((u) => (
+                    <label key={u.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">
+                      <input
+                        type="checkbox"
+                        checked={unitIds.includes(u.id)}
+                        onChange={() => handleUnitToggle(u.id)}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                      <span className="text-sm">
+                        {u.unitNumber} - {u.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {unitIds.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {unitIds.length} unit{unitIds.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
@@ -181,33 +207,49 @@ export default function PropertySelectionStep({ draft, llcId, updateDraft }: Ste
 
       {/* Tenant Selection */}
       <div className="space-y-4">
-        <h2 className="text-lg font-medium">Tenants</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Tenants</h2>
+          <button
+            type="button"
+            onClick={() => setTenantDialogOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Tenant
+          </button>
+        </div>
+
         {loadingTenants ? (
           <p className="text-sm text-muted-foreground">Loading tenants...</p>
-        ) : tenants.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No tenants found for this LLC.</p>
+        ) : selectedTenants.length === 0 ? (
+          <div className="border border-dashed rounded-md p-6 text-center text-muted-foreground">
+            <p>No tenants selected</p>
+            <p className="text-sm mt-1">Click &quot;Add Tenant&quot; to search and add tenants to this lease</p>
+          </div>
         ) : (
-          <div className="space-y-2">
-            {tenants.map((t) => (
-              <label key={t.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">
-                <input
-                  type="checkbox"
-                  checked={tenantIds.includes(t.id)}
-                  onChange={() => handleTenantToggle(t.id)}
-                  className="w-4 h-4 rounded border-input"
-                />
-                <span className="text-sm">
-                  {t.firstName} {t.lastName}
-                  <span className="text-muted-foreground ml-2">{t.email}</span>
-                </span>
-              </label>
+          <div className="border rounded-md divide-y">
+            {selectedTenants.map((tenant) => (
+              <div key={tenant.id} className="flex items-center justify-between px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{getTenantLabel(tenant)}</span>
+                  <span className="text-muted-foreground text-sm ml-2">({tenant.type})</span>
+                  <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">{tenant.email}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTenant(tenant.id)}
+                  className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Remove tenant"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
-        )}
-        {tenantIds.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            {tenantIds.length} tenant{tenantIds.length !== 1 ? 's' : ''} selected
-          </p>
         )}
       </div>
 
@@ -249,6 +291,14 @@ export default function PropertySelectionStep({ draft, llcId, updateDraft }: Ste
           </label>
         </div>
       </div>
+
+      <TenantSelectorDialog
+        open={tenantDialogOpen}
+        onClose={() => setTenantDialogOpen(false)}
+        onSelect={handleAddTenant}
+        selectedIds={selectedTenants.map((t) => t.id)}
+        llcId={llcId}
+      />
     </div>
   );
 }

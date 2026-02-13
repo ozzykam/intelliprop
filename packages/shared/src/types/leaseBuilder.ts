@@ -109,9 +109,12 @@ export interface LeaseBuilderDraft {
 
   // Step 1: Property & Tenant Selection (shared)
   propertyId?: string;
-  unitId?: string;
+  unitIds: string[];
   tenantIds: string[];
   leaseType?: 'fixed_term' | 'month_to_month';
+
+  // Landlord signer (selected LLC member who signs on behalf of the LLC)
+  signerUserId?: string;
 
   // Step 2: Property & Location Profile
   propertyProfile?: PropertyProfile;

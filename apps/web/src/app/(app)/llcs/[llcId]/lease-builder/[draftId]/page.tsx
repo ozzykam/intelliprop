@@ -11,15 +11,16 @@ import CityOverlayBanner from './components/CityOverlayBanner';
 /** Strip draft to only the fields the update API accepts */
 function toUpdatableFields(data: Partial<LeaseBuilderDraft>): Partial<LeaseBuilderDraft> {
   const {
-    currentStep, propertyId, unitId, tenantIds, leaseType,
+    currentStep, propertyId, unitIds, tenantIds, leaseType, signerUserId,
     propertyProfile, residential, commercial,
     triggeredDisclosures, triggeredOverlays, reviewedAt, status,
   } = data;
   return {
     ...(currentStep !== undefined && { currentStep }),
     ...(propertyId !== undefined && { propertyId }),
-    ...(unitId !== undefined && { unitId }),
+    ...(unitIds !== undefined && { unitIds }),
     ...(tenantIds !== undefined && { tenantIds }),
+    ...(signerUserId !== undefined && { signerUserId }),
     ...(leaseType !== undefined && { leaseType }),
     ...(propertyProfile !== undefined && { propertyProfile }),
     ...(residential !== undefined && { residential }),
