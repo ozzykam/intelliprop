@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export interface UserProfile {
@@ -93,6 +93,11 @@ export async function PATCH(request: NextRequest) {
 
     const userRef = adminDb.collection('users').doc(user.uid);
     await userRef.update(updateData);
+
+    // Sync displayName to Firebase Auth record
+    if (body.displayName !== undefined) {
+      await adminAuth.updateUser(user.uid, { displayName: body.displayName.trim() || undefined });
+    }
 
     // Fetch updated profile
     const updatedDoc = await userRef.get();
