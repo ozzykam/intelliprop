@@ -439,14 +439,14 @@ export default function NewUserPage() {
 
             {/* Shared Contact Fields */}
             <div className="space-y-4">
-              <h3 className="font-medium">Contact Information</h3>
+              <h3 className="font-medium">Business Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium mb-2">Email *</label>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2">Business Email *</label>
                   <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} />
                 </div>
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium mb-2">Phone</label>
+                  <label htmlFor="phone" className="block text-sm font-medium mb-2">Business Phone</label>
                   <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
                 </div>
               </div>
