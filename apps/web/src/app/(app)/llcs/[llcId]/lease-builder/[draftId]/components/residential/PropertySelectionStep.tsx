@@ -29,7 +29,7 @@ const inputClass =
 const labelClass = 'block text-sm font-medium mb-2';
 
 function getTenantLabel(t: TenantOption): string {
-  if (t.type === 'commercial') return t.businessName || t.email;
+  if (t.type === 'business') return t.businessName || t.email;
   return `${t.firstName || ''} ${t.lastName || ''}`.trim() || t.email;
 }
 

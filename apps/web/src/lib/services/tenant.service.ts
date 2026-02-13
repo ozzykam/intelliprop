@@ -2,8 +2,8 @@ import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Tenant } from '@shared/types/tenant';
 
-export interface CreateResidentialTenantInput {
-  type: 'residential';
+export interface CreateIndividualTenantInput {
+  type: 'individual';
   firstName: string;
   middleInitial?: string;
   lastName: string;
@@ -19,8 +19,8 @@ export interface CreateResidentialTenantInput {
   notes?: string;
 }
 
-export interface CreateCommercialTenantInput {
-  type: 'commercial';
+export interface CreateBusinessTenantInput {
+  type: 'business';
   businessName: string;
   dba?: string;
   businessType: string;
@@ -37,7 +37,7 @@ export interface CreateCommercialTenantInput {
   notes?: string;
 }
 
-export type CreateTenantInput = CreateResidentialTenantInput | CreateCommercialTenantInput;
+export type CreateTenantInput = CreateIndividualTenantInput | CreateBusinessTenantInput;
 
 export interface TenantData {
   id: string;
@@ -49,7 +49,7 @@ export interface TenantData {
 }
 
 export interface UpdateTenantInput {
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   email?: string;
   phone?: string;
   notes?: string;
@@ -77,9 +77,9 @@ export interface UpdateTenantInput {
   };
 }
 
-export interface CreatedResidentialTenant {
+export interface CreatedIndividualTenant {
   id: string;
-  type: 'residential';
+  type: 'individual';
   email: string;
   phone: string | null;
   notes: string | null;
@@ -91,9 +91,9 @@ export interface CreatedResidentialTenant {
   emergencyContact: { name: string; relationship: string; phone: string } | null;
 }
 
-export interface CreatedCommercialTenant {
+export interface CreatedBusinessTenant {
   id: string;
-  type: 'commercial';
+  type: 'business';
   email: string;
   phone: string | null;
   notes: string | null;
@@ -105,7 +105,7 @@ export interface CreatedCommercialTenant {
   primaryContact: { name: string; title?: string; email?: string; phone?: string };
 }
 
-export type CreatedTenant = CreatedResidentialTenant | CreatedCommercialTenant;
+export type CreatedTenant = CreatedIndividualTenant | CreatedBusinessTenant;
 
 /**
  * Create a new global tenant
@@ -127,10 +127,10 @@ export async function createTenant(
     updates: [],
   };
 
-  if (input.type === 'residential') {
+  if (input.type === 'individual') {
     const tenantData = {
       ...baseTenantData,
-      type: 'residential' as const,
+      type: 'individual' as const,
       firstName: input.firstName,
       middleInitial: input.middleInitial || null,
       lastName: input.lastName,
@@ -143,7 +143,7 @@ export async function createTenant(
   } else {
     const tenantData = {
       ...baseTenantData,
-      type: 'commercial' as const,
+      type: 'business' as const,
       businessName: input.businessName,
       dba: input.dba || null,
       businessType: input.businessType,
@@ -180,7 +180,7 @@ export async function updateTenant(
   if (input.notes !== undefined) updateData.notes = input.notes;
 
   // Type-specific fields
-  if (input.type === 'residential') {
+  if (input.type === 'individual') {
     if (input.firstName !== undefined) updateData.firstName = input.firstName;
     if (input.lastName !== undefined) updateData.lastName = input.lastName;
     if (input.dateOfBirth !== undefined) updateData.dateOfBirth = input.dateOfBirth;

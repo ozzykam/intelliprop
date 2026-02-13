@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-type AccountType = 'residential' | 'commercial';
+type AccountType = 'individual' | 'business';
 
 export default function ActivatePage() {
-  const [accountType, setAccountType] = useState<AccountType>('residential');
+  const [accountType, setAccountType] = useState<AccountType>('individual');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [ssn4, setSsn4] = useState('');
   const [einLast4, setEinLast4] = useState('');
@@ -22,9 +22,9 @@ export default function ActivatePage() {
     setLoading(true);
 
     try {
-      const body = accountType === 'residential'
-        ? { type: 'residential', dateOfBirth, ssn4 }
-        : { type: 'commercial', dateOfBirth, einLast4, businessName };
+      const body = accountType === 'individual'
+        ? { type: 'individual', dateOfBirth, ssn4 }
+        : { type: 'business', dateOfBirth, einLast4, businessName };
 
       const res = await fetch('/api/activate/verify', {
         method: 'POST',
@@ -74,9 +74,9 @@ export default function ActivatePage() {
                 <input
                   type="radio"
                   name="accountType"
-                  value="residential"
-                  checked={accountType === 'residential'}
-                  onChange={() => setAccountType('residential')}
+                  value="individual"
+                  checked={accountType === 'individual'}
+                  onChange={() => setAccountType('individual')}
                   className="w-4 h-4"
                 />
                 <span>Individual</span>
@@ -85,9 +85,9 @@ export default function ActivatePage() {
                 <input
                   type="radio"
                   name="accountType"
-                  value="commercial"
-                  checked={accountType === 'commercial'}
-                  onChange={() => setAccountType('commercial')}
+                  value="business"
+                  checked={accountType === 'business'}
+                  onChange={() => setAccountType('business')}
                   className="w-4 h-4"
                 />
                 <span>Business</span>
@@ -110,7 +110,7 @@ export default function ActivatePage() {
             />
           </div>
 
-          {accountType === 'residential' ? (
+          {accountType === 'individual' ? (
             /* SSN Last 4 for individuals */
             <div>
               <label htmlFor="ssn4" className="block text-sm font-medium mb-2">

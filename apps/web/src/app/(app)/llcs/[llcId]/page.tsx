@@ -201,13 +201,13 @@ export default async function LlcDashboardPage({ params }: LlcDashboardProps) {
             + Add Property
           </Link>
           <Link
-            href={`/llcs/${llcId}/tenants/new`}
+            href="/admin/users/new"
             className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
           >
             + Add Tenant
           </Link>
           <Link
-            href={`/llcs/${llcId}/leases/new`}
+            href={`/llcs/${llcId}/leases`}
             className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
           >
             + Create Lease

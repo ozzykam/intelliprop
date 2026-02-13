@@ -68,10 +68,10 @@ export async function POST(request: NextRequest) {
 
     // Create pending activation for account activation
     try {
-      if (tenant.type === 'residential') {
+      if (tenant.type === 'individual') {
         if (tenant.dateOfBirth && tenant.ssn4) {
           await createActivation({
-            type: 'residential',
+            type: 'individual',
             role: 'tenant',
             firstName: tenant.firstName,
             middleInitial: tenant.middleInitial || undefined,
@@ -85,11 +85,11 @@ export async function POST(request: NextRequest) {
       } else {
         if (tenant.einLast4 && tenant.businessName) {
           await createActivation({
-            type: 'commercial',
+            type: 'business',
             role: 'tenant',
             firstName: tenant.primaryContact.name.split(' ')[0] || tenant.businessName,
             lastName: tenant.primaryContact.name.split(' ').slice(1).join(' ') || '',
-            dateOfBirth: '1900-01-01', // Commercial entities use EIN/business name for verification
+            dateOfBirth: '1900-01-01', // Business entities use EIN/business name for verification
             einLast4: tenant.einLast4,
             businessName: tenant.businessName,
             llcIds: [],

@@ -14,7 +14,6 @@ const NAV_ITEMS = [
   { label: 'Properties', href: '/properties' },
   { label: 'Tenants', href: '/tenants' },
   { label: 'Leases', href: '/leases' },
-  { label: 'Lease Builder', href: '/lease-builder' },
   { label: 'Billing', href: '/billing' },
   { label: 'Work Orders', href: '/work-orders' },
   { label: 'Legal', href: '/legal' },

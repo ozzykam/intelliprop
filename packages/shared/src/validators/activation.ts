@@ -17,8 +17,8 @@ const capabilitiesSchema = z.object({
 /**
  * Create a residential (individual) activation
  */
-export const createResidentialActivationSchema = z.object({
-  type: z.literal('residential'),
+export const createIndividualActivationSchema = z.object({
+  type: z.literal('individual'),
   role: activationRoleSchema,
   firstName: z.string().min(1).max(100),
   middleInitial: z.string().max(1).optional(),
@@ -34,8 +34,8 @@ export const createResidentialActivationSchema = z.object({
 /**
  * Create a commercial (business) activation
  */
-export const createCommercialActivationSchema = z.object({
-  type: z.literal('commercial'),
+export const createBusinessActivationSchema = z.object({
+  type: z.literal('business'),
   role: activationRoleSchema,
   firstName: z.string().min(1).max(100),
   middleInitial: z.string().max(1).optional(),
@@ -53,15 +53,15 @@ export const createCommercialActivationSchema = z.object({
  * Discriminated union for creating any activation type
  */
 export const createActivationSchema = z.discriminatedUnion('type', [
-  createResidentialActivationSchema,
-  createCommercialActivationSchema,
+  createIndividualActivationSchema,
+  createBusinessActivationSchema,
 ]);
 
 /**
  * Verify identity - residential (individual)
  */
-export const verifyResidentialSchema = z.object({
-  type: z.literal('residential'),
+export const verifyIndividualSchema = z.object({
+  type: z.literal('individual'),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   ssn4: z.string().regex(/^\d{4}$/, 'Must be exactly 4 digits'),
 });
@@ -69,8 +69,8 @@ export const verifyResidentialSchema = z.object({
 /**
  * Verify identity - commercial (business)
  */
-export const verifyCommercialSchema = z.object({
-  type: z.literal('commercial'),
+export const verifyBusinessSchema = z.object({
+  type: z.literal('business'),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   einLast4: z.string().regex(/^\d{4}$/, 'Must be exactly 4 digits'),
   businessName: z.string().min(1).max(200),
@@ -80,8 +80,8 @@ export const verifyCommercialSchema = z.object({
  * Discriminated union for verification
  */
 export const verifyIdentitySchema = z.discriminatedUnion('type', [
-  verifyResidentialSchema,
-  verifyCommercialSchema,
+  verifyIndividualSchema,
+  verifyBusinessSchema,
 ]);
 
 /**
@@ -102,11 +102,11 @@ export const createAccountSchema = z.object({
 });
 
 // Inferred types from schemas (use these when validating input)
-export type ValidatedCreateResidentialActivation = z.infer<typeof createResidentialActivationSchema>;
-export type ValidatedCreateCommercialActivation = z.infer<typeof createCommercialActivationSchema>;
+export type ValidatedCreateIndividualActivation = z.infer<typeof createIndividualActivationSchema>;
+export type ValidatedCreateBusinessActivation = z.infer<typeof createBusinessActivationSchema>;
 export type ValidatedCreateActivation = z.infer<typeof createActivationSchema>;
-export type ValidatedVerifyResidential = z.infer<typeof verifyResidentialSchema>;
-export type ValidatedVerifyCommercial = z.infer<typeof verifyCommercialSchema>;
+export type ValidatedVerifyIndividual = z.infer<typeof verifyIndividualSchema>;
+export type ValidatedVerifyBusiness = z.infer<typeof verifyBusinessSchema>;
 export type ValidatedVerifyIdentity = z.infer<typeof verifyIdentitySchema>;
 export type ValidatedConfirmName = z.infer<typeof confirmNameSchema>;
 export type ValidatedCreateAccount = z.infer<typeof createAccountSchema>;

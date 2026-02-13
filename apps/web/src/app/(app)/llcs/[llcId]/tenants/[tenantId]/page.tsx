@@ -9,18 +9,13 @@ interface EditTenantPageProps {
   params: Promise<{ llcId: string; tenantId: string }>;
 }
 
-interface PropertyOption {
-  id: string;
-  name?: string;
-  address: { street1: string; city: string; state: string };
-}
 
 export default function EditTenantPage({ params }: EditTenantPageProps) {
   const { llcId, tenantId } = use(params);
   const router = useRouter();
 
   // Type (read-only after creation)
-  const [tenantType, setTenantType] = useState<'residential' | 'commercial'>('residential');
+  const [tenantType, setTenantType] = useState<'individual' | 'business'>('individual');
 
   // Shared fields
   const [propertyId, setPropertyId] = useState('');
@@ -49,7 +44,6 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [pcPhone, setPcPhone] = useState('');
 
   // UI state
-  const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -58,17 +52,13 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [tenantRes, propertiesRes] = await Promise.all([
+        const [tenantRes] = await Promise.all([
           fetch(`/api/llcs/${llcId}/tenants/${tenantId}`),
           fetch(`/api/llcs/${llcId}/properties`),
         ]);
 
         const tenantData = await tenantRes.json();
-        const propertiesData = await propertiesRes.json();
 
-        if (propertiesData.ok) {
-          setProperties(propertiesData.data);
-        }
 
         if (tenantData.ok) {
           const t = tenantData.data;
@@ -78,7 +68,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           setPhone(t.phone || '');
           setNotes(t.notes || '');
 
-          if (t.type === 'residential') {
+          if (t.type === 'individual') {
             setFirstName(t.firstName || '');
             setLastName(t.lastName || '');
             setDateOfBirth(t.dateOfBirth || '');
@@ -119,9 +109,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
     try {
       let body: Record<string, unknown>;
 
-      if (tenantType === 'residential') {
+      if (tenantType === 'individual') {
         body = {
-          type: 'residential',
+          type: 'individual',
           propertyId,
           firstName,
           lastName,
@@ -136,7 +126,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         };
       } else {
         body = {
-          type: 'commercial',
+          type: 'business',
           propertyId,
           businessName,
           dba: dba || undefined,
@@ -208,7 +198,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         <h1 className="text-2xl font-bold">Edit Tenant</h1>
         <span
           className={`px-2 py-0.5 rounded text-xs ${
-            tenantType === 'commercial'
+            tenantType === 'business'
               ? 'bg-blue-100 text-blue-800'
               : 'bg-purple-100 text-purple-800'
           }`}
@@ -229,29 +219,8 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           </div>
         )}
 
-        {/* Property Selector */}
-        <div>
-          <label htmlFor="propertyId" className="block text-sm font-medium mb-2">
-            Property *
-          </label>
-          <select
-            id="propertyId"
-            value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">Select a property...</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name || p.address.street1} — {p.address.city}, {p.address.state}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Residential Fields */}
-        {tenantType === 'residential' && (
+        {tenantType === 'individual' && (
           <div className="space-y-4">
             <h2 className="text-lg font-medium">Personal Information</h2>
 
@@ -352,7 +321,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         )}
 
         {/* Commercial Fields */}
-        {tenantType === 'commercial' && (
+        {tenantType === 'business' && (
           <div className="space-y-4">
             <h2 className="text-lg font-medium">Business Information</h2>
 

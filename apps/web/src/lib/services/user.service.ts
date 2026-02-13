@@ -139,6 +139,9 @@ export async function searchUsersByEmail(
 export async function updateUser(
   userId: string,
   updates: {
+    firstName?: string;
+    middleInitial?: string | null;
+    lastName?: string;
     displayName?: string;
     phoneNumber?: string;
     userType?: UserType;
@@ -160,6 +163,15 @@ export async function updateUser(
     ...updates,
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Sync displayName to Firebase Auth record
+  if (updates.displayName !== undefined) {
+    try {
+      await adminAuth.updateUser(userId, { displayName: updates.displayName || undefined });
+    } catch (err) {
+      console.error(`[updateUser] Failed to sync displayName to Auth for ${userId}:`, err);
+    }
+  }
 
   const updated = await getUser(userId);
   if (!updated) {

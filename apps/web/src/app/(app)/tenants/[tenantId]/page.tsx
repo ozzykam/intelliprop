@@ -13,7 +13,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const { tenantId } = use(params);
   const router = useRouter();
 
-  const [tenantType, setTenantType] = useState<'residential' | 'commercial'>('residential');
+  const [tenantType, setTenantType] = useState<'individual' | 'business'>('individual');
 
   // Residential fields
   const [firstName, setFirstName] = useState('');
@@ -53,12 +53,12 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
 
         if (data.ok) {
           const t = data.data;
-          setTenantType(t.type || 'residential');
+          setTenantType(t.type || 'individual');
           setEmail(t.email || '');
           setPhone(t.phone || '');
           setNotes(t.notes || '');
 
-          if (t.type === 'residential') {
+          if (t.type === 'individual') {
             setFirstName(t.firstName || '');
             setLastName(t.lastName || '');
             setDateOfBirth(t.dateOfBirth || '');
@@ -102,9 +102,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
 
     let body: Record<string, unknown>;
 
-    if (tenantType === 'residential') {
+    if (tenantType === 'individual') {
       body = {
-        type: 'residential',
+        type: 'individual',
         firstName,
         lastName,
         email,
@@ -118,7 +118,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
       };
     } else {
       body = {
-        type: 'commercial',
+        type: 'business',
         businessName,
         dba: dba || undefined,
         businessType,
@@ -158,7 +158,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   };
 
   const handleDelete = async () => {
-    const displayName = tenantType === 'residential'
+    const displayName = tenantType === 'individual'
       ? `${firstName} ${lastName}`.trim()
       : businessName;
 
@@ -219,7 +219,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         </div>
 
         {/* Residential Fields */}
-        {tenantType === 'residential' && (
+        {tenantType === 'individual' && (
           <div className="space-y-4 p-4 border rounded-lg">
             <h2 className="font-medium">Personal Information</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -323,7 +323,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         )}
 
         {/* Commercial Fields */}
-        {tenantType === 'commercial' && (
+        {tenantType === 'business' && (
           <div className="space-y-4 p-4 border rounded-lg">
             <h2 className="font-medium">Business Information</h2>
             <div className="grid grid-cols-2 gap-4">

@@ -90,7 +90,7 @@ export default function EditLeasePage({ params }: EditLeasePageProps) {
                 .filter((result) => result.ok)
                 .map((result) => {
                   const t = result.data;
-                  if (t.type === 'commercial') {
+                  if (t.type === 'business') {
                     return t.businessName || 'Unknown Business';
                   }
                   return `${t.firstName || ''} ${t.lastName || ''}`.trim() || 'Unknown Tenant';
@@ -202,7 +202,7 @@ export default function EditLeasePage({ params }: EditLeasePageProps) {
           <span className="text-muted-foreground">Tenant{tenantCount > 1 ? 's' : ''}:</span>
           <span>{tenantNames.length > 0 ? tenantNames.join(', ') : 'None assigned'}</span>
           <Link
-            href="/tenants/new"
+            href="/admin/users/new"
             className="ml-2 text-xs text-primary hover:underline"
           >
             + Add Tenant

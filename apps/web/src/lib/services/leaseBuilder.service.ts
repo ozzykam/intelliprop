@@ -57,7 +57,7 @@ import { getProperty } from '@/lib/services/property.service';
 import { getUnit } from '@/lib/services/unit.service';
 import { getTenantsByIds } from '@/lib/services/tenant.service';
 
-import type { Tenant, ResidentialTenant, CommercialTenant } from '@shared/types/tenant';
+import type { Tenant, IndividualTenant, BusinessTenant } from '@shared/types/tenant';
 import type { Property } from '@shared/types/property';
 import type { Unit } from '@shared/types/property';
 import type { LLC } from '@shared/types/llc';
@@ -183,11 +183,11 @@ function formatUtilityList(utilities: string[] | undefined): string {
 }
 
 function getTenantName(tenant: Tenant): string {
-  if (tenant.type === 'residential') {
-    const rt = tenant as ResidentialTenant;
+  if (tenant.type === 'individual') {
+    const rt = tenant as IndividualTenant;
     return `${rt.firstName} ${rt.lastName}`;
   }
-  const ct = tenant as CommercialTenant;
+  const ct = tenant as BusinessTenant;
   return ct.dba ? `${ct.businessName} dba ${ct.dba}` : ct.businessName;
 }
 
@@ -329,8 +329,8 @@ function populateTenants(
     ctx['tenant.phone'] = firstTenant.phone || '';
   }
 
-  if (draft.leaseClass === 'commercial' && firstTenant?.type === 'commercial') {
-    const ct = firstTenant as CommercialTenant;
+  if (draft.leaseClass === 'commercial' && firstTenant?.type === 'business') {
+    const ct = firstTenant as BusinessTenant;
     ctx['tenant.entityType'] = ct.businessType || '';
     ctx['tenant.stateOfFormation'] = ct.stateOfIncorporation || '';
     ctx['tenant.signerName'] = ct.primaryContact?.name || '';

@@ -128,10 +128,10 @@ export default function WizardPage({ params }: PageProps) {
           {error}
         </div>
         <Link
-          href={`/llcs/${llcId}/lease-builder`}
+          href={`/llcs/${llcId}/leases`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          &larr; Back to Lease Builder
+          &larr; Back to Leases
         </Link>
       </div>
     );
@@ -180,10 +180,10 @@ export default function WizardPage({ params }: PageProps) {
     <div className="max-w-4xl">
       <div className="mb-4">
         <Link
-          href={`/llcs/${llcId}/lease-builder`}
+          href={`/llcs/${llcId}/leases`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          &larr; Back to Lease Builder
+          &larr; Back to Leases
         </Link>
       </div>
 

@@ -6,6 +6,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 export interface UserProfile {
   id: string;
   email: string;
+  firstName?: string;
+  middleInitial?: string;
+  lastName?: string;
   displayName?: string;
   phoneNumber?: string;
   photoURL?: string;
@@ -41,6 +44,9 @@ export async function GET() {
     const profile: UserProfile = {
       id: user.uid,
       email: userData?.email || user.email || '',
+      firstName: userData?.firstName,
+      middleInitial: userData?.middleInitial,
+      lastName: userData?.lastName,
       displayName: userData?.displayName,
       phoneNumber: userData?.phoneNumber,
       photoURL: userData?.photoURL,
@@ -60,7 +66,9 @@ export async function GET() {
 }
 
 export interface UpdateProfileInput {
-  displayName?: string;
+  firstName?: string;
+  middleInitial?: string;
+  lastName?: string;
   phoneNumber?: string;
 }
 
@@ -84,19 +92,35 @@ export async function PATCH(request: NextRequest) {
     };
 
     // Only allow updating specific fields
-    if (body.displayName !== undefined) {
-      updateData.displayName = body.displayName.trim();
+    if (body.firstName !== undefined) {
+      updateData.firstName = body.firstName.trim();
+    }
+    if (body.middleInitial !== undefined) {
+      updateData.middleInitial = body.middleInitial.trim().slice(0, 1).toUpperCase() || null;
+    }
+    if (body.lastName !== undefined) {
+      updateData.lastName = body.lastName.trim();
     }
     if (body.phoneNumber !== undefined) {
       updateData.phoneNumber = body.phoneNumber.trim() || null;
+    }
+
+    // Auto-compute displayName from first + last name
+    if (body.firstName !== undefined || body.lastName !== undefined) {
+      const userDoc = await adminDb.collection('users').doc(user.uid).get();
+      const existing = userDoc.data() || {};
+      const first = (updateData.firstName as string) ?? existing.firstName ?? '';
+      const last = (updateData.lastName as string) ?? existing.lastName ?? '';
+      const displayName = `${first} ${last}`.trim();
+      updateData.displayName = displayName || null;
     }
 
     const userRef = adminDb.collection('users').doc(user.uid);
     await userRef.update(updateData);
 
     // Sync displayName to Firebase Auth record
-    if (body.displayName !== undefined) {
-      await adminAuth.updateUser(user.uid, { displayName: body.displayName.trim() || undefined });
+    if (updateData.displayName !== undefined) {
+      await adminAuth.updateUser(user.uid, { displayName: (updateData.displayName as string) || undefined });
     }
 
     // Fetch updated profile
@@ -106,6 +130,9 @@ export async function PATCH(request: NextRequest) {
     const profile: UserProfile = {
       id: user.uid,
       email: userData?.email || user.email || '',
+      firstName: userData?.firstName,
+      middleInitial: userData?.middleInitial,
+      lastName: userData?.lastName,
       displayName: userData?.displayName,
       phoneNumber: userData?.phoneNumber,
       photoURL: userData?.photoURL,

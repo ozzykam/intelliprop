@@ -177,11 +177,11 @@ async function searchGlobalTenants(query: string, limit: number): Promise<Search
     let name = '';
     let subtitle = 'Tenant';
 
-    if (data.type === 'residential') {
+    if (data.type === 'individual') {
       name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
-    } else if (data.type === 'commercial') {
+    } else if (data.type === 'business') {
       name = data.businessName || '';
-      subtitle = 'Commercial Tenant';
+      subtitle = 'Business Tenant';
     }
 
     if (matches(name, query) || matches(data.email, query)) {

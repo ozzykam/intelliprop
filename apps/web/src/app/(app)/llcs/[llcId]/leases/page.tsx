@@ -3,12 +3,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { use } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   SearchFilter,
   LEASE_FILTERS,
   FilterValues,
   filterByField,
 } from '@/components/SearchFilter';
+import type { LeaseClass } from '@shared/types/leaseBuilder';
 
 interface LeaseItem {
   id: string;
@@ -35,10 +37,19 @@ interface UnitItem {
 
 interface TenantItem {
   id: string;
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   firstName?: string;
   lastName?: string;
   businessName?: string;
+}
+
+interface DraftItem {
+  id: string;
+  leaseClass: LeaseClass;
+  status: string;
+  currentStep?: string;
+  createdAt: unknown;
+  reviewedAt?: unknown;
 }
 
 interface LeasesPageProps {
@@ -55,21 +66,44 @@ const STATUS_COLORS: Record<string, string> = {
 
 function formatDate(iso: string): string {
   if (!iso) return '—';
-
   const d = new Date(iso.split('T')[0] + 'T00:00:00');
   if (isNaN(d.getTime())) return '—';
   const month = d.toLocaleDateString('en-US', { month: '2-digit' });
   const day = d.toLocaleDateString('en-US', { day: '2-digit' });
   const year = d.getFullYear().toString().slice(-2);
-
   return `${month}/${day}/${year}`;
 }
+
+function formatDraftDate(value: unknown): string {
+  try {
+    let date: Date;
+    if (typeof value === 'string') {
+      date = new Date(value);
+    } else if (value && typeof value === 'object' && '_seconds' in value) {
+      date = new Date((value as { _seconds: number })._seconds * 1000);
+    } else if (value && typeof value === 'object' && 'seconds' in value) {
+      date = new Date((value as { seconds: number }).seconds * 1000);
+    } else {
+      return String(value);
+    }
+    if (isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return String(value);
+  }
+}
+
 function formatMoney(cents: number): string {
   return '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2 });
 }
 
 export default function LeasesPage({ params }: LeasesPageProps) {
   const { llcId } = use(params);
+  const router = useRouter();
   const [leases, setLeases] = useState<LeaseItem[]>([]);
   const [propertiesMap, setPropertiesMap] = useState<Map<string, PropertyItem>>(new Map());
   const [unitsMap, setUnitsMap] = useState<Map<string, UnitItem>>(new Map());
@@ -81,9 +115,13 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     status: '',
   });
 
+  // Lease builder drafts state
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [loadingDrafts, setLoadingDrafts] = useState(true);
+  const [creating, setCreating] = useState(false);
+
   const fetchLeases = useCallback(async () => {
     try {
-      // Fetch leases, properties, and tenants in parallel
       const [resLeases, resProperties, resTenants] = await Promise.all([
         fetch(`/api/llcs/${llcId}/leases`),
         fetch(`/api/llcs/${llcId}/properties`),
@@ -103,13 +141,11 @@ export default function LeasesPage({ params }: LeasesPageProps) {
 
       setLeases(dataLeases.data);
 
-      // Build properties map
       if (dataProperties.ok) {
         const propMap = new Map<string, PropertyItem>();
         dataProperties.data.forEach((p: PropertyItem) => propMap.set(p.id, p));
         setPropertiesMap(propMap);
 
-        // Fetch units for each property
         const unitPromises = dataProperties.data.map((p: PropertyItem) =>
           fetch(`/api/llcs/${llcId}/properties/${p.id}/units`).then((r) => r.json())
         );
@@ -124,7 +160,6 @@ export default function LeasesPage({ params }: LeasesPageProps) {
         setUnitsMap(unitMap);
       }
 
-      // Build tenants map
       if (dataTenants.ok) {
         const tenantMap = new Map<string, TenantItem>();
         dataTenants.data.forEach((t: TenantItem) => tenantMap.set(t.id, t));
@@ -137,24 +172,36 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     }
   }, [llcId]);
 
+  const fetchDrafts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/lease-builder`);
+      const data = await res.json();
+      if (data.ok) {
+        setDrafts(data.data);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingDrafts(false);
+    }
+  }, [llcId]);
+
   useEffect(() => {
     fetchLeases();
-  }, [fetchLeases]);
+    fetchDrafts();
+  }, [fetchLeases, fetchDrafts]);
 
-  // Helper to get property name
   const getPropertyName = useCallback((propertyId: string): string => {
     const property = propertiesMap.get(propertyId);
     if (!property) return '—';
     return property.name || property.address?.street1 || propertyId;
   }, [propertiesMap]);
 
-  // Helper to get unit number
   const getUnitNumber = useCallback((unitId: string): string => {
     const unit = unitsMap.get(unitId);
     return unit?.unitNumber || '—';
   }, [unitsMap]);
 
-  // Helper to get tenant names (lastName, firstName format)
   const getTenantNames = useCallback((tenantIds: string[]): string => {
     if (!tenantIds || tenantIds.length === 0) return '—';
 
@@ -162,7 +209,7 @@ export default function LeasesPage({ params }: LeasesPageProps) {
       const tenant = tenantsMap.get(id);
       if (!tenant) return null;
 
-      if (tenant.type === 'commercial') {
+      if (tenant.type === 'business') {
         return tenant.businessName || '—';
       }
 
@@ -177,11 +224,9 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     return names.length > 0 ? names.join('; ') : '—';
   }, [tenantsMap]);
 
-  // Apply filters
   const filteredLeases = useMemo(() => {
     let result = leases;
 
-    // Text search across property name, unit number, tenant names, dates, and rent
     if (filters.search.trim()) {
       const lowerSearch = filters.search.toLowerCase();
       result = result.filter((lease) => {
@@ -201,7 +246,6 @@ export default function LeasesPage({ params }: LeasesPageProps) {
       });
     }
 
-    // Filter by status
     result = filterByField(result, 'status', filters.status);
 
     return result;
@@ -228,130 +272,264 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     }
   };
 
-  if (loading) {
-    return <div className="text-muted-foreground">Loading leases...</div>;
+  async function createDraft(leaseClass: LeaseClass) {
+    setCreating(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/lease-builder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaseClass }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(`/llcs/${llcId}/lease-builder/${data.data.id}`);
+      } else {
+        setError(data.error?.message || 'Failed to create draft');
+      }
+    } catch {
+      setError('Failed to create draft');
+    } finally {
+      setCreating(false);
+    }
   }
 
-  if (error) {
-    return <div className="text-destructive">{error}</div>;
+  async function deleteDraft(draftId: string) {
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/lease-builder/${draftId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+      }
+    } catch {
+      // silent
+    }
+  }
+
+  const inProgressDrafts = drafts.filter((d) => d.status === 'in_progress');
+  const completedDrafts = drafts.filter((d) => d.status === 'completed');
+
+  if (loading) {
+    return <div className="text-muted-foreground">Loading leases...</div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Leases</h1>
-        <Link
-          href={`/llcs/${llcId}/leases/new`}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
-        >
-          + New Lease
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => createDraft('residential')}
+            disabled={creating}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm disabled:opacity-50"
+          >
+            + New Residential
+          </button>
+          <button
+            onClick={() => createDraft('commercial')}
+            disabled={creating}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm disabled:opacity-50"
+          >
+            + New Commercial
+          </button>
+        </div>
       </div>
 
-      {/* Search & Filters */}
-      <SearchFilter
-        filters={LEASE_FILTERS}
-        values={filters}
-        onChange={setFilters}
-        searchPlaceholder="Search by property, unit, tenant, rent..."
-        className="mb-6"
-      />
-
-      {/* Results count */}
-      {leases.length > 0 && (
-        <div className="text-sm text-muted-foreground mb-4">
-          Showing {filteredLeases.length} of {leases.length} leases
+      {error && (
+        <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm mb-4">
+          {error}
         </div>
       )}
 
-      {leases.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">
-            No leases yet. Create your first lease to get started.
-          </p>
-          <Link
-            href={`/llcs/${llcId}/leases/new`}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
-          >
-            New Lease
-          </Link>
-        </div>
-      ) : filteredLeases.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg">
-          <p className="text-muted-foreground">
-            No leases match your filters.
-          </p>
-        </div>
-      ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Property</th>
-                <th className="text-left px-4 py-3 font-medium">Unit</th>
-                <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
-                <th className="text-left px-4 py-3 font-medium">Period Start</th>
-                <th className="text-left px-4 py-3 font-medium">Period End</th>
-                <th className="text-left px-4 py-3 font-medium">Rent</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-right px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredLeases.map((lease) => (
-                <tr key={lease.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/llcs/${llcId}/leases/${lease.id}`}
-                      className="hover:underline font-medium"
-                    >
-                      {getPropertyName(lease.propertyId)}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {getUnitNumber(lease.unitId)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {getTenantNames(lease.tenantIds)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(lease.startDate)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(lease.endDate)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatMoney(lease.rentAmount)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs ${STATUS_COLORS[lease.status] || 'bg-gray-100 text-gray-800'}`}
-                    >
-                      {lease.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/llcs/${llcId}/leases/${lease.id}`}
-                      className="text-xs text-muted-foreground hover:text-foreground mr-3"
-                    >
-                      Edit
-                    </Link>
-                    {lease.status === 'draft' && (
-                      <button
-                        onClick={() => handleDelete(lease.id)}
-                        className="text-xs text-muted-foreground hover:text-destructive"
+      {/* Lease Builder Drafts */}
+      {(loadingDrafts || inProgressDrafts.length > 0 || completedDrafts.length > 0) && (
+        <div className="mb-8">
+          {loadingDrafts ? (
+            <p className="text-sm text-muted-foreground">Loading drafts...</p>
+          ) : (
+            <>
+              {inProgressDrafts.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-lg font-medium mb-3">In Progress Drafts</h2>
+                  <div className="space-y-2">
+                    {inProgressDrafts.map((draft) => (
+                      <div
+                        key={draft.id}
+                        className="flex items-center justify-between p-4 border border-input rounded-lg"
                       >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
+                            <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                              In Progress
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Step: {draft.currentStep?.replace(/_/g, ' ')} | Created: {formatDraftDate(draft.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/llcs/${llcId}/lease-builder/${draft.id}`}
+                            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+                          >
+                            Continue
+                          </Link>
+                          <button
+                            onClick={() => deleteDraft(draft.id)}
+                            className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {completedDrafts.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-lg font-medium mb-3">Completed Drafts</h2>
+                  <div className="space-y-2">
+                    {completedDrafts.map((draft) => (
+                      <div
+                        key={draft.id}
+                        className="flex items-center justify-between p-4 border border-input rounded-lg"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
+                            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                              Completed
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Reviewed: {draft.reviewedAt ? formatDraftDate(draft.reviewedAt) : 'N/A'}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/llcs/${llcId}/lease-builder/${draft.id}`}
+                          className="px-4 py-2 text-sm border border-input rounded-md hover:bg-secondary transition-colors"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
+
+      {/* Active Leases Section */}
+      <div>
+        <h2 className="text-lg font-medium mb-3">Active Leases</h2>
+
+        {/* Search & Filters */}
+        <SearchFilter
+          filters={LEASE_FILTERS}
+          values={filters}
+          onChange={setFilters}
+          searchPlaceholder="Search by property, unit, tenant, rent..."
+          className="mb-4"
+        />
+
+        {/* Results count */}
+        {leases.length > 0 && (
+          <div className="text-sm text-muted-foreground mb-4">
+            Showing {filteredLeases.length} of {leases.length} leases
+          </div>
+        )}
+
+        {leases.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg">
+            <p className="text-muted-foreground">
+              No leases yet. Use the buttons above to create a new residential or commercial lease.
+            </p>
+          </div>
+        ) : filteredLeases.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg">
+            <p className="text-muted-foreground">
+              No leases match your filters.
+            </p>
+          </div>
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Property</th>
+                  <th className="text-left px-4 py-3 font-medium">Unit</th>
+                  <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
+                  <th className="text-left px-4 py-3 font-medium">Period Start</th>
+                  <th className="text-left px-4 py-3 font-medium">Period End</th>
+                  <th className="text-left px-4 py-3 font-medium">Rent</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-right px-4 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredLeases.map((lease) => (
+                  <tr key={lease.id} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/llcs/${llcId}/leases/${lease.id}`}
+                        className="hover:underline font-medium"
+                      >
+                        {getPropertyName(lease.propertyId)}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {getUnitNumber(lease.unitId)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {getTenantNames(lease.tenantIds)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(lease.startDate)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(lease.endDate)}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatMoney(lease.rentAmount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-xs ${STATUS_COLORS[lease.status] || 'bg-gray-100 text-gray-800'}`}
+                      >
+                        {lease.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/llcs/${llcId}/leases/${lease.id}`}
+                        className="text-xs text-muted-foreground hover:text-foreground mr-3"
+                      >
+                        Edit
+                      </Link>
+                      {lease.status === 'draft' && (
+                        <button
+                          onClick={() => handleDelete(lease.id)}
+                          className="text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

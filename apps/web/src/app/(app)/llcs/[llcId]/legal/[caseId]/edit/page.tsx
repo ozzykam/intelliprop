@@ -67,7 +67,7 @@ interface LlcOption {
 
 interface TenantOption {
   id: string;
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   firstName?: string;
   lastName?: string;
   businessName?: string;
@@ -147,7 +147,7 @@ function toDateInput(iso: string | undefined): string {
 }
 
 function getTenantDisplayName(t: TenantOption): string {
-  if (t.type === 'commercial') return t.businessName || 'Unknown Business';
+  if (t.type === 'business') return t.businessName || 'Unknown Business';
   return `${t.firstName || ''} ${t.lastName || ''}`.trim() || 'Unknown';
 }
 

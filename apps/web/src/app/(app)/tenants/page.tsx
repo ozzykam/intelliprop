@@ -11,7 +11,7 @@ import {
 
 interface TenantItem {
   id: string;
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   email: string;
   phone?: string;
   createdAt: string;
@@ -29,7 +29,7 @@ interface TenantItem {
 }
 
 function getTenantDisplayName(tenant: TenantItem): string {
-  if (tenant.type === 'commercial') {
+  if (tenant.type === 'business') {
     return tenant.businessName || 'Unnamed Business';
   }
   return `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() || 'Unnamed Tenant';
@@ -90,11 +90,11 @@ export default function GlobalTenantsPage() {
     if (!inviteTenant) return;
     setInviteError('');
 
-    if (inviteTenant.type === 'residential' && inviteSsn4.length !== 4) {
+    if (inviteTenant.type === 'individual' && inviteSsn4.length !== 4) {
       setInviteError('Please enter exactly 4 digits for SSN');
       return;
     }
-    if (inviteTenant.type === 'commercial' && inviteEinLast4.length !== 4) {
+    if (inviteTenant.type === 'business' && inviteEinLast4.length !== 4) {
       setInviteError('Please enter exactly 4 digits for EIN');
       return;
     }
@@ -112,9 +112,9 @@ export default function GlobalTenantsPage() {
         llcIds: [],
       };
 
-      const body = inviteTenant.type === 'residential'
-        ? { ...base, type: 'residential' as const, ssn4: inviteSsn4 }
-        : { ...base, type: 'commercial' as const, einLast4: inviteEinLast4, businessName: inviteBusinessName };
+      const body = inviteTenant.type === 'individual'
+        ? { ...base, type: 'individual' as const, ssn4: inviteSsn4 }
+        : { ...base, type: 'business' as const, einLast4: inviteEinLast4, businessName: inviteBusinessName };
 
       const res = await fetch('/api/activations', {
         method: 'POST',
@@ -196,7 +196,7 @@ export default function GlobalTenantsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">All Tenants</h1>
         <Link
-          href="/tenants/new"
+          href="/admin/users/new"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
         >
           + Add Tenant
@@ -225,7 +225,7 @@ export default function GlobalTenantsPage() {
             No tenants yet. Add your first tenant to get started.
           </p>
           <Link
-            href="/tenants/new"
+            href="/admin/users/new"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
           >
             Add Tenant
@@ -261,7 +261,7 @@ export default function GlobalTenantsPage() {
                         className="hover:underline"
                       >
                         <div className="font-medium">{displayName}</div>
-                        {tenant.type === 'commercial' && tenant.primaryContact && (
+                        {tenant.type === 'business' && tenant.primaryContact && (
                           <div className="text-muted-foreground text-xs">
                             Contact: {tenant.primaryContact.name}
                           </div>
@@ -271,7 +271,7 @@ export default function GlobalTenantsPage() {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          tenant.type === 'commercial'
+                          tenant.type === 'business'
                             ? 'bg-blue-100 text-blue-800'
                             : 'bg-purple-100 text-purple-800'
                         }`}
@@ -331,7 +331,7 @@ export default function GlobalTenantsPage() {
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Activation Created</h2>
                   <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm mb-4">
-                    Activation created for {getTenantDisplayName(inviteTenant)}. They can now visit <span className="font-mono font-medium">/activate</span> to create their account using their date of birth and {inviteTenant.type === 'residential' ? 'SSN (last 4)' : 'EIN (last 4) + business name'}.
+                    Activation created for {getTenantDisplayName(inviteTenant)}. They can now visit <span className="font-mono font-medium">/activate</span> to create their account using their date of birth and {inviteTenant.type === 'individual' ? 'SSN (last 4)' : 'EIN (last 4) + business name'}.
                   </div>
                   <button
                     onClick={() => setInviteTenant(null)}
@@ -380,7 +380,7 @@ export default function GlobalTenantsPage() {
                       />
                     </div>
 
-                    {inviteTenant.type === 'residential' ? (
+                    {inviteTenant.type === 'individual' ? (
                       <div>
                         <label htmlFor="inviteSsn4" className="block text-sm font-medium mb-2">
                           SSN (last 4) *

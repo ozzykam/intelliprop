@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface TenantOption {
   id: string;
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   firstName?: string;
   lastName?: string;
   businessName?: string;
@@ -20,7 +20,7 @@ interface TenantSelectorDialogProps {
 }
 
 function getTenantDisplayName(tenant: TenantOption): string {
-  if (tenant.type === 'commercial') {
+  if (tenant.type === 'business') {
     return tenant.businessName || tenant.email;
   }
   return `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() || tenant.email;
@@ -97,7 +97,7 @@ export function TenantSelectorDialog({
   );
 
   const handleCreateNew = () => {
-    window.open('/tenants/new', '_blank');
+    window.open('/admin/users/new', '_blank');
   };
 
   const handleRefresh = async () => {

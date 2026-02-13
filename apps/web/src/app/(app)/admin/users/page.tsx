@@ -127,10 +127,10 @@ function AdminUsersContent() {
           <h1 className="text-2xl font-bold inline">Users</h1>
         </div>
         <Link
-          href="/admin/staff/new"
+          href="/admin/users/new"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
         >
-          Add Staff
+          Add User
         </Link>
       </div>
 

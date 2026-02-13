@@ -24,7 +24,10 @@ export type UserStatus = 'active' | 'pending' | 'disabled';
 export interface User {
   id: string; // Firebase Auth UID
   email: string;
-  displayName?: string;
+  firstName?: string;
+  middleInitial?: string;
+  lastName?: string;
+  displayName?: string; // Auto-computed: firstName + lastName
   phoneNumber?: string;
   photoURL?: string;
 

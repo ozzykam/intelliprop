@@ -79,7 +79,7 @@ export function PropertyUnitsTable({ llcId, propertyId, showActions = true }: Pr
             const names = lease.tenantIds.map((tid: string) => {
               const tenant = tenantsMap.get(tid);
               if (!tenant) return null;
-              if (tenant.type === 'commercial') {
+              if (tenant.type === 'business') {
                 return tenant.businessName || '—';
               }
               const lastName = tenant.lastName || '';

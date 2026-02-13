@@ -13,7 +13,7 @@ import {
 
 interface TenantItem {
   id: string;
-  type: 'residential' | 'commercial';
+  type: 'individual' | 'business';
   email: string;
   phone?: string;
   propertyId: string;
@@ -32,7 +32,7 @@ interface TenantsPageProps {
 }
 
 function getTenantDisplayName(tenant: TenantItem): string {
-  if (tenant.type === 'commercial') {
+  if (tenant.type === 'business') {
     return tenant.businessName || 'Unnamed Business';
   }
   return `${tenant.firstName} ${tenant.lastName}`;
@@ -154,7 +154,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Tenants</h1>
         <Link
-          href={`/llcs/${llcId}/tenants/new`}
+          href="/admin/users/new"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
         >
           + Add Tenant
@@ -164,7 +164,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
       {/* Success message */}
       {created && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm">
-          Tenant created successfully. They can activate their account at /activate using their date of birth and SSN (or EIN for commercial).
+          Tenant created successfully. They can activate their account at /activate using their date of birth and SSN (or EIN for business).
         </div>
       )}
 
@@ -190,7 +190,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
             No tenants yet. Add your first tenant to get started.
           </p>
           <Link
-            href={`/llcs/${llcId}/tenants/new`}
+            href="/admin/users/new"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
           >
             Add Tenant
@@ -225,7 +225,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
                         className="hover:underline"
                       >
                         <div className="font-medium">{displayName}</div>
-                        {tenant.type === 'commercial' && tenant.primaryContact && (
+                        {tenant.type === 'business' && tenant.primaryContact && (
                           <div className="text-muted-foreground text-xs">
                             Contact: {tenant.primaryContact.name}
                           </div>
@@ -235,7 +235,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          tenant.type === 'commercial'
+                          tenant.type === 'business'
                             ? 'bg-blue-100 text-blue-800'
                             : 'bg-purple-100 text-purple-800'
                         }`}

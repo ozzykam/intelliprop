@@ -193,8 +193,8 @@ export const TENANT_FILTERS: FilterConfig[] = [
     label: 'Type',
     type: 'select',
     options: [
-      { value: 'residential', label: 'Residential' },
-      { value: 'commercial', label: 'Commercial' },
+      { value: 'individual', label: 'Individual' },
+      { value: 'business', label: 'Business' },
     ],
   },
   {

@@ -3,7 +3,7 @@ import { Timestamp } from './common';
 /**
  * Tenant type discriminator
  */
-export type TenantType = 'residential' | 'commercial';
+export type TenantType = 'individual' | 'business';
 
 /**
  * Business type for commercial tenants
@@ -35,10 +35,10 @@ export interface BaseTenant {
 }
 
 /**
- * Residential tenant - an individual person
+ * Individual tenant - an individual person
  */
-export interface ResidentialTenant extends BaseTenant {
-  type: 'residential';
+export interface IndividualTenant extends BaseTenant {
+  type: 'individual';
   firstName: string;
   middleInitial?: string;
   lastName: string;
@@ -48,10 +48,10 @@ export interface ResidentialTenant extends BaseTenant {
 }
 
 /**
- * Commercial tenant - a business entity
+ * Business tenant - a business entity
  */
-export interface CommercialTenant extends BaseTenant {
-  type: 'commercial';
+export interface BusinessTenant extends BaseTenant {
+  type: 'business';
   businessName: string;
   dba?: string; // "Doing business as" name
   businessType: BusinessType;
@@ -63,7 +63,7 @@ export interface CommercialTenant extends BaseTenant {
 /**
  * Discriminated union of all tenant types
  */
-export type Tenant = ResidentialTenant | CommercialTenant;
+export type Tenant = IndividualTenant | BusinessTenant;
 
 export interface EmergencyContact {
   name: string;

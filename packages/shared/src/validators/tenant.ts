@@ -25,8 +25,8 @@ const businessTypeSchema = z.enum([
 /**
  * Create a residential tenant
  */
-export const createResidentialTenantSchema = z.object({
-  type: z.literal('residential'),
+export const createIndividualTenantSchema = z.object({
+  type: z.literal('individual'),
   firstName: z.string().min(1).max(100),
   middleInitial: z.string().max(1).optional(),
   lastName: z.string().min(1).max(100),
@@ -41,8 +41,8 @@ export const createResidentialTenantSchema = z.object({
 /**
  * Create a commercial tenant
  */
-export const createCommercialTenantSchema = z.object({
-  type: z.literal('commercial'),
+export const createBusinessTenantSchema = z.object({
+  type: z.literal('business'),
   businessName: z.string().min(1).max(200),
   dba: z.string().max(200).optional(),
   businessType: businessTypeSchema,
@@ -58,15 +58,15 @@ export const createCommercialTenantSchema = z.object({
  * Discriminated union for creating any tenant type
  */
 export const createTenantSchema = z.discriminatedUnion('type', [
-  createResidentialTenantSchema,
-  createCommercialTenantSchema,
+  createIndividualTenantSchema,
+  createBusinessTenantSchema,
 ]);
 
 /**
  * Update a residential tenant (all fields optional except type)
  */
-export const updateResidentialTenantSchema = z.object({
-  type: z.literal('residential'),
+export const updateIndividualTenantSchema = z.object({
+  type: z.literal('individual'),
   firstName: z.string().min(1).max(100).optional(),
   middleInitial: z.string().max(1).optional(),
   lastName: z.string().min(1).max(100).optional(),
@@ -81,8 +81,8 @@ export const updateResidentialTenantSchema = z.object({
 /**
  * Update a commercial tenant (all fields optional except type)
  */
-export const updateCommercialTenantSchema = z.object({
-  type: z.literal('commercial'),
+export const updateBusinessTenantSchema = z.object({
+  type: z.literal('business'),
   businessName: z.string().min(1).max(200).optional(),
   dba: z.string().max(200).optional(),
   businessType: businessTypeSchema.optional(),
@@ -98,6 +98,6 @@ export const updateCommercialTenantSchema = z.object({
  * Discriminated union for updating any tenant type
  */
 export const updateTenantSchema = z.discriminatedUnion('type', [
-  updateResidentialTenantSchema,
-  updateCommercialTenantSchema,
+  updateIndividualTenantSchema,
+  updateBusinessTenantSchema,
 ]);

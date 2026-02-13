@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Create/refresh session cookie BEFORE marking auth as ready
-        const idToken = await firebaseUser.getIdToken();
+        const idToken = await firebaseUser.getIdToken(true);
         await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

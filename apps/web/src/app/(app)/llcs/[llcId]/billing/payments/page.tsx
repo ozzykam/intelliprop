@@ -220,7 +220,7 @@ export default function PaymentsPage({ params }: PaymentsPageProps) {
   const getTenantName = (tenantId: string): string => {
     const tenant = tenants.find((t) => t.id === tenantId);
     if (!tenant) return 'Unknown';
-    if (tenant.type === 'commercial') {
+    if (tenant.type === 'business') {
       return tenant.businessName || 'Unknown';
     }
     return `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() || 'Unknown';

@@ -13,6 +13,9 @@ import {
 interface UserProfile {
   id: string;
   email: string;
+  firstName?: string;
+  middleInitial?: string;
+  lastName?: string;
   displayName?: string;
   phoneNumber?: string;
   photoURL?: string;
@@ -48,11 +51,13 @@ function getInitials(name?: string, email?: string): string {
 interface EditProfileModalProps {
   profile: UserProfile;
   onClose: () => void;
-  onSave: (data: { displayName: string; phoneNumber: string }) => Promise<void>;
+  onSave: (data: { firstName: string; middleInitial: string; lastName: string; phoneNumber: string }) => Promise<void>;
 }
 
 function EditProfileModal({ profile, onClose, onSave }: EditProfileModalProps) {
-  const [displayName, setDisplayName] = useState(profile.displayName || '');
+  const [firstName, setFirstName] = useState(profile.firstName || '');
+  const [middleInitial, setMiddleInitial] = useState(profile.middleInitial || '');
+  const [lastName, setLastName] = useState(profile.lastName || '');
   const [phoneNumber, setPhoneNumber] = useState(profile.phoneNumber || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +68,7 @@ function EditProfileModal({ profile, onClose, onSave }: EditProfileModalProps) {
     setError(null);
 
     try {
-      await onSave({ displayName, phoneNumber });
+      await onSave({ firstName, middleInitial, lastName, phoneNumber });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
@@ -96,19 +101,49 @@ function EditProfileModal({ profile, onClose, onSave }: EditProfileModalProps) {
               </div>
             )}
 
-            <div>
-              <label htmlFor="displayName" className="block text-sm font-medium mb-1">
-                Display Name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Enter your name"
-                disabled={saving}
-              />
+            <div className="grid grid-cols-6 gap-3">
+              <div className="col-span-2">
+                <label htmlFor="firstName" className="block text-sm font-medium mb-1">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="First"
+                  disabled={saving}
+                />
+              </div>
+              <div className="col-span-1">
+                <label htmlFor="middleInitial" className="block text-sm font-medium mb-1">
+                  M.I.
+                </label>
+                <input
+                  id="middleInitial"
+                  type="text"
+                  value={middleInitial}
+                  onChange={(e) => setMiddleInitial(e.target.value.slice(0, 1).toUpperCase())}
+                  maxLength={1}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 text-center"
+                  disabled={saving}
+                />
+              </div>
+              <div className="col-span-3">
+                <label htmlFor="lastName" className="block text-sm font-medium mb-1">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="Last"
+                  disabled={saving}
+                />
+              </div>
             </div>
 
             <div>
@@ -199,7 +234,7 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  const handleSave = async (data: { displayName: string; phoneNumber: string }) => {
+  const handleSave = async (data: { firstName: string; middleInitial: string; lastName: string; phoneNumber: string }) => {
     const res = await fetch('/api/portal/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -338,9 +373,16 @@ export default function ProfilePage() {
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Display Name</p>
+              <p className="text-sm text-muted-foreground mb-1">First Name</p>
               <p className="font-medium">
-                {profile.displayName || <span className="text-muted-foreground italic">Not set</span>}
+                {profile.firstName || <span className="text-muted-foreground italic">Not set</span>}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Last Name</p>
+              <p className="font-medium">
+                {profile.lastName || <span className="text-muted-foreground italic">Not set</span>}
               </p>
             </div>
 

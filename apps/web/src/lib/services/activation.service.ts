@@ -61,7 +61,7 @@ export async function createActivation(
   }
 
   // Add type-specific fields
-  if (input.type === 'residential') {
+  if (input.type === 'individual') {
     data.ssn4 = input.ssn4;
   } else {
     data.einLast4 = input.einLast4;
@@ -144,7 +144,7 @@ export async function verifyIdentity(input: VerificationInput): Promise<Verifica
     .where('type', '==', input.type)
     .where('dateOfBirth', '==', input.dateOfBirth);
 
-  if (input.type === 'residential') {
+  if (input.type === 'individual') {
     query = query.where('ssn4', '==', input.ssn4);
   } else {
     query = query.where('einLast4', '==', input.einLast4);
@@ -159,7 +159,7 @@ export async function verifyIdentity(input: VerificationInput): Promise<Verifica
 
   // For commercial, filter by business name (case-insensitive)
   let matchingDoc = snapshot.docs[0]!;
-  if (input.type === 'commercial') {
+  if (input.type === 'business') {
     const match = snapshot.docs.find(doc => {
       const data = doc.data();
       return data.businessName?.toLowerCase() === input.businessName.toLowerCase();

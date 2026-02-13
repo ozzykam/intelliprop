@@ -4,7 +4,7 @@ import { EmployeeCapabilities } from './rbac';
 /**
  * Activation type - matches tenant type for consistency
  */
-export type ActivationType = 'residential' | 'commercial';
+export type ActivationType = 'individual' | 'business';
 
 /**
  * Role being activated
@@ -54,16 +54,16 @@ interface BaseActivation {
 /**
  * Residential/Individual activation - uses SSN for verification
  */
-export interface ResidentialActivation extends BaseActivation {
-  type: 'residential';
+export interface IndividualActivation extends BaseActivation {
+  type: 'individual';
   ssn4: string; // Last 4 digits of SSN
 }
 
 /**
- * Commercial/Business activation - uses EIN and business name for verification
+ * Business activation - uses EIN and business name for verification
  */
-export interface CommercialActivation extends BaseActivation {
-  type: 'commercial';
+export interface BusinessActivation extends BaseActivation {
+  type: 'business';
   einLast4: string; // Last 4 digits of EIN
   businessName: string;
 }
@@ -71,13 +71,13 @@ export interface CommercialActivation extends BaseActivation {
 /**
  * Discriminated union of all activation types
  */
-export type PendingActivation = ResidentialActivation | CommercialActivation;
+export type PendingActivation = IndividualActivation | BusinessActivation;
 
 /**
  * Input for creating a residential activation
  */
-export interface CreateResidentialActivationInput {
-  type: 'residential';
+export interface CreateIndividualActivationInput {
+  type: 'individual';
   role: ActivationRole;
   firstName: string;
   middleInitial?: string;
@@ -91,10 +91,10 @@ export interface CreateResidentialActivationInput {
 }
 
 /**
- * Input for creating a commercial activation
+ * Input for creating a business activation
  */
-export interface CreateCommercialActivationInput {
-  type: 'commercial';
+export interface CreateBusinessActivationInput {
+  type: 'business';
   role: ActivationRole;
   firstName: string;
   middleInitial?: string;
@@ -112,23 +112,23 @@ export interface CreateCommercialActivationInput {
  * Union type for creating activations
  */
 export type CreateActivationInput =
-  | CreateResidentialActivationInput
-  | CreateCommercialActivationInput;
+  | CreateIndividualActivationInput
+  | CreateBusinessActivationInput;
 
 /**
  * Verification input for residential (individual)
  */
-export interface ResidentialVerificationInput {
-  type: 'residential';
+export interface IndividualVerificationInput {
+  type: 'individual';
   dateOfBirth: string;
   ssn4: string;
 }
 
 /**
- * Verification input for commercial (business)
+ * Verification input for business
  */
-export interface CommercialVerificationInput {
-  type: 'commercial';
+export interface BusinessVerificationInput {
+  type: 'business';
   dateOfBirth: string;
   einLast4: string;
   businessName: string;
@@ -138,8 +138,8 @@ export interface CommercialVerificationInput {
  * Union type for verification input
  */
 export type VerificationInput =
-  | ResidentialVerificationInput
-  | CommercialVerificationInput;
+  | IndividualVerificationInput
+  | BusinessVerificationInput;
 
 /**
  * Result of successful verification
