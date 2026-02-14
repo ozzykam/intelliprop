@@ -132,6 +132,14 @@ export interface LeaseBuilderDraft {
   // Review
   reviewedAt?: string;
 
+  // Publishing
+  published?: boolean;
+  publishedLeaseId?: string;
+
+  // Amendment fields (set when this draft is a clone for addendum)
+  amendingPublishedLeaseId?: string; // published lease being amended
+  clonedFromDraftId?: string;        // source draft (for diffing)
+
   // Metadata
   createdAt: string;
   updatedAt: string;
@@ -312,6 +320,7 @@ export interface CommercialFinancialTerms {
   escalationPercentage?: number; // e.g. 3 = 3%
   escalationStepSchedule?: RentStep[];
   // Late fee / default interest
+  gracePeriodDays?: number;
   lateFeeAmount?: number; // cents
   defaultInterestRate?: number; // percentage per annum
   // CAM / Additional rent (NNN and Modified Gross only)

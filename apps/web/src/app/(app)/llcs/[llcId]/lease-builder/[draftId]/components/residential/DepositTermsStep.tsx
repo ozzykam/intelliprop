@@ -18,8 +18,8 @@ const inputClass =
   'w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring';
 const labelClass = 'block text-sm font-medium mb-2';
 
-function centsToDisplay(cents: number | undefined): string {
-  if (cents == null || isNaN(cents)) return '';
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents == null || isNaN(cents) || cents === 0) return '';
   return (cents / 100).toFixed(2);
 }
 
@@ -27,6 +27,39 @@ function displayToCents(display: string): number {
   const parsed = parseFloat(display);
   if (isNaN(parsed)) return 0;
   return Math.round(parsed * 100);
+}
+
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setRaw(cleaned);
+        onChange(displayToCents(cleaned));
+      }}
+      onBlur={() => {
+        const c = displayToCents(raw);
+        setRaw(centsToDisplayStr(c));
+      }}
+    />
+  );
 }
 
 export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
@@ -85,50 +118,30 @@ export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
         {/* Security Deposit */}
         <div>
           <label className={labelClass}>Security Deposit ($)</label>
-          <input
-            type="number"
+          <DollarInput
             className={inputClass}
-            value={centsToDisplay(deposit.securityDeposit)}
-            onChange={(e) => update({ securityDeposit: displayToCents(e.target.value) })}
-            placeholder="0.00"
-            step="0.01"
-            min="0"
+            cents={deposit.securityDeposit}
+            onChange={(c) => update({ securityDeposit: c })}
           />
         </div>
 
         {/* Pet Deposit */}
         <div>
           <label className={labelClass}>Pet Deposit ($, optional)</label>
-          <input
-            type="number"
+          <DollarInput
             className={inputClass}
-            value={centsToDisplay(deposit.petDeposit)}
-            onChange={(e) =>
-              update({
-                petDeposit: e.target.value ? displayToCents(e.target.value) : undefined,
-              })
-            }
-            placeholder="0.00"
-            step="0.01"
-            min="0"
+            cents={deposit.petDeposit}
+            onChange={(c) => update({ petDeposit: c || undefined })}
           />
         </div>
 
         {/* Key/Fob Deposit */}
         <div>
           <label className={labelClass}>Key/Fob Deposit ($, optional)</label>
-          <input
-            type="number"
+          <DollarInput
             className={inputClass}
-            value={centsToDisplay(deposit.keyFobDeposit)}
-            onChange={(e) =>
-              update({
-                keyFobDeposit: e.target.value ? displayToCents(e.target.value) : undefined,
-              })
-            }
-            placeholder="0.00"
-            step="0.01"
-            min="0"
+            cents={deposit.keyFobDeposit}
+            onChange={(c) => update({ keyFobDeposit: c || undefined })}
           />
         </div>
       </div>
@@ -151,14 +164,10 @@ export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
             </div>
             <div className="w-40">
               <label className={labelClass}>Amount ($)</label>
-              <input
-                type="number"
+              <DollarInput
                 className={inputClass}
-                value={centsToDisplay(fee.amount)}
-                onChange={(e) => updateFee(index, { amount: displayToCents(e.target.value) })}
-                placeholder="0.00"
-                step="0.01"
-                min="0"
+                cents={fee.amount}
+                onChange={(c) => updateFee(index, { amount: c })}
               />
             </div>
             <button

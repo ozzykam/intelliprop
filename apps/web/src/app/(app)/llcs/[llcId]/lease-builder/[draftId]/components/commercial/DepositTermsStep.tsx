@@ -10,6 +10,50 @@ interface StepProps {
   saveDraft: (updates: Partial<LeaseBuilderDraft>) => Promise<boolean>;
 }
 
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents === undefined || cents === 0) return '';
+  return (cents / 100).toFixed(2);
+}
+
+function displayToCents(value: string): number {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) return 0;
+  return Math.round(parsed * 100);
+}
+
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setRaw(cleaned);
+        onChange(displayToCents(cleaned));
+      }}
+      onBlur={() => {
+        const c = displayToCents(raw);
+        setRaw(centsToDisplayStr(c));
+      }}
+    />
+  );
+}
+
 export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
   const [deposit, setDeposit] = useState<CommercialDepositTerms>(
     draft.commercial?.deposit || {
@@ -29,17 +73,6 @@ export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
     });
   }
 
-  function centsToDisplay(cents: number | undefined): string {
-    if (cents === undefined || cents === 0) return '';
-    return (cents / 100).toFixed(2);
-  }
-
-  function displayToCents(value: string): number {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) return 0;
-    return Math.round(parsed * 100);
-  }
-
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-medium">Security Deposit</h2>
@@ -50,13 +83,9 @@ export default function DepositTermsStep({ draft, updateDraft }: StepProps) {
             <label className="block text-sm font-medium mb-2">
               Security Deposit Amount ($)
             </label>
-            <input
-              type="text"
-              value={centsToDisplay(deposit.securityDeposit)}
-              onChange={(e) =>
-                updateDeposit({ securityDeposit: displayToCents(e.target.value) })
-              }
-              placeholder="0.00"
+            <DollarInput
+              cents={deposit.securityDeposit}
+              onChange={(c) => updateDeposit({ securityDeposit: c })}
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

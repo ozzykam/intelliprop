@@ -10,6 +10,26 @@ interface EditTenantPageProps {
 }
 
 
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+  'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+  'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+  'Wisconsin', 'Wyoming', 'District of Columbia',
+];
+
+const BUSINESS_TYPES = [
+  { value: 'llc', label: 'Limited Liability Company' },
+  { value: 'corporation', label: 'Corporation' },
+  { value: 'sole_proprietorship', label: 'Sole Proprietorship' },
+  { value: 'partnership', label: 'Partnership' },
+  { value: 'nonprofit', label: 'Nonprofit' },
+  { value: 'other', label: 'Other' },
+];
+
 export default function EditTenantPage({ params }: EditTenantPageProps) {
   const { llcId, tenantId } = use(params);
   const router = useRouter();
@@ -363,12 +383,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                   onChange={(e) => setBusinessType(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="llc">LLC</option>
-                  <option value="corporation">Corporation</option>
-                  <option value="sole_proprietorship">Sole Proprietorship</option>
-                  <option value="partnership">Partnership</option>
-                  <option value="nonprofit">Nonprofit</option>
-                  <option value="other">Other</option>
+                  {BUSINESS_TYPES.map((bt) => (
+                    <option key={bt.value} value={bt.value}>{bt.label}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -388,14 +405,17 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                 <label htmlFor="stateOfIncorporation" className="block text-sm font-medium mb-2">
                   State of Inc.
                 </label>
-                <input
+                <select
                   id="stateOfIncorporation"
-                  type="text"
                   value={stateOfIncorporation}
-                  onChange={(e) => setStateOfIncorporation(e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 2))}
-                  maxLength={2}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring uppercase"
-                />
+                  onChange={(e) => setStateOfIncorporation(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select state</option>
+                  {US_STATES.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -502,7 +522,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           <div className="flex gap-3">
             <button
               type="submit"
-              disabled={saving || !propertyId || !email}
+              disabled={saving || !email}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}

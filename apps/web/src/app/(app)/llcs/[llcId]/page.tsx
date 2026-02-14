@@ -13,6 +13,9 @@ interface LlcStats {
   leasesExpiringSoon: number;
   outstandingBalance: number;
   openCases: number;
+  publishedLeasesActive: number;
+  publishedLeasesExpiringSoon: number;
+  publishedLeasesPendingAcceptance: number;
 }
 
 async function getLlcStats(llcId: string): Promise<LlcStats> {
@@ -24,11 +27,13 @@ async function getLlcStats(llcId: string): Promise<LlcStats> {
     leasesSnap,
     chargesSnap,
     casesSnap,
+    publishedLeasesSnap,
   ] = await Promise.all([
     llcRef.collection('properties').get(),
     llcRef.collection('leases').get(),
     llcRef.collection('charges').where('status', 'in', ['open', 'partial']).get(),
     llcRef.collection('cases').where('status', '==', 'open').get(),
+    llcRef.collection('publishedLeases').get(),
   ]);
 
   // Count properties
@@ -66,6 +71,24 @@ async function getLlcStats(llcId: string): Promise<LlcStats> {
     }
   }
 
+  // Count published leases stats
+  let publishedLeasesActive = 0;
+  let publishedLeasesExpiringSoon = 0;
+  let publishedLeasesPendingAcceptance = 0;
+  for (const plDoc of publishedLeasesSnap.docs) {
+    const pl = plDoc.data();
+    if (pl.status === 'active') {
+      publishedLeasesActive++;
+      const endDate = pl.endDate?.substring(0, 10);
+      if (endDate && sixtyDaysIso && endDate <= sixtyDaysIso) {
+        publishedLeasesExpiringSoon++;
+      }
+    }
+    if (!pl.accepted) {
+      publishedLeasesPendingAcceptance++;
+    }
+  }
+
   // Calculate outstanding balance (sum of unpaid charges)
   let outstandingBalance = 0;
   for (const chargeDoc of chargesSnap.docs) {
@@ -86,6 +109,9 @@ async function getLlcStats(llcId: string): Promise<LlcStats> {
     leasesExpiringSoon,
     outstandingBalance,
     openCases,
+    publishedLeasesActive,
+    publishedLeasesExpiringSoon,
+    publishedLeasesPendingAcceptance,
   };
 }
 
@@ -135,11 +161,16 @@ export default async function LlcDashboardPage({ params }: LlcDashboardProps) {
           </div>
         </Link>
         <Link href={`/llcs/${llcId}/leases`} className="p-4 border rounded-lg hover:bg-secondary/30 transition-colors">
-          <div className="text-sm text-muted-foreground">Active Leases</div>
-          <div className="text-2xl font-bold">{stats.activeLeases}</div>
-          {stats.leasesExpiringSoon > 0 && (
+          <div className="text-sm text-muted-foreground">Published Leases</div>
+          <div className="text-2xl font-bold">{stats.publishedLeasesActive}</div>
+          {stats.publishedLeasesExpiringSoon > 0 && (
             <div className="text-xs text-yellow-600 mt-1">
-              {stats.leasesExpiringSoon} expiring soon
+              {stats.publishedLeasesExpiringSoon} expiring soon
+            </div>
+          )}
+          {stats.publishedLeasesPendingAcceptance > 0 && (
+            <div className="text-xs text-yellow-600 mt-1">
+              {stats.publishedLeasesPendingAcceptance} pending acceptance
             </div>
           )}
         </Link>
@@ -181,8 +212,8 @@ export default async function LlcDashboardPage({ params }: LlcDashboardProps) {
         </div>
         <div className="p-4 border rounded-lg">
           <div className="text-sm text-muted-foreground">Lease Renewals Needed</div>
-          <div className={`text-2xl font-bold ${stats.leasesExpiringSoon > 0 ? 'text-yellow-600' : ''}`}>
-            {stats.leasesExpiringSoon}
+          <div className={`text-2xl font-bold ${stats.publishedLeasesExpiringSoon > 0 ? 'text-yellow-600' : ''}`}>
+            {stats.publishedLeasesExpiringSoon}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             within 60 days

@@ -22,6 +22,77 @@ const ESCALATION_TYPES: { value: CommercialFinancialTerms['escalationType']; lab
   { value: 'step_schedule', label: 'Step Schedule' },
 ];
 
+/** A controlled dollar input that doesn't reformat while typing */
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  function handleChange(value: string) {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    setRaw(cleaned);
+    onChange(displayToCents(cleaned));
+  }
+
+  function handleBlur() {
+    const c = displayToCents(raw);
+    setRaw(centsToDisplayStr(c));
+  }
+
+  return (
+    <input
+      type="text"
+      value={raw}
+      onChange={(e) => handleChange(e.target.value)}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+}
+
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents === undefined || cents === 0) return '';
+  return (cents / 100).toFixed(2);
+}
+
+function displayToCents(value: string): number {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) return 0;
+  return Math.round(parsed * 100);
+}
+
+/** Hook for a dollar input: keeps raw string locally, syncs cents on change, reformats on blur */
+function useDollarInput(
+  cents: number | undefined,
+  onChange: (cents: number) => void
+) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  function handleChange(value: string) {
+    // Allow digits, one decimal point, and leading empty
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    setRaw(cleaned);
+    onChange(displayToCents(cleaned));
+  }
+
+  function handleBlur() {
+    // Reformat to 2 decimal places on blur
+    const c = displayToCents(raw);
+    setRaw(centsToDisplayStr(c));
+  }
+
+  return { value: raw, handleChange, handleBlur };
+}
+
 export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
   const leaseType = draft.commercial?.leaseStructure?.leaseType || 'nnn';
 
@@ -50,16 +121,16 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
     });
   }
 
-  function centsToDisplay(cents: number | undefined): string {
-    if (cents === undefined || cents === 0) return '';
-    return (cents / 100).toFixed(2);
-  }
-
-  function displayToCents(value: string): number {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) return 0;
-    return Math.round(parsed * 100);
-  }
+  // Dollar input hooks
+  const baseRent = useDollarInput(financial.baseRentMonthly, (c) =>
+    updateFinancial({ baseRentMonthly: c })
+  );
+  const lateFee = useDollarInput(financial.lateFeeAmount, (c) =>
+    updateFinancial({ lateFeeAmount: c })
+  );
+  const escalationAmt = useDollarInput(financial.escalationFixedAmount, (c) =>
+    updateFinancial({ escalationFixedAmount: c })
+  );
 
   // Step schedule management
   function addStep() {
@@ -99,10 +170,9 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
             </label>
             <input
               type="text"
-              value={centsToDisplay(financial.baseRentMonthly)}
-              onChange={(e) =>
-                updateFinancial({ baseRentMonthly: displayToCents(e.target.value) })
-              }
+              value={baseRent.value}
+              onChange={(e) => baseRent.handleChange(e.target.value)}
+              onBlur={baseRent.handleBlur}
               placeholder="0.00"
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -116,7 +186,7 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
               value={financial.dueDay}
               onChange={(e) =>
                 updateFinancial({
-                  dueDay: Math.max(1, Math.min(28, parseInt(e.target.value, 10) || 1)),
+                  dueDay: Math.max(1, Math.min(28, parseInt(e.target.value, 10))),
                 })
               }
               min={1}
@@ -156,12 +226,9 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
             </label>
             <input
               type="text"
-              value={centsToDisplay(financial.escalationFixedAmount)}
-              onChange={(e) =>
-                updateFinancial({
-                  escalationFixedAmount: displayToCents(e.target.value),
-                })
-              }
+              value={escalationAmt.value}
+              onChange={(e) => escalationAmt.handleChange(e.target.value)}
+              onBlur={escalationAmt.handleBlur}
               placeholder="0.00"
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -220,15 +287,9 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={centsToDisplay(step.monthlyRent)}
-                        onChange={(e) =>
-                          updateStep(index, {
-                            monthlyRent: displayToCents(e.target.value),
-                          })
-                        }
-                        placeholder="0.00"
+                      <DollarInput
+                        cents={step.monthlyRent}
+                        onChange={(c) => updateStep(index, { monthlyRent: c })}
                         className="w-full px-2 py-1 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </td>
@@ -259,17 +320,36 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
       {/* Late Fee & Default Interest */}
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Late Fee & Default Interest</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Grace Period (days)
+            </label>
+            <input
+              type="number"
+              value={financial.gracePeriodDays ?? ''}
+              onChange={(e) =>
+                updateFinancial({
+                  gracePeriodDays: e.target.value
+                    ? parseInt(e.target.value, 10)
+                    : undefined,
+                })
+              }
+              placeholder="e.g. 5"
+              min={0}
+              max={30}
+              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Late Fee Amount ($)
             </label>
             <input
               type="text"
-              value={centsToDisplay(financial.lateFeeAmount)}
-              onChange={(e) =>
-                updateFinancial({ lateFeeAmount: displayToCents(e.target.value) })
-              }
+              value={lateFee.value}
+              onChange={(e) => lateFee.handleChange(e.target.value)}
+              onBlur={lateFee.handleBlur}
               placeholder="0.00"
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />

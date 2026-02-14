@@ -10,6 +10,50 @@ interface StepProps {
   saveDraft: (updates: Partial<LeaseBuilderDraft>) => Promise<boolean>;
 }
 
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents === undefined || cents === 0) return '';
+  return (cents / 100).toFixed(2);
+}
+
+function displayToCents(value: string): number {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed)) return 0;
+  return Math.round(parsed * 100);
+}
+
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setRaw(cleaned);
+        onChange(displayToCents(cleaned));
+      }}
+      onBlur={() => {
+        const c = displayToCents(raw);
+        setRaw(centsToDisplayStr(c));
+      }}
+    />
+  );
+}
+
 export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
   const [buildout, setBuildout] = useState<UseAndBuildoutTerms>(
     draft.commercial?.useAndBuildout || {
@@ -32,17 +76,6 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
         useAndBuildout: updated,
       },
     });
-  }
-
-  function centsToDisplay(cents: number | undefined): string {
-    if (cents === undefined || cents === 0) return '';
-    return (cents / 100).toFixed(2);
-  }
-
-  function displayToCents(value: string): number {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) return 0;
-    return Math.round(parsed * 100);
   }
 
   const showTiDetails = buildout.tiType === 'landlord_allowance' || buildout.tiType === 'work_letter';
@@ -153,13 +186,9 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
                 <label className="block text-sm font-medium mb-2">
                   TI Allowance ($)
                 </label>
-                <input
-                  type="text"
-                  value={centsToDisplay(buildout.tiAllowance)}
-                  onChange={(e) =>
-                    updateBuildout({ tiAllowance: displayToCents(e.target.value) })
-                  }
-                  placeholder="0.00"
+                <DollarInput
+                  cents={buildout.tiAllowance}
+                  onChange={(c) => updateBuildout({ tiAllowance: c })}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>

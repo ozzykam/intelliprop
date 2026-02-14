@@ -22,6 +22,7 @@ export const collections = {
   tenants: (llcId: string) => db.collection(`llcs/${llcId}/tenants`),
   globalTenants: () => db.collection('tenants'),
   leases: (llcId: string) => db.collection(`llcs/${llcId}/leases`),
+  publishedLeases: (llcId: string) => db.collection(`llcs/${llcId}/publishedLeases`),
   charges: (llcId: string) => db.collection(`llcs/${llcId}/charges`),
   payments: (llcId: string) => db.collection(`llcs/${llcId}/payments`),
   ledgerEntries: (llcId: string) => db.collection(`llcs/${llcId}/ledgerEntries`),

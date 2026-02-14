@@ -38,8 +38,8 @@ const PROHIBITED_ACTIVITIES_OPTIONS: { value: ProhibitedActivity; label: string 
   { value: 'satellite_dish_without_approval', label: 'Satellite Dish Without Approval' },
 ];
 
-function centsToDisplay(cents: number | undefined): string {
-  if (cents == null || isNaN(cents)) return '';
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents == null || isNaN(cents) || cents === 0) return '';
   return (cents / 100).toFixed(2);
 }
 
@@ -47,6 +47,39 @@ function displayToCents(display: string): number {
   const parsed = parseFloat(display);
   if (isNaN(parsed)) return 0;
   return Math.round(parsed * 100);
+}
+
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setRaw(cleaned);
+        onChange(displayToCents(cleaned));
+      }}
+      onBlur={() => {
+        const c = displayToCents(raw);
+        setRaw(centsToDisplayStr(c));
+      }}
+    />
+  );
 }
 
 export default function PolicyTermsStep({ draft, updateDraft }: StepProps) {
@@ -248,20 +281,10 @@ export default function PolicyTermsStep({ draft, updateDraft }: StepProps) {
 
             <div>
               <label className={labelClass}>Pet Rent ($/month)</label>
-              <input
-                type="number"
+              <DollarInput
                 className={inputClass}
-                value={centsToDisplay(policies.petRestrictions?.petRentPerMonth)}
-                onChange={(e) =>
-                  updatePetRestrictions({
-                    petRentPerMonth: e.target.value
-                      ? displayToCents(e.target.value)
-                      : undefined,
-                  })
-                }
-                placeholder="0.00"
-                step="0.01"
-                min="0"
+                cents={policies.petRestrictions?.petRentPerMonth}
+                onChange={(c) => updatePetRestrictions({ petRentPerMonth: c || undefined })}
               />
             </div>
 
@@ -346,20 +369,11 @@ export default function PolicyTermsStep({ draft, updateDraft }: StepProps) {
             </div>
             <div>
               <label className={labelClass}>Parking Fee ($/month)</label>
-              <input
-                type="number"
+              <DollarInput
                 className={inputClass}
-                value={centsToDisplay(policies.parkingFeePerMonth)}
-                onChange={(e) =>
-                  update({
-                    parkingFeePerMonth: e.target.value
-                      ? displayToCents(e.target.value)
-                      : undefined,
-                  })
-                }
+                cents={policies.parkingFeePerMonth}
+                onChange={(c) => update({ parkingFeePerMonth: c || undefined })}
                 placeholder="0.00 (included in rent)"
-                step="0.01"
-                min="0"
               />
             </div>
           </div>
@@ -392,20 +406,11 @@ export default function PolicyTermsStep({ draft, updateDraft }: StepProps) {
         {policies.storageIncluded && (
           <div>
             <label className={labelClass}>Storage Fee ($/month)</label>
-            <input
-              type="number"
+            <DollarInput
               className={inputClass}
-              value={centsToDisplay(policies.storageFeePerMonth)}
-              onChange={(e) =>
-                update({
-                  storageFeePerMonth: e.target.value
-                    ? displayToCents(e.target.value)
-                    : undefined,
-                })
-              }
+              cents={policies.storageFeePerMonth}
+              onChange={(c) => update({ storageFeePerMonth: c || undefined })}
               placeholder="0.00 (included in rent)"
-              step="0.01"
-              min="0"
             />
           </div>
         )}

@@ -14,6 +14,9 @@ interface LlcDashboardStats {
   overdueCharges: number;
   overdueAmount: number;
   leasesExpiringSoon: number;
+  publishedLeasesActive: number;
+  publishedLeasesExpiringSoon: number;
+  pendingAcceptance: number;
 }
 
 interface LlcItem {
@@ -82,7 +85,10 @@ export default function ExpandableLlcCard({ llc, defaultExpanded = false }: Expa
             {!isExpanded && stats && (
               <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
                 <span>{stats.propertyCount} properties</span>
-                <span>{stats.activeLeases} leases</span>
+                <span>{stats.publishedLeasesActive} leases</span>
+                {stats.pendingAcceptance > 0 && (
+                  <span className="text-yellow-600">{stats.pendingAcceptance} pending</span>
+                )}
                 {stats.openCases > 0 && (
                   <span className="text-yellow-600">{stats.openCases} cases</span>
                 )}
@@ -127,10 +133,13 @@ export default function ExpandableLlcCard({ llc, defaultExpanded = false }: Expa
                   <p className="text-xs text-muted-foreground">{occupancyRate}% occupied</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Active Leases</p>
-                  <p className="text-xl font-bold">{stats.activeLeases}</p>
-                  {stats.leasesExpiringSoon > 0 && (
-                    <p className="text-xs text-yellow-600">{stats.leasesExpiringSoon} expiring soon</p>
+                  <p className="text-xs text-muted-foreground">Published Leases</p>
+                  <p className="text-xl font-bold">{stats.publishedLeasesActive}</p>
+                  {stats.publishedLeasesExpiringSoon > 0 && (
+                    <p className="text-xs text-yellow-600">{stats.publishedLeasesExpiringSoon} expiring soon</p>
+                  )}
+                  {stats.pendingAcceptance > 0 && (
+                    <p className="text-xs text-yellow-600">{stats.pendingAcceptance} pending</p>
                   )}
                 </div>
                 <div className={`p-3 rounded-lg ${stats.overdueAmount > 0 ? 'bg-red-50' : 'bg-secondary/30'}`}>

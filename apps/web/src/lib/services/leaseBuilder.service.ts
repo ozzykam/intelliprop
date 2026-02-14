@@ -182,6 +182,47 @@ function formatUtilityList(utilities: string[] | undefined): string {
   return utilities.map((u) => labels[u] || u).join(', ');
 }
 
+const BUSINESS_TYPE_LABELS: Record<string, string> = {
+  llc: 'Limited Liability Company',
+  corporation: 'Corporation',
+  sole_proprietorship: 'Sole Proprietorship',
+  partnership: 'Partnership',
+  nonprofit: 'Nonprofit',
+  other: 'Other',
+};
+
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia',
+};
+
+/** Resolve a state value (abbreviation or full name) to a full name */
+function resolveStateName(value: string): string {
+  if (!value) return '';
+  // If it's a 2-letter abbreviation, look it up
+  const upper = value.toUpperCase();
+  if (upper.length === 2 && STATE_ABBR_TO_NAME[upper]) {
+    return STATE_ABBR_TO_NAME[upper];
+  }
+  // Already a full name — return as-is
+  return value;
+}
+
+/** Resolve a business type code to its title-cased display label */
+function resolveBusinessTypeLabel(code: string): string {
+  if (!code) return '';
+  return BUSINESS_TYPE_LABELS[code] || code;
+}
+
 function getTenantName(tenant: Tenant): string {
   if (tenant.type === 'individual') {
     const rt = tenant as IndividualTenant;
@@ -331,8 +372,8 @@ function populateTenants(
 
   if (draft.leaseClass === 'commercial' && firstTenant?.type === 'business') {
     const ct = firstTenant as BusinessTenant;
-    ctx['tenant.entityType'] = ct.businessType || '';
-    ctx['tenant.stateOfFormation'] = ct.stateOfIncorporation || '';
+    ctx['tenant.entityType'] = resolveBusinessTypeLabel(ct.businessType || '');
+    ctx['tenant.stateOfFormation'] = resolveStateName(ct.stateOfIncorporation || '');
     ctx['tenant.signerName'] = ct.primaryContact?.name || '';
     ctx['tenant.signerTitle'] = ct.primaryContact?.title || '';
     ctx['tenant.address'] = '';

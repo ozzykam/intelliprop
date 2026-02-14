@@ -50,6 +50,44 @@ interface DraftItem {
   currentStep?: string;
   createdAt: unknown;
   reviewedAt?: unknown;
+  published?: boolean;
+  publishedLeaseId?: string;
+  // Identifying attributes
+  propertyId?: string;
+  unitIds?: string[];
+  tenantIds?: string[];
+  leaseType?: string;
+  residential?: {
+    rent?: {
+      monthlyRent?: number;
+      startDate?: string;
+      endDate?: string;
+    };
+  };
+  commercial?: {
+    leaseStructure?: {
+      startDate?: string;
+      endDate?: string;
+    };
+    financial?: {
+      baseRentMonthly?: number;
+    };
+  };
+}
+
+interface PublishedLeaseItem {
+  id: string;
+  leaseClass: string;
+  propertyId: string;
+  unitIds: string[];
+  tenantIds: string[];
+  leaseType: string;
+  startDate: string;
+  endDate?: string;
+  monthlyRent: number;
+  accepted: boolean;
+  status: string;
+  publishedAt: string;
 }
 
 interface LeasesPageProps {
@@ -62,6 +100,7 @@ const STATUS_COLORS: Record<string, string> = {
   ended: 'bg-blue-100 text-blue-800',
   eviction: 'bg-red-100 text-red-800',
   terminated: 'bg-orange-100 text-orange-800',
+  expired: 'bg-gray-100 text-gray-800',
 };
 
 function formatDate(iso: string): string {
@@ -101,6 +140,18 @@ function formatMoney(cents: number): string {
   return '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2 });
 }
 
+function getDraftStartDate(draft: DraftItem): string {
+  return draft.residential?.rent?.startDate || draft.commercial?.leaseStructure?.startDate || '';
+}
+
+function getDraftEndDate(draft: DraftItem): string {
+  return draft.residential?.rent?.endDate || draft.commercial?.leaseStructure?.endDate || '';
+}
+
+function getDraftMonthlyRent(draft: DraftItem): number | undefined {
+  return draft.residential?.rent?.monthlyRent ?? draft.commercial?.financial?.baseRentMonthly;
+}
+
 export default function LeasesPage({ params }: LeasesPageProps) {
   const { llcId } = use(params);
   const router = useRouter();
@@ -119,6 +170,10 @@ export default function LeasesPage({ params }: LeasesPageProps) {
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(true);
   const [creating, setCreating] = useState(false);
+
+  // Published leases state
+  const [publishedLeases, setPublishedLeases] = useState<PublishedLeaseItem[]>([]);
+  const [loadingPublished, setLoadingPublished] = useState(true);
 
   const fetchLeases = useCallback(async () => {
     try {
@@ -186,10 +241,25 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     }
   }, [llcId]);
 
+  const fetchPublishedLeases = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/published-leases`);
+      const data = await res.json();
+      if (data.ok) {
+        setPublishedLeases(data.data);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingPublished(false);
+    }
+  }, [llcId]);
+
   useEffect(() => {
     fetchLeases();
     fetchDrafts();
-  }, [fetchLeases, fetchDrafts]);
+    fetchPublishedLeases();
+  }, [fetchLeases, fetchDrafts, fetchPublishedLeases]);
 
   const getPropertyName = useCallback((propertyId: string): string => {
     const property = propertiesMap.get(propertyId);
@@ -200,6 +270,11 @@ export default function LeasesPage({ params }: LeasesPageProps) {
   const getUnitNumber = useCallback((unitId: string): string => {
     const unit = unitsMap.get(unitId);
     return unit?.unitNumber || '—';
+  }, [unitsMap]);
+
+  const getUnitNumbers = useCallback((unitIds: string[]): string => {
+    if (!unitIds?.length) return '—';
+    return unitIds.map(id => unitsMap.get(id)?.unitNumber || '—').join(', ');
   }, [unitsMap]);
 
   const getTenantNames = useCallback((tenantIds: string[]): string => {
@@ -310,7 +385,7 @@ export default function LeasesPage({ params }: LeasesPageProps) {
   }
 
   const inProgressDrafts = drafts.filter((d) => d.status === 'in_progress');
-  const completedDrafts = drafts.filter((d) => d.status === 'completed');
+  const completedDrafts = drafts.filter((d) => d.status === 'completed' && !d.published);
 
   if (loading) {
     return <div className="text-muted-foreground">Loading leases...</div>;
@@ -344,6 +419,70 @@ export default function LeasesPage({ params }: LeasesPageProps) {
         </div>
       )}
 
+      {/* Published Leases */}
+      {(loadingPublished || publishedLeases.length > 0) && (
+        <div className="mb-8">
+          <h2 className="text-lg font-medium mb-3">Published Leases</h2>
+          {loadingPublished ? (
+            <p className="text-sm text-muted-foreground">Loading published leases...</p>
+          ) : publishedLeases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No published leases yet.</p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Type</th>
+                    <th className="text-left px-4 py-3 font-medium">Property</th>
+                    <th className="text-left px-4 py-3 font-medium">Unit(s)</th>
+                    <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
+                    <th className="text-left px-4 py-3 font-medium">Term</th>
+                    <th className="text-left px-4 py-3 font-medium">Rent</th>
+                    <th className="text-center px-4 py-3 font-medium">Accepted</th>
+                    <th className="text-center px-4 py-3 font-medium">Status</th>
+                    <th className="text-right px-4 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {publishedLeases.map((pl) => (
+                    <tr key={pl.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-4 py-3 capitalize">{pl.leaseClass}</td>
+                      <td className="px-4 py-3">{getPropertyName(pl.propertyId)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{getUnitNumbers(pl.unitIds)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{getTenantNames(pl.tenantIds)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {formatDate(pl.startDate)} – {pl.endDate ? formatDate(pl.endDate) : 'MTM'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatMoney(pl.monthlyRent)}</td>
+                      <td className="px-4 py-3 text-center">
+                        {pl.accepted ? (
+                          <span className="text-green-600 text-xs font-medium">Yes</span>
+                        ) : (
+                          <span className="text-yellow-600 text-xs font-medium">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${STATUS_COLORS[pl.status] || 'bg-gray-100 text-gray-800'}`}>
+                          {pl.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/llcs/${llcId}/published-leases/${pl.id}`}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Lease Builder Drafts */}
       {(loadingDrafts || inProgressDrafts.length > 0 || completedDrafts.length > 0) && (
         <div className="mb-8">
@@ -355,70 +494,131 @@ export default function LeasesPage({ params }: LeasesPageProps) {
                 <div className="mb-4">
                   <h2 className="text-lg font-medium mb-3">In Progress Drafts</h2>
                   <div className="space-y-2">
-                    {inProgressDrafts.map((draft) => (
-                      <div
-                        key={draft.id}
-                        className="flex items-center justify-between p-4 border border-input rounded-lg"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
-                            <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
-                              In Progress
-                            </span>
+                    {inProgressDrafts.map((draft) => {
+                      const startDate = getDraftStartDate(draft);
+                      const endDate = getDraftEndDate(draft);
+                      const rent = getDraftMonthlyRent(draft);
+                      const hasDetails = draft.propertyId || (draft.tenantIds && draft.tenantIds.length > 0);
+                      return (
+                        <div
+                          key={draft.id}
+                          className="flex items-center justify-between p-4 border border-input rounded-lg"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
+                              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                                In Progress
+                              </span>
+                              {draft.leaseType && (
+                                <span className="text-xs text-muted-foreground">
+                                  {draft.leaseType === 'fixed_term' ? 'Fixed Term' : 'Month-to-Month'}
+                                </span>
+                              )}
+                            </div>
+                            {hasDetails && (
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+                                {draft.propertyId && (
+                                  <span>{getPropertyName(draft.propertyId)}</span>
+                                )}
+                                {draft.unitIds && draft.unitIds.length > 0 && (
+                                  <span>Unit {getUnitNumbers(draft.unitIds)}</span>
+                                )}
+                                {draft.tenantIds && draft.tenantIds.length > 0 && (
+                                  <span>{getTenantNames(draft.tenantIds)}</span>
+                                )}
+                                {rent !== undefined && (
+                                  <span>{formatMoney(rent)}/mo</span>
+                                )}
+                                {startDate && (
+                                  <span>
+                                    {formatDate(startDate)}{endDate ? ` – ${formatDate(endDate)}` : ' – MTM'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Step: {draft.currentStep?.replace(/_/g, ' ')} | Created: {formatDraftDate(draft.createdAt)}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Step: {draft.currentStep?.replace(/_/g, ' ')} | Created: {formatDraftDate(draft.createdAt)}
-                          </p>
+                          <div className="flex items-center gap-2 ml-4 shrink-0">
+                            <Link
+                              href={`/llcs/${llcId}/lease-builder/${draft.id}`}
+                              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+                            >
+                              Continue
+                            </Link>
+                            <button
+                              onClick={() => deleteDraft(draft.id)}
+                              className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/llcs/${llcId}/lease-builder/${draft.id}`}
-                            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
-                          >
-                            Continue
-                          </Link>
-                          <button
-                            onClick={() => deleteDraft(draft.id)}
-                            className="px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {completedDrafts.length > 0 && (
                 <div className="mb-4">
-                  <h2 className="text-lg font-medium mb-3">Completed Drafts</h2>
+                  <h2 className="text-lg font-medium mb-3">Completed Drafts (Unpublished)</h2>
                   <div className="space-y-2">
-                    {completedDrafts.map((draft) => (
-                      <div
-                        key={draft.id}
-                        className="flex items-center justify-between p-4 border border-input rounded-lg"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
-                            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
-                              Completed
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Reviewed: {draft.reviewedAt ? formatDraftDate(draft.reviewedAt) : 'N/A'}
-                          </p>
-                        </div>
-                        <Link
-                          href={`/llcs/${llcId}/lease-builder/${draft.id}`}
-                          className="px-4 py-2 text-sm border border-input rounded-md hover:bg-secondary transition-colors"
+                    {completedDrafts.map((draft) => {
+                      const startDate = getDraftStartDate(draft);
+                      const endDate = getDraftEndDate(draft);
+                      const rent = getDraftMonthlyRent(draft);
+                      return (
+                        <div
+                          key={draft.id}
+                          className="flex items-center justify-between p-4 border border-input rounded-lg"
                         >
-                          View
-                        </Link>
-                      </div>
-                    ))}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
+                              <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                                Completed
+                              </span>
+                              {draft.leaseType && (
+                                <span className="text-xs text-muted-foreground">
+                                  {draft.leaseType === 'fixed_term' ? 'Fixed Term' : 'Month-to-Month'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+                              {draft.propertyId && (
+                                <span>{getPropertyName(draft.propertyId)}</span>
+                              )}
+                              {draft.unitIds && draft.unitIds.length > 0 && (
+                                <span>Unit {getUnitNumbers(draft.unitIds)}</span>
+                              )}
+                              {draft.tenantIds && draft.tenantIds.length > 0 && (
+                                <span>{getTenantNames(draft.tenantIds)}</span>
+                              )}
+                              {rent !== undefined && (
+                                <span>{formatMoney(rent)}/mo</span>
+                              )}
+                              {startDate && (
+                                <span>
+                                  {formatDate(startDate)}{endDate ? ` – ${formatDate(endDate)}` : ' – MTM'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Reviewed: {draft.reviewedAt ? formatDraftDate(draft.reviewedAt) : 'N/A'}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/llcs/${llcId}/lease-builder/${draft.id}`}
+                            className="px-4 py-2 text-sm border border-input rounded-md hover:bg-secondary transition-colors ml-4 shrink-0"
+                          >
+                            View
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -429,7 +629,7 @@ export default function LeasesPage({ params }: LeasesPageProps) {
 
       {/* Active Leases Section */}
       <div>
-        <h2 className="text-lg font-medium mb-3">Active Leases</h2>
+        <h2 className="text-lg font-medium mb-3">Legacy Leases</h2>
 
         {/* Search & Filters */}
         <SearchFilter
@@ -450,7 +650,7 @@ export default function LeasesPage({ params }: LeasesPageProps) {
         {leases.length === 0 ? (
           <div className="text-center py-12 border rounded-lg">
             <p className="text-muted-foreground">
-              No leases yet. Use the buttons above to create a new residential or commercial lease.
+              No legacy leases. Use the buttons above to create a new residential or commercial lease.
             </p>
           </div>
         ) : filteredLeases.length === 0 ? (

@@ -41,8 +41,8 @@ const ALLOCATION_METHODS: { value: SharedUtility['allocationMethod']; label: str
   { value: 'fixed_amount', label: 'Fixed Amount' },
 ];
 
-function centsToDisplay(cents: number | undefined): string {
-  if (cents == null || isNaN(cents)) return '';
+function centsToDisplayStr(cents: number | undefined): string {
+  if (cents == null || isNaN(cents) || cents === 0) return '';
   return (cents / 100).toFixed(2);
 }
 
@@ -50,6 +50,39 @@ function displayToCents(display: string): number {
   const parsed = parseFloat(display);
   if (isNaN(parsed)) return 0;
   return Math.round(parsed * 100);
+}
+
+function DollarInput({
+  cents,
+  onChange,
+  placeholder = '0.00',
+  className,
+}: {
+  cents: number | undefined;
+  onChange: (cents: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [raw, setRaw] = useState(() => centsToDisplayStr(cents));
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={raw}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+        setRaw(cleaned);
+        onChange(displayToCents(cleaned));
+      }}
+      onBlur={() => {
+        const c = displayToCents(raw);
+        setRaw(centsToDisplayStr(c));
+      }}
+    />
+  );
 }
 
 export default function UtilityTermsStep({ draft, updateDraft }: StepProps) {
@@ -201,16 +234,10 @@ export default function UtilityTermsStep({ draft, updateDraft }: StepProps) {
             {shared.allocationMethod === 'fixed_amount' && (
               <div>
                 <label className={labelClass}>Fixed Amount ($)</label>
-                <input
-                  type="number"
+                <DollarInput
                   className={inputClass}
-                  value={centsToDisplay(shared.fixedAmount)}
-                  onChange={(e) =>
-                    updateSharedUtility(index, { fixedAmount: displayToCents(e.target.value) })
-                  }
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
+                  cents={shared.fixedAmount}
+                  onChange={(c) => updateSharedUtility(index, { fixedAmount: c })}
                 />
               </div>
             )}

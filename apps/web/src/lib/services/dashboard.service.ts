@@ -11,6 +11,9 @@ export interface LlcDashboardStats {
   overdueCharges: number;
   overdueAmount: number;
   leasesExpiringSoon: number;
+  publishedLeasesActive: number;
+  publishedLeasesExpiringSoon: number;
+  pendingAcceptance: number;
 }
 
 export interface OwnerDashboardStats {
@@ -77,6 +80,7 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
     leasesSnap,
     casesSnap,
     chargesSnap,
+    publishedLeasesSnap,
   ] = await Promise.all([
     // Properties (active only)
     llcRef.collection('properties').where('status', '!=', 'sold').get(),
@@ -88,6 +92,8 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
     llcRef.collection('cases').where('status', 'in', ['open', 'stayed']).get(),
     // All charges (will filter for overdue)
     llcRef.collection('charges').where('status', 'in', ['open', 'partial']).get(),
+    // Published leases
+    llcRef.collection('publishedLeases').get(),
   ]);
 
   // Filter units to only those belonging to this LLC's properties
@@ -120,6 +126,23 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
     }
   }
 
+  // Count published leases
+  let publishedLeasesActive = 0;
+  let publishedLeasesExpiringSoon = 0;
+  let pendingAcceptance = 0;
+  for (const plDoc of publishedLeasesSnap.docs) {
+    const pl = plDoc.data();
+    if (pl.status === 'active') {
+      publishedLeasesActive++;
+      if (pl.endDate && pl.endDate >= today && pl.endDate <= futureDate) {
+        publishedLeasesExpiringSoon++;
+      }
+    }
+    if (!pl.accepted) {
+      pendingAcceptance++;
+    }
+  }
+
   return {
     llcId,
     legalName,
@@ -131,6 +154,9 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
     overdueCharges,
     overdueAmount,
     leasesExpiringSoon,
+    publishedLeasesActive,
+    publishedLeasesExpiringSoon,
+    pendingAcceptance,
   };
 }
 

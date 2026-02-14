@@ -109,7 +109,7 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
     <td>
       <p><strong>TENANT:</strong></p>
       <p>{{tenant.name}}</p>
-      <p>{{tenant.entityType}}</p>
+      <p>A {{tenant.stateOfFormation}} {{tenant.entityType}}</p>
       <p>{{tenant.address}}</p>
       <p>{{tenant.phone}}</p>
       <p>{{tenant.email}}</p>

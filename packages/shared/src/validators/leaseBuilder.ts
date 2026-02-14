@@ -193,6 +193,7 @@ export const commercialFinancialTermsSchema = z.object({
   escalationFixedAmount: z.number().positive().optional(),
   escalationPercentage: z.number().positive().max(100).optional(),
   escalationStepSchedule: z.array(rentStepSchema).optional(),
+  gracePeriodDays: z.number().int().min(0).max(30).optional(),
   lateFeeAmount: z.number().nonnegative().optional(),
   defaultInterestRate: z.number().min(0).max(100).optional(),
   camEnabled: z.boolean(),
@@ -321,6 +322,8 @@ export const updateLeaseBuilderDraftSchema = z.object({
   triggeredOverlays: z.array(z.string()).optional(),
   reviewedAt: z.string().optional(),
   status: z.enum(['in_progress', 'completed', 'abandoned']).optional(),
+  amendingPublishedLeaseId: z.string().optional(),
+  clonedFromDraftId: z.string().optional(),
 });
 
 // Inferred types for API consumption

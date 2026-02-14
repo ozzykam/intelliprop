@@ -46,5 +46,5 @@ export { stripeWebhook } from './routes/payments/webhook';
 // =============================================================================
 // Scheduled Functions
 // =============================================================================
-export { generateMonthlyCharges } from './schedulers/nightly';
+export { generateMonthlyCharges, applyLateFees } from './schedulers/nightly';
 // export { sendReminders } from './schedulers/reminders';

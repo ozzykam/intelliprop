@@ -14,6 +14,7 @@ export * from './types/globalTask';
 export * from './types/mortgage';
 export * from './types/activation';
 export * from './types/leaseBuilder';
+export * from './types/publishedLease';
 
 // Constants
 export * from './constants/roles';
@@ -31,6 +32,7 @@ export * from './validators/rbac';
 export * from './validators/mortgage';
 export * from './validators/activation';
 export * from './validators/leaseBuilder';
+export * from './validators/publishedLease';
 
 // Utils
 export * from './utils/ids';

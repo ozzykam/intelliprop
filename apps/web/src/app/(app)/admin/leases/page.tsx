@@ -3,26 +3,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-interface AdminLease {
+interface AdminPublishedLease {
   id: string;
   llcId: string;
   llcName: string;
-  propertyId: string;
   propertyAddress: string;
-  propertyType: string;
-  unitId: string;
-  unitNumber: string;
+  unitNumbers: string;
   tenantNames: string[];
-  tenantIds: string[];
+  leaseClass: string;
+  monthlyRent: number;
   startDate: string;
-  endDate: string;
-  rentAmount: number;
-  dueDay: number;
-  depositAmount: number;
+  endDate?: string;
+  leaseType: string;
+  accepted: boolean;
   status: string;
-  amountOverdue: number;
-  lastPaymentDate: string | null;
-  lastPaymentAmount: number | null;
+  publishedAt: string;
   daysUntilExpiry: number | null;
 }
 
@@ -35,9 +30,10 @@ function formatMoney(cents: number): string {
   return '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2 });
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -45,27 +41,23 @@ const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
   expired: 'bg-gray-100 text-gray-800',
   terminated: 'bg-red-100 text-red-800',
-  pending: 'bg-yellow-100 text-yellow-800',
 };
-
-const PROPERTY_TYPES = [
-  { value: '', label: 'All Types' },
-  { value: 'residential', label: 'Residential' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'mixed', label: 'Mixed Use' },
-  { value: 'industrial', label: 'Industrial' },
-];
 
 const LEASE_STATUSES = [
   { value: '', label: 'All Statuses' },
   { value: 'active', label: 'Active' },
   { value: 'expired', label: 'Expired' },
   { value: 'terminated', label: 'Terminated' },
-  { value: 'pending', label: 'Pending' },
+];
+
+const ACCEPTED_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'true', label: 'Accepted' },
+  { value: 'false', label: 'Pending' },
 ];
 
 export default function AdminLeasesPage() {
-  const [leases, setLeases] = useState<AdminLease[]>([]);
+  const [leases, setLeases] = useState<AdminPublishedLease[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,7 +65,7 @@ export default function AdminLeasesPage() {
   // Filters
   const [llcFilter, setLlcFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState('');
+  const [acceptedFilter, setAcceptedFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchLlcs = async () => {
@@ -96,9 +88,9 @@ export default function AdminLeasesPage() {
       const params = new URLSearchParams();
       if (llcFilter) params.set('llcId', llcFilter);
       if (statusFilter) params.set('status', statusFilter);
-      if (propertyTypeFilter) params.set('propertyType', propertyTypeFilter);
+      if (acceptedFilter) params.set('accepted', acceptedFilter);
 
-      const res = await fetch(`/api/admin/leases?${params.toString()}`);
+      const res = await fetch(`/api/admin/published-leases?${params.toString()}`);
       const data = await res.json();
 
       if (data.ok) {
@@ -111,7 +103,7 @@ export default function AdminLeasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [llcFilter, statusFilter, propertyTypeFilter]);
+  }, [llcFilter, statusFilter, acceptedFilter]);
 
   useEffect(() => {
     fetchLlcs();
@@ -128,18 +120,18 @@ export default function AdminLeasesPage() {
     return (
       lease.tenantNames.some(n => n.toLowerCase().includes(search)) ||
       lease.propertyAddress.toLowerCase().includes(search) ||
-      lease.unitNumber.toLowerCase().includes(search) ||
+      lease.unitNumbers.toLowerCase().includes(search) ||
       lease.llcName.toLowerCase().includes(search)
     );
   });
 
   // Summary stats
-  const totalLeases = filteredLeases.length;
-  const activeLeases = filteredLeases.filter(l => l.status === 'active').length;
-  const totalOverdue = filteredLeases.reduce((sum, l) => sum + l.amountOverdue, 0);
+  const totalPublished = filteredLeases.length;
+  const acceptedCount = filteredLeases.filter(l => l.accepted).length;
+  const pendingAcceptance = filteredLeases.filter(l => !l.accepted).length;
   const totalMonthlyRent = filteredLeases
     .filter(l => l.status === 'active')
-    .reduce((sum, l) => sum + l.rentAmount, 0);
+    .reduce((sum, l) => sum + l.monthlyRent, 0);
 
   return (
     <div className="p-6">
@@ -152,27 +144,27 @@ export default function AdminLeasesPage() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold mb-6">All Leases</h1>
+      <h1 className="text-2xl font-bold mb-6">All Published Leases</h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-secondary/30 rounded-lg p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Leases</div>
-          <div className="text-2xl font-bold">{totalLeases}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Published</div>
+          <div className="text-2xl font-bold">{totalPublished}</div>
         </div>
         <div className="bg-secondary/30 rounded-lg p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Active Leases</div>
-          <div className="text-2xl font-bold text-green-600">{activeLeases}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Accepted</div>
+          <div className="text-2xl font-bold text-green-600">{acceptedCount}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Pending Acceptance</div>
+          <div className={`text-2xl font-bold ${pendingAcceptance > 0 ? 'text-yellow-600' : ''}`}>
+            {pendingAcceptance}
+          </div>
         </div>
         <div className="bg-secondary/30 rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Monthly Rent (Active)</div>
           <div className="text-2xl font-bold">{formatMoney(totalMonthlyRent)}</div>
-        </div>
-        <div className="bg-secondary/30 rounded-lg p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Overdue</div>
-          <div className={`text-2xl font-bold ${totalOverdue > 0 ? 'text-red-600' : ''}`}>
-            {formatMoney(totalOverdue)}
-          </div>
         </div>
       </div>
 
@@ -214,14 +206,14 @@ export default function AdminLeasesPage() {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-muted-foreground mb-1">Property Type</label>
+          <label className="block text-xs text-muted-foreground mb-1">Accepted</label>
           <select
-            value={propertyTypeFilter}
-            onChange={(e) => setPropertyTypeFilter(e.target.value)}
+            value={acceptedFilter}
+            onChange={(e) => setAcceptedFilter(e.target.value)}
             className="px-3 py-2 border rounded-md text-sm"
           >
-            {PROPERTY_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {ACCEPTED_FILTERS.map(f => (
+              <option key={f.value} value={f.value}>{f.label}</option>
             ))}
           </select>
         </div>
@@ -236,7 +228,7 @@ export default function AdminLeasesPage() {
 
       {/* Loading */}
       {loading && (
-        <div className="text-center py-8 text-muted-foreground">Loading leases...</div>
+        <div className="text-center py-8 text-muted-foreground">Loading published leases...</div>
       )}
 
       {/* Table */}
@@ -248,19 +240,17 @@ export default function AdminLeasesPage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">LLC</th>
                   <th className="text-left px-4 py-3 font-medium">Property</th>
-                  <th className="text-left px-4 py-3 font-medium">Unit</th>
+                  <th className="text-left px-4 py-3 font-medium">Unit(s)</th>
                   <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
                   <th className="text-right px-4 py-3 font-medium">Rent</th>
-                  <th className="text-center px-4 py-3 font-medium">Due Day</th>
-                  <th className="text-right px-4 py-3 font-medium">Overdue</th>
-                  <th className="text-left px-4 py-3 font-medium">Last Payment</th>
-                  <th className="text-left px-4 py-3 font-medium">Lease End</th>
+                  <th className="text-left px-4 py-3 font-medium">Term</th>
+                  <th className="text-center px-4 py-3 font-medium">Accepted</th>
                   <th className="text-center px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLeases.map((lease) => (
-                  <tr key={lease.id} className="border-t hover:bg-secondary/20">
+                  <tr key={`${lease.llcId}-${lease.id}`} className="border-t hover:bg-secondary/20">
                     <td className="px-4 py-3">
                       <Link
                         href={`/llcs/${lease.llcId}`}
@@ -271,40 +261,31 @@ export default function AdminLeasesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/llcs/${lease.llcId}/properties/${lease.propertyId}`}
+                        href={`/llcs/${lease.llcId}/published-leases/${lease.id}`}
                         className="hover:underline"
                       >
                         {lease.propertyAddress}
                       </Link>
-                      <div className="text-xs text-muted-foreground capitalize">{lease.propertyType}</div>
+                      <div className="text-xs text-muted-foreground capitalize">{lease.leaseClass}</div>
                     </td>
-                    <td className="px-4 py-3">{lease.unitNumber}</td>
+                    <td className="px-4 py-3">{lease.unitNumbers || '—'}</td>
                     <td className="px-4 py-3">
                       {lease.tenantNames.length > 0 ? lease.tenantNames.join(', ') : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium">{formatMoney(lease.rentAmount)}</td>
-                    <td className="px-4 py-3 text-center">{lease.dueDay}</td>
-                    <td className={`px-4 py-3 text-right ${lease.amountOverdue > 0 ? 'text-red-600 font-medium' : ''}`}>
-                      {lease.amountOverdue > 0 ? formatMoney(lease.amountOverdue) : '—'}
-                    </td>
+                    <td className="px-4 py-3 text-right font-medium">{formatMoney(lease.monthlyRent)}</td>
                     <td className="px-4 py-3">
-                      {lease.lastPaymentDate ? (
-                        <div>
-                          <div>{formatDate(lease.lastPaymentDate)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {lease.lastPaymentAmount ? formatMoney(lease.lastPaymentAmount) : ''}
-                          </div>
-                        </div>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{formatDate(lease.endDate)}</div>
+                      <div>{formatDate(lease.startDate)} – {lease.endDate ? formatDate(lease.endDate) : 'MTM'}</div>
                       {lease.daysUntilExpiry !== null && lease.daysUntilExpiry <= 60 && (
                         <div className={`text-xs ${lease.daysUntilExpiry <= 30 ? 'text-red-600' : 'text-yellow-600'}`}>
                           {lease.daysUntilExpiry} days left
                         </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {lease.accepted ? (
+                        <span className="text-green-600 text-xs font-medium">Yes</span>
+                      ) : (
+                        <span className="text-yellow-600 text-xs font-medium">Pending</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -323,7 +304,7 @@ export default function AdminLeasesPage() {
       {/* Empty State */}
       {!loading && filteredLeases.length === 0 && (
         <div className="text-center py-8 border rounded-lg">
-          <p className="text-muted-foreground">No leases found</p>
+          <p className="text-muted-foreground">No published leases found</p>
         </div>
       )}
     </div>

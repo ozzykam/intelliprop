@@ -8,6 +8,7 @@ export interface Charge {
   id: string;
   llcId: string;
   leaseId: string;
+  publishedLeaseId?: string; // Reference to publishedLeases collection
   tenantUserId?: string; // For Firestore rules
   period: string; // YYYY-MM
   type: ChargeType;
