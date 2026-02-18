@@ -1,19 +1,33 @@
 /**
  * Published Lease Types
  *
- * Represents a lease that has been published from a completed lease builder draft.
+ * Represents a lease that has been published from a completed lease builder draft,
+ * or created directly via the express lease flow (no draft/package).
  * Published leases are the "active" leases tracked for admin workflow, acceptance,
  * signed document uploads, and addenda.
  */
 
 import type { LeaseClass } from './leaseBuilder';
 
+export interface ExpressLeaseDetails {
+  petPolicy?: 'allowed' | 'not_allowed' | 'case_by_case';
+  petDeposit?: number;          // cents
+  parkingSpaces?: number;
+  utilitiesIncluded?: string[];
+  specialTerms?: string;
+  notes?: string;
+}
+
 export interface PublishedLease {
   id: string;
   llcId: string;
-  draftId: string;
-  packageId: string;
+  draftId?: string;             // absent for express leases
+  packageId?: string;           // absent for express leases
   leaseClass: LeaseClass;
+
+  // Express lease flag & details
+  express?: boolean;
+  expressDetails?: ExpressLeaseDetails;
 
   // Denormalized key data (from draft, for display without joins)
   propertyId: string;

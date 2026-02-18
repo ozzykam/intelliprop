@@ -132,7 +132,7 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
   let pendingAcceptance = 0;
   for (const plDoc of publishedLeasesSnap.docs) {
     const pl = plDoc.data();
-    if (pl.status === 'active') {
+    if (pl.accepted === true) {
       publishedLeasesActive++;
       if (pl.endDate && pl.endDate >= today && pl.endDate <= futureDate) {
         publishedLeasesExpiringSoon++;
@@ -198,7 +198,7 @@ export async function getOwnerDashboardStats(userId: string): Promise<OwnerDashb
     totalProperties += stats.propertyCount;
     totalUnits += stats.unitCount;
     occupiedUnits += stats.occupiedUnits;
-    totalActiveLeases += stats.activeLeases;
+    totalActiveLeases += stats.publishedLeasesActive;
     totalOpenCases += stats.openCases;
     totalOverdueAmount += stats.overdueAmount;
   }

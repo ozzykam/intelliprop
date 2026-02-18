@@ -36,21 +36,19 @@ export default function ExpandableLlcCard({ llc, defaultExpanded = false }: Expa
   const [stats, setStats] = useState<LlcDashboardStats | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch stats when expanded
+  // Fetch stats on mount so mini stats are available when collapsed
   useEffect(() => {
-    if (isExpanded && !stats) {
-      setLoading(true);
-      fetch(`/api/llcs/${llc.id}/stats`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.ok) {
-            setStats(data.data);
-          }
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }
-  }, [isExpanded, stats, llc.id]);
+    setLoading(true);
+    fetch(`/api/llcs/${llc.id}/stats`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          setStats(data.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [llc.id]);
 
   const occupancyRate = stats && stats.unitCount > 0
     ? Math.round((stats.occupiedUnits / stats.unitCount) * 100)

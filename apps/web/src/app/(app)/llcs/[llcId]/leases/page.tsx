@@ -410,6 +410,12 @@ export default function LeasesPage({ params }: LeasesPageProps) {
           >
             + New Commercial
           </button>
+          <Link
+            href={`/llcs/${llcId}/leases/new`}
+            className="px-4 py-2 border border-input rounded-md hover:bg-secondary transition-colors text-sm"
+          >
+            + Express Lease
+          </Link>
         </div>
       </div>
 

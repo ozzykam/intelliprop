@@ -1,4 +1,5 @@
 import { adminDb } from '@/lib/firebase/admin';
+import { getUser } from '@/lib/services/user.service';
 
 export interface ActivityItem {
   id: string;
@@ -135,4 +136,63 @@ export async function getRecentActivity(userId: string, limit = 20): Promise<Act
   });
 
   return allActivity.slice(0, limit);
+}
+
+export interface PaginatedActivityOptions {
+  page: number;   // 1-based
+  limit: number;  // 1–200
+}
+
+export interface PaginatedActivityResult {
+  items: (ActivityItem & { actorDisplayName: string })[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+/**
+ * Get paginated activity across all user's LLCs with actor display names resolved.
+ */
+export async function getPaginatedActivity(
+  userId: string,
+  options: PaginatedActivityOptions
+): Promise<PaginatedActivityResult> {
+  const { page, limit } = options;
+  const userLlcs = await getUserLlcs(userId);
+
+  if (userLlcs.length === 0) {
+    return { items: [], total: 0, page, limit, hasMore: false };
+  }
+
+  // Fetch a generous amount per LLC to get an accurate total (cap at 500 total)
+  const perLlcCap = Math.ceil(500 / userLlcs.length);
+  const activityPromises = userLlcs.map(llc => getLlcActivity(llc.id, llc.legalName, perLlcCap));
+  const activityArrays = await Promise.all(activityPromises);
+
+  // Flatten and sort by createdAt desc
+  const allActivity = activityArrays.flat();
+  allActivity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const total = allActivity.length;
+  const start = (page - 1) * limit;
+  const pageItems = allActivity.slice(start, start + limit);
+
+  // Resolve actor display names
+  const uniqueActorIds = [...new Set(pageItems.map(item => item.actorUserId).filter(Boolean))];
+  const userMap = new Map<string, string>();
+
+  await Promise.all(
+    uniqueActorIds.map(async (actorId) => {
+      const user = await getUser(actorId);
+      userMap.set(actorId, user?.displayName || user?.email || 'Unknown User');
+    })
+  );
+
+  const items = pageItems.map(item => ({
+    ...item,
+    actorDisplayName: userMap.get(item.actorUserId) || 'Unknown User',
+  }));
+
+  return { items, total, page, limit, hasMore: page * limit < total };
 }

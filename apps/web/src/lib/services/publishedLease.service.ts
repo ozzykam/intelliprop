@@ -8,7 +8,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { PublishedLease, SignedDocument, LeaseAddendum, AddendumChange } from '@shared/types/publishedLease';
+import type { PublishedLease, SignedDocument, LeaseAddendum, AddendumChange, ExpressLeaseDetails } from '@shared/types/publishedLease';
 import type { LeaseBuilderDraft, LeasePackage } from '@shared/types/leaseBuilder';
 import { getMember } from '@/lib/services/member.service';
 import { buildPrintableHtml } from '@/lib/services/pdfGenerator';
@@ -171,6 +171,96 @@ export async function publishLease(
 
   await batch.commit();
 
+  return { id: publishedLeaseRef.id, ...publishedLease };
+}
+
+/**
+ * Create an express lease directly (no draft/package required).
+ * Used for importing legacy leases into the publishedLeases collection.
+ * Express leases are created with accepted: true by default.
+ */
+export async function createExpressLease(
+  llcId: string,
+  input: {
+    leaseClass: 'residential' | 'commercial';
+    propertyId: string;
+    unitIds: string[];
+    tenantIds: string[];
+    leaseType: 'fixed_term' | 'month_to_month';
+    startDate: string;
+    endDate?: string;
+    monthlyRent: number;
+    dueDay: number;
+    depositAmount: number;
+    gracePeriodDays: number;
+    lateFeeType: 'flat' | 'percentage' | 'none';
+    lateFeeAmount?: number;
+    lateFeeMaxAmount?: number;
+    status: 'active' | 'terminated' | 'expired';
+    expressDetails?: ExpressLeaseDetails;
+  },
+  actorUserId: string
+): Promise<PublishedLease & { id: string }> {
+  const publishedLeaseRef = publishedLeasesCollection(llcId).doc();
+  const now = new Date().toISOString();
+
+  const publishedLease: Omit<PublishedLease, 'id'> = {
+    llcId,
+    leaseClass: input.leaseClass,
+    express: true,
+    expressDetails: input.expressDetails,
+    propertyId: input.propertyId,
+    unitIds: input.unitIds,
+    tenantIds: input.tenantIds,
+    leaseType: input.leaseType,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    monthlyRent: input.monthlyRent,
+    dueDay: input.dueDay,
+    depositAmount: input.depositAmount,
+    gracePeriodDays: input.gracePeriodDays,
+    lateFeeType: input.lateFeeType,
+    lateFeeAmount: input.lateFeeAmount,
+    lateFeeMaxAmount: input.lateFeeMaxAmount,
+    accepted: true,
+    acceptedAt: now,
+    acceptedByUserId: actorUserId,
+    signedDocuments: [],
+    addenda: [],
+    status: input.status,
+    publishedAt: now,
+    publishedByUserId: actorUserId,
+    createdAt: now,
+  };
+
+  const batch = adminDb.batch();
+  const sanitized = JSON.parse(JSON.stringify(publishedLease));
+  batch.set(publishedLeaseRef, {
+    ...sanitized,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // Audit log
+  const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
+  batch.set(auditRef, {
+    actorUserId,
+    action: 'create',
+    entityType: 'published_lease',
+    entityId: publishedLeaseRef.id,
+    entityPath: `llcs/${llcId}/publishedLeases/${publishedLeaseRef.id}`,
+    changes: {
+      after: {
+        express: true,
+        leaseClass: input.leaseClass,
+        monthlyRent: input.monthlyRent,
+        startDate: input.startDate,
+        status: input.status,
+      },
+    },
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
   return { id: publishedLeaseRef.id, ...publishedLease };
 }
 
@@ -571,8 +661,12 @@ export async function cloneDraftForAddendum(
     throw new Error('INVALID_INPUT: Can only create addenda for active leases');
   }
 
+  if (lease.express) {
+    throw new Error('INVALID_INPUT: Cannot create addenda for express leases');
+  }
+
   // 2. Determine source draft
-  let sourceDraftId = lease.draftId;
+  let sourceDraftId = lease.draftId!
   if (lease.addenda && lease.addenda.length > 0) {
     const lastAddendum = lease.addenda.at(-1);
     if (lastAddendum) {
