@@ -131,7 +131,7 @@ export default function ExpandableLlcCard({ llc, defaultExpanded = false }: Expa
                   <p className="text-xs text-muted-foreground">{occupancyRate}% occupied</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Published Leases</p>
+                  <p className="text-xs text-muted-foreground">Active Leases</p>
                   <p className="text-xl font-bold">{stats.publishedLeasesActive}</p>
                   {stats.publishedLeasesExpiringSoon > 0 && (
                     <p className="text-xs text-yellow-600">{stats.publishedLeasesExpiringSoon} expiring soon</p>

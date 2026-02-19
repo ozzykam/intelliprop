@@ -132,7 +132,7 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
   let pendingAcceptance = 0;
   for (const plDoc of publishedLeasesSnap.docs) {
     const pl = plDoc.data();
-    if (pl.accepted === true) {
+    if (pl.accepted === true && pl.status === 'active') {
       publishedLeasesActive++;
       if (pl.endDate && pl.endDate >= today && pl.endDate <= futureDate) {
         publishedLeasesExpiringSoon++;
