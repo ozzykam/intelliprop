@@ -57,9 +57,14 @@ export const expressLeaseInputSchema = z.object({
   { message: 'End date is required for fixed-term leases', path: ['endDate'] }
 );
 
+export const addNoteInputSchema = z.object({
+  text: z.string().min(1).max(2000),
+});
+
 export type PublishLeaseInput = z.infer<typeof publishLeaseInputSchema>;
 export type UpdatePublishedLeaseInput = z.infer<typeof updatePublishedLeaseSchema>;
 export type GenerateUploadUrlInput = z.infer<typeof generateUploadUrlInputSchema>;
 export type ConfirmUploadInput = z.infer<typeof confirmUploadInputSchema>;
 export type FinalizeAddendumInput = z.infer<typeof finalizeAddendumInputSchema>;
+export type AddNoteInput = z.infer<typeof addNoteInputSchema>;
 export type ExpressLeaseInput = z.infer<typeof expressLeaseInputSchema>;

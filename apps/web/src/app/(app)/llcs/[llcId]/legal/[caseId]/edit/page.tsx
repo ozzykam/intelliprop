@@ -208,7 +208,8 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
   // Opposing Counsel (array)
   const [opposingCounsels, setOpposingCounsels] = useState<CounselEntry[]>([]);
 
-  // Our Counsel (array)
+  // Our Counsel
+  const [counselType, setCounselType] = useState<'proSe' | 'attorney'>('proSe');
   const [ourCounsels, setOurCounsels] = useState<CounselEntry[]>([]);
 
   // Case Management
@@ -267,13 +268,24 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
 
     // Our Counsel - normalize from string, single object, or array
     const ourArr = normalizeOurCounsel(c.ourCounsel);
-    setOurCounsels(ourArr.map((oc) => ({
-      name: oc.name || '',
-      email: oc.email || '',
-      phone: oc.phone || '',
-      firmName: oc.firmName || '',
-      address: oc.address || '',
-    })));
+    const firstOur = ourArr[0];
+    const isProSe = ourArr.length === 1 && firstOur?.name === 'Pro Se' && !firstOur?.email && !firstOur?.phone && !firstOur?.firmName && !firstOur?.address;
+    if (isProSe) {
+      setCounselType('proSe');
+      setOurCounsels([]);
+    } else if (ourArr.length > 0) {
+      setCounselType('attorney');
+      setOurCounsels(ourArr.map((oc) => ({
+        name: oc.name || '',
+        email: oc.email || '',
+        phone: oc.phone || '',
+        firmName: oc.firmName || '',
+        address: oc.address || '',
+      })));
+    } else {
+      setCounselType('proSe');
+      setOurCounsels([]);
+    }
 
     setCaseManagers(c.caseManagers || []);
     setFilingDate(toDateInput(c.filingDate));
@@ -418,6 +430,9 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
   };
 
   const buildCurrentOurCounsels = (): CounselData[] => {
+    if (counselType === 'proSe') {
+      return [{ name: 'Pro Se' }];
+    }
     return ourCounsels
       .filter((c) => c.name)
       .map((c) => ({
@@ -816,56 +831,75 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
           {/* Our Counsel */}
           <div className="space-y-3">
             <label className="block text-sm font-medium">Our Counsel</label>
-            {ourCounsels.map((oc, idx) => (
-              <div key={idx} className="p-4 border rounded-md space-y-3 relative">
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="counselType" value="proSe"
+                  checked={counselType === 'proSe'}
+                  onChange={() => { setCounselType('proSe'); setOurCounsels([]); }} />
+                Pro Se (self-represented)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="counselType" value="attorney"
+                  checked={counselType === 'attorney'}
+                  onChange={() => { setCounselType('attorney'); if (ourCounsels.length === 0) setOurCounsels([emptyCounsel()]); }} />
+                Attorney
+              </label>
+            </div>
+
+            {counselType === 'attorney' && (
+              <>
+                {ourCounsels.map((oc, idx) => (
+                  <div key={idx} className="p-4 border rounded-md space-y-3 relative">
+                    <button type="button"
+                      onClick={() => setOurCounsels((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-2 right-2 text-xs text-destructive hover:underline">
+                      Remove
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Name</label>
+                        <input value={oc.name}
+                          onChange={(e) => updateOurCounsel(idx, { name: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Email</label>
+                        <input type="email" value={oc.email}
+                          onChange={(e) => updateOurCounsel(idx, { email: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Phone</label>
+                        <input value={oc.phone}
+                          onChange={(e) => updateOurCounsel(idx, { phone: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Firm Name</label>
+                        <input value={oc.firmName}
+                          onChange={(e) => updateOurCounsel(idx, { firmName: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Address</label>
+                      <input value={oc.address}
+                        onChange={(e) => updateOurCounsel(idx, { address: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                    </div>
+                  </div>
+                ))}
+
                 <button type="button"
-                  onClick={() => setOurCounsels((prev) => prev.filter((_, i) => i !== idx))}
-                  className="absolute top-2 right-2 text-xs text-destructive hover:underline">
-                  Remove
+                  onClick={() => setOurCounsels((prev) => [...prev, emptyCounsel()])}
+                  className="text-sm text-primary hover:underline">
+                  + Add Our Counsel
                 </button>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Name</label>
-                    <input value={oc.name}
-                      onChange={(e) => updateOurCounsel(idx, { name: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Email</label>
-                    <input type="email" value={oc.email}
-                      onChange={(e) => updateOurCounsel(idx, { email: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Phone</label>
-                    <input value={oc.phone}
-                      onChange={(e) => updateOurCounsel(idx, { phone: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Firm Name</label>
-                    <input value={oc.firmName}
-                      onChange={(e) => updateOurCounsel(idx, { firmName: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Address</label>
-                  <input value={oc.address}
-                    onChange={(e) => updateOurCounsel(idx, { address: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
-                </div>
-              </div>
-            ))}
-
-            <button type="button"
-              onClick={() => setOurCounsels((prev) => [...prev, emptyCounsel()])}
-              className="text-sm text-primary hover:underline">
-              + Add Our Counsel
-            </button>
+              </>
+            )}
           </div>
 
           <div>

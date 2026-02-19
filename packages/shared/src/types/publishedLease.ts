@@ -58,6 +58,9 @@ export interface PublishedLease {
   // Addenda
   addenda: LeaseAddendum[];
 
+  // Notes
+  notes: LeaseNote[];
+
   // Status
   status: 'active' | 'terminated' | 'expired';
 
@@ -90,6 +93,14 @@ export interface LeaseAddendum {
   signedDocuments: SignedDocument[];
   createdAt: string;     // ISO datetime
   createdByUserId: string;
+}
+
+export interface LeaseNote {
+  id: string;
+  text: string;
+  createdByUserId: string;
+  createdByName: string;
+  createdAt: string; // ISO datetime
 }
 
 export interface AddendumChange {

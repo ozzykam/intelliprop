@@ -393,22 +393,28 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
                   <td className="px-4 py-3">{formatBytes(doc.sizeBytes)}</td>
                   <td className="px-4 py-3">{formatDate(doc.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-3">
                       {doc.downloadUrl && (
                         <a
                           href={doc.downloadUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline text-xs"
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Download"
                         >
-                          Download
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
                         </a>
                       )}
                       <button
                         onClick={() => handleDelete(doc.id)}
-                        className="text-destructive hover:underline text-xs"
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Delete"
                       >
-                        Delete
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </td>

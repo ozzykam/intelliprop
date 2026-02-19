@@ -438,12 +438,12 @@ export default function LeasesPage({ params }: LeasesPageProps) {
               <table className="w-full text-sm">
                 <thead className="bg-secondary">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium">Type</th>
+                    <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
                     <th className="text-left px-4 py-3 font-medium">Property</th>
                     <th className="text-left px-4 py-3 font-medium">Unit(s)</th>
-                    <th className="text-left px-4 py-3 font-medium">Tenant(s)</th>
                     <th className="text-left px-4 py-3 font-medium">Term</th>
                     <th className="text-left px-4 py-3 font-medium">Rent</th>
+                    <th className="text-left px-4 py-3 font-medium">Type</th>
                     <th className="text-center px-4 py-3 font-medium">Accepted</th>
                     <th className="text-center px-4 py-3 font-medium">Status</th>
                     <th className="text-right px-4 py-3 font-medium">Actions</th>
@@ -452,14 +452,14 @@ export default function LeasesPage({ params }: LeasesPageProps) {
                 <tbody className="divide-y">
                   {publishedLeases.map((pl) => (
                     <tr key={pl.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-4 py-3 capitalize">{pl.leaseClass}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{getTenantNames(pl.tenantIds)}</td>
                       <td className="px-4 py-3">{getPropertyName(pl.propertyId)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{getUnitNumbers(pl.unitIds)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{getTenantNames(pl.tenantIds)}</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatDate(pl.startDate)} – {pl.endDate ? formatDate(pl.endDate) : 'MTM'}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{formatMoney(pl.monthlyRent)}</td>
+                      <td className="px-4 py-3 capitalize">{pl.leaseClass}</td>
                       <td className="px-4 py-3 text-center">
                         {pl.accepted ? (
                           <span className="text-green-600 text-xs font-medium">Yes</span>
@@ -512,26 +512,28 @@ export default function LeasesPage({ params }: LeasesPageProps) {
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
+                              {draft.tenantIds && draft.tenantIds.length > 0 && (
+                                <span className="font-medium capitalize">{getTenantNames(draft.tenantIds)}</span>
+                              )}
                               <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
-                                In Progress
+                                  In Progress
                               </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium capitalize">{draft.leaseClass}</span>
                               {draft.leaseType && (
                                 <span className="text-xs text-muted-foreground">
-                                  {draft.leaseType === 'fixed_term' ? 'Fixed Term' : 'Month-to-Month'}
+                                  - {draft.leaseType === 'fixed_term' ? 'Fixed Term' : 'Month-to-Month'}
                                 </span>
                               )}
                             </div>
                             {hasDetails && (
-                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm">
                                 {draft.propertyId && (
-                                  <span>{getPropertyName(draft.propertyId)}</span>
+                                  <span className="text-muted-foreground">{getPropertyName(draft.propertyId)}</span>
                                 )}
                                 {draft.unitIds && draft.unitIds.length > 0 && (
-                                  <span>Unit {getUnitNumbers(draft.unitIds)}</span>
-                                )}
-                                {draft.tenantIds && draft.tenantIds.length > 0 && (
-                                  <span>{getTenantNames(draft.tenantIds)}</span>
+                                  <span className="text-muted-foreground">Unit {getUnitNumbers(draft.unitIds)}</span>
                                 )}
                                 {rent !== undefined && (
                                   <span>{formatMoney(rent)}/mo</span>

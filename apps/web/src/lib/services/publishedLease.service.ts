@@ -8,7 +8,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { PublishedLease, SignedDocument, LeaseAddendum, AddendumChange, ExpressLeaseDetails } from '@shared/types/publishedLease';
+import type { PublishedLease, SignedDocument, LeaseAddendum, AddendumChange, ExpressLeaseDetails, LeaseNote } from '@shared/types/publishedLease';
 import type { LeaseBuilderDraft, LeasePackage } from '@shared/types/leaseBuilder';
 import { getMember } from '@/lib/services/member.service';
 import { buildPrintableHtml } from '@/lib/services/pdfGenerator';
@@ -127,6 +127,7 @@ export async function publishLease(
     accepted: false,
     signedDocuments: [],
     addenda: [],
+    notes: [],
     status: 'active',
     publishedAt: now,
     publishedByUserId: actorUserId,
@@ -227,6 +228,7 @@ export async function createExpressLease(
     acceptedByUserId: actorUserId,
     signedDocuments: [],
     addenda: [],
+    notes: [],
     status: input.status,
     publishedAt: now,
     publishedByUserId: actorUserId,
@@ -507,6 +509,71 @@ export async function updatePublishedLeaseStatus(
   });
 
   await batch.commit();
+}
+
+// ============================================================================
+// NOTES
+// ============================================================================
+
+/**
+ * Add a note to a published lease.
+ */
+export async function addNote(
+  llcId: string,
+  publishedLeaseId: string,
+  text: string,
+  actorUserId: string
+): Promise<LeaseNote> {
+  const docRef = publishedLeasesCollection(llcId).doc(publishedLeaseId);
+  const snapshot = await docRef.get();
+  if (!snapshot.exists) throw new Error('NOT_FOUND: Published lease not found');
+
+  const member = await getMember(llcId, actorUserId);
+  const createdByName = member?.displayName || 'Unknown';
+
+  const note: LeaseNote = {
+    id: `note_${Date.now()}`,
+    text,
+    createdByUserId: actorUserId,
+    createdByName,
+    createdAt: new Date().toISOString(),
+  };
+
+  await docRef.update({
+    notes: FieldValue.arrayUnion(note),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return note;
+}
+
+/**
+ * Delete a note from a published lease. Only the author can delete their own notes.
+ */
+export async function deleteNote(
+  llcId: string,
+  publishedLeaseId: string,
+  noteId: string,
+  actorUserId: string
+): Promise<void> {
+  const docRef = publishedLeasesCollection(llcId).doc(publishedLeaseId);
+  const snapshot = await docRef.get();
+  if (!snapshot.exists) throw new Error('NOT_FOUND: Published lease not found');
+
+  const data = snapshot.data() as PublishedLease;
+  const notes = data.notes || [];
+  const note = notes.find(n => n.id === noteId);
+  if (!note) throw new Error('NOT_FOUND: Note not found');
+
+  if (note.createdByUserId !== actorUserId) {
+    throw new Error('PERMISSION_DENIED: You can only delete your own notes');
+  }
+
+  const updatedNotes = notes.filter(n => n.id !== noteId);
+  await docRef.update({
+    notes: updatedNotes,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 // ============================================================================

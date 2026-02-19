@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { LeaseBuilderDraft } from '@shared/types/leaseBuilder';
@@ -30,6 +30,22 @@ export default function GenerateStep({ draft, llcId }: StepProps) {
   const [addendumCreated, setAddendumCreated] = useState(false);
   const [addendumError, setAddendumError] = useState('');
   const [addendumHtml, setAddendumHtml] = useState<string | null>(null);
+
+  // Already-published acceptance check
+  const [alreadyAccepted, setAlreadyAccepted] = useState(false);
+
+  useEffect(() => {
+    if (draft.published && draft.publishedLeaseId) {
+      fetch(`/api/llcs/${llcId}/published-leases/${draft.publishedLeaseId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok && data.data.accepted) {
+            setAlreadyAccepted(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [draft.published, draft.publishedLeaseId, llcId]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -203,31 +219,49 @@ export default function GenerateStep({ draft, llcId }: StepProps) {
 
       {!result ? (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Your commercial lease package is ready to be generated. This will create the final {leaseType} lease
-            document with all addenda and save it to your records.
-          </p>
+          {draft.published && draft.publishedLeaseId && (
+            <div className={`p-4 border rounded-lg ${alreadyAccepted ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+              <p className={`text-sm font-medium ${alreadyAccepted ? 'text-green-800' : 'text-blue-800'} mb-2`}>
+                {alreadyAccepted ? 'This lease has been published and accepted.' : 'This lease has already been published.'}
+              </p>
+              <Link
+                href={`/llcs/${llcId}/published-leases/${draft.publishedLeaseId}`}
+                className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm font-medium"
+              >
+                View Published Lease
+              </Link>
+            </div>
+          )}
 
-          <div className="p-4 bg-muted/30 rounded-lg space-y-2">
-            <p className="text-sm font-medium">Package will include:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>&#8226; Minnesota Commercial Lease Agreement ({leaseType})</li>
-              {(draft.triggeredOverlays ?? []).map((id) => (
-                <li key={id}>&#8226; {id.replace(/^addendum-/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</li>
-              ))}
-            </ul>
-          </div>
+          {!alreadyAccepted && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Your commercial lease package is ready to be generated. This will create the final {leaseType} lease
+                document with all addenda and save it to your records.
+              </p>
 
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 text-sm font-medium"
-          >
-            {generating ? 'Generating...' : 'Generate Lease Package'}
-          </button>
+              <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+                <p className="text-sm font-medium">Package will include:</p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>&#8226; Minnesota Commercial Lease Agreement ({leaseType})</li>
+                  {(draft.triggeredOverlays ?? []).map((id) => (
+                    <li key={id}>&#8226; {id.replace(/^addendum-/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</li>
+                  ))}
+                </ul>
+              </div>
 
-          {error && (
-            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">{error}</div>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 text-sm font-medium"
+              >
+                {generating ? 'Generating...' : 'Generate Lease Package'}
+              </button>
+
+              {error && (
+                <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">{error}</div>
+              )}
+            </>
           )}
         </div>
       ) : publishedLeaseId ? (

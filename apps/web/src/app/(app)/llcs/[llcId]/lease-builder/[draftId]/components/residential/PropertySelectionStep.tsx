@@ -199,7 +199,7 @@ export default function PropertySelectionStep({ draft, llcId, updateDraft }: Ste
                         onChange={() => handleUnitToggle(unit.id)}
                       />
                       <span className="text-sm">
-                        Unit {unit.unitNumber}
+                        {unit.unitNumber}
                         {unit.bedrooms != null ? ` - ${unit.bedrooms}BR` : ''}
                         {unit.bathrooms != null ? `/${unit.bathrooms}BA` : ''}
                       </span>
