@@ -13,6 +13,7 @@ export interface Alert {
   llcName: string;
   entityType: string;
   entityId: string;
+  caseId?: string;
   dueDate?: string;
   amount?: number;
 }
@@ -78,14 +79,32 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     adminDb.collectionGroup('tasks').where('status', 'in', ['pending', 'in_progress']).get(),
   ]);
 
-  // Process expiring leases
+  // Process expiring / expired leases (still marked active)
   for (const doc of leasesSnap.docs) {
     const lease = doc.data();
-    if (lease.endDate >= today && lease.endDate <= futureDate60) {
+    if (!lease.endDate) continue;
+
+    if (lease.endDate < today) {
+      // Already expired but still active — overdue alert
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - new Date(lease.endDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `lease-${doc.id}`,
+        type: 'lease_expiring',
+        severity: 'critical',
+        title: 'Lease Expired',
+        description: `Lease expired ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} ago`,
+        llcId,
+        llcName,
+        entityType: 'lease',
+        entityId: doc.id,
+        dueDate: lease.endDate,
+      });
+    } else if (lease.endDate <= futureDate60) {
       const daysUntilExpiry = Math.ceil(
         (new Date(lease.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
-
       alerts.push({
         id: `lease-${doc.id}`,
         type: 'lease_expiring',
@@ -157,14 +176,32 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     }
   }
 
-  // Process upcoming case hearings
+  // Process case hearings (upcoming + overdue on open cases)
   for (const doc of casesSnap.docs) {
     const caseData = doc.data();
-    if (caseData.nextHearingDate && caseData.nextHearingDate >= today && caseData.nextHearingDate <= futureDate30) {
+    if (!caseData.nextHearingDate) continue;
+
+    if (caseData.nextHearingDate < today) {
+      // Past hearing still on an open/stayed case
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - new Date(caseData.nextHearingDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `case-${doc.id}`,
+        type: 'case_hearing',
+        severity: 'critical',
+        title: 'Hearing Overdue',
+        description: `${caseData.caseType || 'Case'} hearing was ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} ago`,
+        llcId,
+        llcName,
+        entityType: 'case',
+        entityId: doc.id,
+        dueDate: caseData.nextHearingDate,
+      });
+    } else if (caseData.nextHearingDate <= futureDate30) {
       const daysUntilHearing = Math.ceil(
         (new Date(caseData.nextHearingDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
-
       alerts.push({
         id: `case-${doc.id}`,
         type: 'case_hearing',
@@ -180,7 +217,7 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     }
   }
 
-  // Process due tasks (filter to this LLC)
+  // Process due tasks (upcoming + overdue, filter to this LLC)
   for (const doc of tasksSnap.docs) {
     const task = doc.data();
     const caseRef = doc.ref.parent.parent;
@@ -190,11 +227,31 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     const casePath = caseRef.path;
     if (!casePath.startsWith(`llcs/${llcId}/`)) continue;
 
-    if (task.dueDate && task.dueDate >= today && task.dueDate <= futureDate7) {
+    if (!task.dueDate) continue;
+
+    if (task.dueDate < today) {
+      // Overdue task
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `task-${doc.id}`,
+        type: 'task_due',
+        severity: 'critical',
+        title: 'Task Overdue',
+        description: task.title || `Task overdue by ${daysOverdue} days`,
+        llcId,
+        llcName,
+        entityType: 'task',
+        entityId: doc.id,
+        caseId: caseRef.id,
+        dueDate: task.dueDate,
+      });
+    } else if (task.dueDate <= futureDate7) {
+      // Upcoming task
       const daysUntilDue = Math.ceil(
         (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
-
       alerts.push({
         id: `task-${doc.id}`,
         type: 'task_due',
@@ -205,6 +262,7 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
         llcName,
         entityType: 'task',
         entityId: doc.id,
+        caseId: caseRef.id,
         dueDate: task.dueDate,
       });
     }

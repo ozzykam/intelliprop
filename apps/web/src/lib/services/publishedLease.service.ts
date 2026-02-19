@@ -12,6 +12,7 @@ import type { PublishedLease, SignedDocument, LeaseAddendum, AddendumChange, Exp
 import type { LeaseBuilderDraft, LeasePackage } from '@shared/types/leaseBuilder';
 import { getMember } from '@/lib/services/member.service';
 import { buildPrintableHtml } from '@/lib/services/pdfGenerator';
+import { updateUnitStatuses } from '@/lib/services/unit.service';
 
 // ============================================================================
 // COLLECTION HELPERS
@@ -263,6 +264,12 @@ export async function createExpressLease(
   });
 
   await batch.commit();
+
+  // Mark units as occupied for active express leases
+  if (input.status === 'active' && input.propertyId && input.unitIds?.length) {
+    await updateUnitStatuses(llcId, input.propertyId, input.unitIds, 'occupied');
+  }
+
   return { id: publishedLeaseRef.id, ...publishedLease };
 }
 
@@ -465,6 +472,7 @@ export async function acceptLease(
   const docRef = publishedLeasesCollection(llcId).doc(publishedLeaseId);
   const doc = await docRef.get();
   if (!doc.exists) throw new Error('NOT_FOUND: Published lease not found');
+  const lease = doc.data() as PublishedLease;
 
   await docRef.update({
     accepted: true,
@@ -472,6 +480,11 @@ export async function acceptLease(
     acceptedByUserId: actorUserId,
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Mark units as occupied when an active lease is accepted
+  if (lease.status === 'active' && lease.propertyId && lease.unitIds?.length) {
+    await updateUnitStatuses(llcId, lease.propertyId, lease.unitIds, 'occupied');
+  }
 }
 
 /**
@@ -486,6 +499,7 @@ export async function updatePublishedLeaseStatus(
   const docRef = publishedLeasesCollection(llcId).doc(publishedLeaseId);
   const doc = await docRef.get();
   if (!doc.exists) throw new Error('NOT_FOUND: Published lease not found');
+  const lease = doc.data() as PublishedLease;
 
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
   const batch = adminDb.batch();
@@ -502,13 +516,23 @@ export async function updatePublishedLeaseStatus(
     entityId: publishedLeaseId,
     entityPath: `llcs/${llcId}/publishedLeases/${publishedLeaseId}`,
     changes: {
-      before: { status: doc.data()?.status },
+      before: { status: lease.status },
       after: { status },
     },
     createdAt: FieldValue.serverTimestamp(),
   });
 
   await batch.commit();
+
+  // Free up units when an accepted lease is terminated or expired
+  if (
+    lease.accepted &&
+    (status === 'terminated' || status === 'expired') &&
+    lease.propertyId &&
+    lease.unitIds?.length
+  ) {
+    await updateUnitStatuses(llcId, lease.propertyId, lease.unitIds, 'available');
+  }
 }
 
 // ============================================================================

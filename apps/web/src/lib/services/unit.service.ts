@@ -172,6 +172,42 @@ export async function listUnits(llcId: string, propertyId: string) {
 /**
  * Delete a unit (hard delete — only if status is not 'occupied')
  */
+/**
+ * Bulk-update unit statuses (e.g. when a lease is accepted or terminated).
+ * Silently skips units that don't exist.
+ */
+export async function updateUnitStatuses(
+  llcId: string,
+  propertyId: string,
+  unitIds: string[],
+  status: string
+): Promise<void> {
+  if (!unitIds.length) return;
+
+  const batch = adminDb.batch();
+  for (const unitId of unitIds) {
+    const unitRef = adminDb
+      .collection('llcs')
+      .doc(llcId)
+      .collection('properties')
+      .doc(propertyId)
+      .collection('units')
+      .doc(unitId);
+
+    const unitDoc = await unitRef.get();
+    if (!unitDoc.exists) continue;
+
+    batch.update(unitRef, {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
+
+/**
+ * Delete a unit (hard delete — only if status is not 'occupied')
+ */
 export async function deleteUnit(
   llcId: string,
   propertyId: string,

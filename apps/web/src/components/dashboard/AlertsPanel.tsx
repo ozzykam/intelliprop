@@ -14,6 +14,7 @@ interface Alert {
   llcName: string;
   entityType: string;
   entityId: string;
+  caseId?: string;
   dueDate?: string;
   amount?: number;
 }
@@ -60,7 +61,7 @@ function getAlertLink(alert: Alert): string {
     case 'case':
       return `/llcs/${alert.llcId}/legal/${alert.entityId}`;
     case 'task':
-      return `/llcs/${alert.llcId}/legal`; // Navigate to legal cases
+      return `/llcs/${alert.llcId}/legal/${alert.caseId}`;
     case 'mortgage':
       return `/admin/mortgages/${alert.entityId}`;
     default:
@@ -73,7 +74,7 @@ interface AlertsPanelProps {
   compact?: boolean;
 }
 
-export default function AlertsPanel({ maxItems = 5, compact = false }: AlertsPanelProps) {
+export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPanelProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -169,7 +170,7 @@ export default function AlertsPanel({ maxItems = 5, compact = false }: AlertsPan
             </div>
             {alert.dueDate && (
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {new Date(alert.dueDate).toLocaleDateString()}
+                {new Date(alert.dueDate.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
               </span>
             )}
           </Link>

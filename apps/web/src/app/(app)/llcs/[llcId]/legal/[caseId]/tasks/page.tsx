@@ -42,7 +42,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+  return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -61,7 +62,10 @@ function formatDateTime(iso: string): string {
 
 function isOverdue(dueDate: string, status: string): boolean {
   if (status === 'completed' || status === 'canceled') return false;
-  return new Date(dueDate) < new Date();
+  const due = new Date(dueDate.slice(0, 10) + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return due < today;
 }
 
 function toDateInputValue(iso: string): string {

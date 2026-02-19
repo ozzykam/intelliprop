@@ -183,7 +183,7 @@ export default function OwnerDashboard() {
                   </svg>
                   Alerts
                 </h2>
-                <AlertsPanel maxItems={4} />
+                <AlertsPanel maxItems={10} />
               </div>
 
               {/* LLCs */}
