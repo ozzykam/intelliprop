@@ -629,11 +629,11 @@ export default function PublishedLeaseDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Signed Documents */}
+      {/* Uploaded Documents */}
       <div className="border rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-medium">Signed Documents</h2>
+        <h2 className="text-lg font-medium">Documents</h2>
         <p className="text-sm text-muted-foreground">
-          Upload signed copies of the executed lease.
+          Upload signed lease documents and any other related files. Supported formats: PDF, Word, Images.
         </p>
 
         <div>
