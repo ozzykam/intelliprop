@@ -4,18 +4,24 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRole } from '@/lib/contexts/RoleContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
 
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const { hasTenantRole, clearActiveRole } = useRole();
   const router = useRouter();
+  const pathname = usePathname();
   const [invitationCount, setInvitationCount] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [llcName, setLlcName] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Extract llcId from pathname (e.g. /llcs/abc123/properties)
+  const llcIdMatch = pathname.match(/^\/llcs\/([^/]+)/);
+  const llcId = llcIdMatch ? llcIdMatch[1] : null;
 
   useEffect(() => {
     if (!user) return;
@@ -47,6 +53,29 @@ export default function TopBar() {
     fetchInvitations();
     fetchProfile();
   }, [user]);
+
+  // Fetch LLC name when inside an LLC route
+  useEffect(() => {
+    if (!llcId) {
+      setLlcName(null);
+      return;
+    }
+
+    const fetchLlcName = async () => {
+      try {
+        const res = await fetch('/api/llcs');
+        const data = await res.json();
+        if (data.ok) {
+          const llc = data.data.find((l: { id: string }) => l.id === llcId);
+          setLlcName(llc?.legalName || null);
+        }
+      } catch {
+        setLlcName(null);
+      }
+    };
+
+    fetchLlcName();
+  }, [llcId]);
 
   // Global keyboard shortcut for search
   useEffect(() => {
@@ -94,12 +123,20 @@ export default function TopBar() {
 
   return (
     <>
-      <header className="border-b bg-card">
+      <header className="border-b bg-card sticky top-0 z-40">
         <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Link href="/llcs" className="text-lg font-semibold hover:opacity-80 transition-opacity">
               O.I. Properties
             </Link>
+            {llcName && (
+              <>
+                <span className="text-muted-foreground">/</span>
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {llcName}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Center - Search trigger */}
