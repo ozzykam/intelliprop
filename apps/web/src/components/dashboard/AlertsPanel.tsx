@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ReactNode } from 'react';
 
-interface Alert {
+export interface Alert {
   id: string;
   type: 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due';
   severity: 'warning' | 'critical';
@@ -19,7 +19,7 @@ interface Alert {
   amount?: number;
 }
 
-const alertIcons: Record<string, ReactNode> = {
+export const alertIcons: Record<string, ReactNode> = {
   lease_expiring: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -52,7 +52,7 @@ const alertIcons: Record<string, ReactNode> = {
   ),
 };
 
-function getAlertLink(alert: Alert): string {
+export function getAlertLink(alert: Alert): string {
   switch (alert.entityType) {
     case 'lease':
       return `/llcs/${alert.llcId}/leases/${alert.entityId}`;
@@ -78,6 +78,10 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expanded, setExpanded] = useState(false);
+
+  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+  const warningCount = alerts.filter(a => a.severity === 'warning').length;
 
   useEffect(() => {
     async function fetchAlerts() {
@@ -100,27 +104,103 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
     fetchAlerts();
   }, []);
 
+  const header = (
+    <div className="flex items-center justify-between mb-4">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+      >
+        <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h2 className="font-semibold">Alerts</h2>
+        <svg
+          className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div className="flex items-center gap-2">
+        {loading ? (
+          <div className="flex gap-2">
+            <div className="h-5 w-16 bg-secondary rounded animate-pulse"></div>
+            <div className="h-5 w-16 bg-secondary rounded animate-pulse"></div>
+          </div>
+        ) : (
+          <>
+            {criticalCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                {criticalCount} critical
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                {warningCount} warning
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const seeAllLink = (
+    <div className="mt-3 text-right">
+      <Link href="/alerts" className="text-sm text-muted-foreground hover:text-foreground">
+        See All &rarr;
+      </Link>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-4 bg-secondary rounded w-24 mb-3"></div>
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 bg-secondary rounded"></div>
-          ))}
-        </div>
+      <div>
+        {header}
+        {expanded && (
+          <div>
+            <div className="animate-pulse">
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-secondary rounded"></div>
+                ))}
+              </div>
+            </div>
+            {seeAllLink}
+          </div>
+        )}
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-sm text-destructive">{error}</div>;
+    return (
+      <div>
+        {header}
+        {expanded && (
+          <div>
+            <div className="text-sm text-destructive">{error}</div>
+            {seeAllLink}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (alerts.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground py-4 text-center">
-        No alerts - everything looks good!
+      <div>
+        {header}
+        {expanded && (
+          <div>
+            <div className="text-sm text-muted-foreground py-4 text-center">
+              No alerts - everything looks good!
+            </div>
+            {seeAllLink}
+          </div>
+        )}
       </div>
     );
   }
@@ -130,57 +210,63 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
 
   return (
     <div>
-      <div className="space-y-2">
-        {displayAlerts.map((alert) => (
-          <Link
-            key={alert.id}
-            href={getAlertLink(alert)}
-            className={`
-              flex items-start gap-3 p-3 rounded-lg border transition-colors
-              hover:bg-secondary/50
-              ${alert.severity === 'critical'
-                ? 'border-red-500/50 bg-red-50/50'
-                : 'border-yellow-500/50 bg-yellow-50/50'
-              }
-            `}
-          >
-            <div className={`
-              mt-0.5
-              ${alert.severity === 'critical' ? 'text-red-600' : 'text-yellow-600'}
-            `}>
-              {alertIcons[alert.type]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={`
-                  text-sm font-medium
-                  ${alert.severity === 'critical' ? 'text-red-700' : 'text-yellow-700'}
+      {header}
+      {expanded && (
+        <div>
+          <div className="space-y-2">
+            {displayAlerts.map((alert) => (
+              <Link
+                key={alert.id}
+                href={getAlertLink(alert)}
+                className={`
+                  flex items-start gap-3 p-3 rounded-lg border transition-colors
+                  hover:bg-secondary/50
+                  ${alert.severity === 'critical'
+                    ? 'border-red-500/50 bg-red-50/50'
+                    : 'border-yellow-500/50 bg-yellow-50/50'
+                  }
+                `}
+              >
+                <div className={`
+                  mt-0.5
+                  ${alert.severity === 'critical' ? 'text-red-600' : 'text-yellow-600'}
                 `}>
-                  {alert.title}
-                </span>
-                {!compact && (
-                  <span className="text-xs text-muted-foreground">
-                    {alert.llcName}
+                  {alertIcons[alert.type]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`
+                      text-sm font-medium
+                      ${alert.severity === 'critical' ? 'text-red-700' : 'text-yellow-700'}
+                    `}>
+                      {alert.title}
+                    </span>
+                    {!compact && (
+                      <span className="text-xs text-muted-foreground">
+                        {alert.llcName}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {alert.description}
+                  </p>
+                </div>
+                {alert.dueDate && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(alert.dueDate.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                   </span>
                 )}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {alert.description}
-              </p>
-            </div>
-            {alert.dueDate && (
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {new Date(alert.dueDate.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+              </Link>
+            ))}
+          </div>
 
-      {remainingCount > 0 && (
-        <p className="text-xs text-muted-foreground mt-3 text-center">
-          +{remainingCount} more alert{remainingCount > 1 ? 's' : ''}
-        </p>
+          {remainingCount > 0 && (
+            <p className="text-xs text-muted-foreground mt-3 text-center">
+              +{remainingCount} more alert{remainingCount > 1 ? 's' : ''}
+            </p>
+          )}
+          {seeAllLink}
+        </div>
       )}
     </div>
   );
