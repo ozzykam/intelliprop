@@ -102,6 +102,13 @@ export default function AdminPropertiesPage() {
   const [unitStatusFilter, setUnitStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Transfer modal state
+  const [transferTarget, setTransferTarget] = useState<AdminProperty | null>(null);
+  const [transferDestLlcId, setTransferDestLlcId] = useState('');
+  const [transferConfirmText, setTransferConfirmText] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferResult, setTransferResult] = useState<{ ok: boolean; message: string } | null>(null);
+
   const fetchLlcs = async () => {
     try {
       const res = await fetch('/api/llcs');
@@ -170,6 +177,41 @@ export default function AdminPropertiesPage() {
       u.currentTenantNames.some(n => n.toLowerCase().includes(search))
     );
   });
+
+  const handleTransfer = async () => {
+    if (!transferTarget || !transferDestLlcId || transferConfirmText !== 'TRANSFER') return;
+
+    setTransferLoading(true);
+    setTransferResult(null);
+
+    try {
+      const res = await fetch('/api/admin/transfer-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceLlcId: transferTarget.llcId,
+          propertyId: transferTarget.id,
+          destLlcId: transferDestLlcId,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        const c = data.data.counts;
+        setTransferResult({
+          ok: true,
+          message: `Transferred: ${c.units} units, ${c.leases} leases, ${c.publishedLeases} published leases, ${c.charges} charges, ${c.payments} payments, ${c.workOrders} work orders (${c.totalOps} ops in ${c.batchCount} batches)`,
+        });
+        fetchData();
+      } else {
+        setTransferResult({ ok: false, message: data.error?.message || 'Transfer failed' });
+      }
+    } catch {
+      setTransferResult({ ok: false, message: 'Transfer failed' });
+    } finally {
+      setTransferLoading(false);
+    }
+  };
 
   // Summary stats
   const totalProperties = filteredProperties.length;
@@ -307,6 +349,7 @@ export default function AdminPropertiesPage() {
                       <th className="text-right px-4 py-3 font-medium">Payment</th>
                       <th className="text-center px-4 py-3 font-medium">Rate</th>
                       <th className="text-left px-4 py-3 font-medium">Next Due</th>
+                      <th className="text-center px-4 py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -365,6 +408,19 @@ export default function AdminPropertiesPage() {
                           {property.mortgageRate ? `${property.mortgageRate}%` : '—'}
                         </td>
                         <td className="px-4 py-3">{formatDate(property.nextPaymentDate)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => {
+                              setTransferTarget(property);
+                              setTransferDestLlcId('');
+                              setTransferConfirmText('');
+                              setTransferResult(null);
+                            }}
+                            className="px-2 py-1 text-xs border rounded hover:bg-secondary/50"
+                          >
+                            Transfer
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -436,6 +492,86 @@ export default function AdminPropertiesPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Transfer Modal */}
+      {transferTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Transfer Property</h3>
+
+            <div className="mb-4">
+              <label className="block text-xs text-muted-foreground mb-1">Property</label>
+              <div className="text-sm font-medium">{transferTarget.name || transferTarget.address}</div>
+              <div className="text-xs text-muted-foreground">{transferTarget.address}, {transferTarget.city}, {transferTarget.state}</div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs text-muted-foreground mb-1">Source LLC</label>
+              <div className="text-sm font-medium">{transferTarget.llcName}</div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs text-muted-foreground mb-1">Destination LLC</label>
+              <select
+                value={transferDestLlcId}
+                onChange={(e) => setTransferDestLlcId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md text-sm"
+                disabled={transferLoading}
+              >
+                <option value="">Select LLC...</option>
+                {llcs
+                  .filter(llc => llc.id !== transferTarget.llcId)
+                  .map(llc => (
+                    <option key={llc.id} value={llc.id}>{llc.legalName}</option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs text-muted-foreground mb-1">
+                Type <span className="font-mono font-bold">TRANSFER</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={transferConfirmText}
+                onChange={(e) => setTransferConfirmText(e.target.value)}
+                placeholder="TRANSFER"
+                className="w-full px-3 py-2 border rounded-md text-sm font-mono"
+                disabled={transferLoading}
+              />
+            </div>
+
+            {transferResult && (
+              <div className={`mb-4 p-3 rounded-md text-sm ${
+                transferResult.ok
+                  ? 'bg-green-50 border border-green-200 text-green-700'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {transferResult.message}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setTransferTarget(null)}
+                className="px-4 py-2 text-sm border rounded-md hover:bg-secondary/50"
+                disabled={transferLoading}
+              >
+                {transferResult?.ok ? 'Close' : 'Cancel'}
+              </button>
+              {!transferResult?.ok && (
+                <button
+                  onClick={handleTransfer}
+                  disabled={transferLoading || !transferDestLlcId || transferConfirmText !== 'TRANSFER'}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {transferLoading ? 'Transferring...' : 'Transfer Property'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
