@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { requireLlcRole } from '@/lib/auth/requireLlcMember';
-import { createDraft, listDrafts } from '@/lib/services/leaseBuilder.service';
+import { createDraft, createDraftFromTemplate, listDrafts } from '@/lib/services/leaseBuilder.service';
 import { createLeaseBuilderDraftSchema } from '@shared/validators/leaseBuilder';
 
 interface RouteParams {
@@ -76,8 +76,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // If fromDefault, try to create from template first
+    if (parsed.data.fromDefault) {
+      const fromTemplate = await createDraftFromTemplate(llcId, parsed.data.leaseClass, user.uid);
+      if (fromTemplate) {
+        return NextResponse.json({ ok: true, data: fromTemplate }, { status: 201 });
+      }
+      // No template found — fall through to normal creation
+    }
+
     const draft = await createDraft(llcId, parsed.data.leaseClass, user.uid);
-    return NextResponse.json({ ok: true, data: draft }, { status: 201 });
+    return NextResponse.json({ ok: true, data: { ...draft, fromTemplate: false } }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '';
     if (message.includes('PERMISSION_DENIED')) {

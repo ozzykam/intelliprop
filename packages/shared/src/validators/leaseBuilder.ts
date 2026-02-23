@@ -287,6 +287,7 @@ export const createLeaseBuilderDraftSchema = z.object({
   unitIds: z.array(z.string()).default([]),
   tenantIds: z.array(z.string()).default([]),
   leaseType: z.enum(['fixed_term', 'month_to_month']).optional(),
+  fromDefault: z.boolean().optional(),
 });
 
 const wizardStepEnum = z.enum([
@@ -324,6 +325,7 @@ export const updateLeaseBuilderDraftSchema = z.object({
   status: z.enum(['in_progress', 'completed', 'abandoned']).optional(),
   amendingPublishedLeaseId: z.string().optional(),
   clonedFromDraftId: z.string().optional(),
+  saveAsDefault: z.boolean().optional(),
 });
 
 // Inferred types for API consumption

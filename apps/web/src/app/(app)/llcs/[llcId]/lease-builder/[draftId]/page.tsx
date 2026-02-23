@@ -13,7 +13,7 @@ function toUpdatableFields(data: Partial<LeaseBuilderDraft>): Partial<LeaseBuild
   const {
     currentStep, propertyId, unitIds, tenantIds, leaseType, signerUserId,
     propertyProfile, residential, commercial,
-    triggeredDisclosures, triggeredOverlays, reviewedAt, status,
+    triggeredDisclosures, triggeredOverlays, reviewedAt, status, saveAsDefault,
   } = data;
   return {
     ...(currentStep !== undefined && { currentStep }),
@@ -29,6 +29,7 @@ function toUpdatableFields(data: Partial<LeaseBuilderDraft>): Partial<LeaseBuild
     ...(triggeredOverlays !== undefined && { triggeredOverlays }),
     ...(reviewedAt !== undefined && { reviewedAt }),
     ...(status !== undefined && { status }),
+    ...(saveAsDefault !== undefined && { saveAsDefault }),
   };
 }
 

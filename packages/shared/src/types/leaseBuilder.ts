@@ -132,6 +132,9 @@ export interface LeaseBuilderDraft {
   // Review
   reviewedAt?: string;
 
+  // Default template
+  saveAsDefault?: boolean;
+
   // Publishing
   published?: boolean;
   publishedLeaseId?: string;

@@ -171,6 +171,10 @@ export default function LeasesPage({ params }: LeasesPageProps) {
   const [loadingDrafts, setLoadingDrafts] = useState(true);
   const [creating, setCreating] = useState(false);
 
+  // Default template dialog state
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [hasCommercialDefault, setHasCommercialDefault] = useState<boolean | null>(null);
+
   // Published leases state
   const [publishedLeases, setPublishedLeases] = useState<PublishedLeaseItem[]>([]);
   const [loadingPublished, setLoadingPublished] = useState(true);
@@ -255,11 +259,24 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     }
   }, [llcId]);
 
+  const checkCommercialDefault = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/lease-defaults/commercial`);
+      const data = await res.json();
+      if (data.ok) {
+        setHasCommercialDefault(data.data.exists);
+      }
+    } catch {
+      setHasCommercialDefault(false);
+    }
+  }, [llcId]);
+
   useEffect(() => {
     fetchLeases();
     fetchDrafts();
     fetchPublishedLeases();
-  }, [fetchLeases, fetchDrafts, fetchPublishedLeases]);
+    checkCommercialDefault();
+  }, [fetchLeases, fetchDrafts, fetchPublishedLeases, checkCommercialDefault]);
 
   const getPropertyName = useCallback((propertyId: string): string => {
     const property = propertiesMap.get(propertyId);
@@ -347,14 +364,17 @@ export default function LeasesPage({ params }: LeasesPageProps) {
     }
   };
 
-  async function createDraft(leaseClass: LeaseClass) {
+  async function createDraft(leaseClass: LeaseClass, fromDefault?: boolean) {
     setCreating(true);
     setError('');
     try {
+      const body: Record<string, unknown> = { leaseClass };
+      if (fromDefault) body.fromDefault = true;
+
       const res = await fetch(`/api/llcs/${llcId}/lease-builder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leaseClass }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.ok) {
@@ -366,6 +386,15 @@ export default function LeasesPage({ params }: LeasesPageProps) {
       setError('Failed to create draft');
     } finally {
       setCreating(false);
+      setShowTemplateDialog(false);
+    }
+  }
+
+  function handleNewCommercial() {
+    if (hasCommercialDefault) {
+      setShowTemplateDialog(true);
+    } else {
+      createDraft('commercial');
     }
   }
 
@@ -404,7 +433,7 @@ export default function LeasesPage({ params }: LeasesPageProps) {
             + New Residential
           </button>
           <button
-            onClick={() => createDraft('commercial')}
+            onClick={handleNewCommercial}
             disabled={creating}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm disabled:opacity-50"
           >
@@ -738,6 +767,40 @@ export default function LeasesPage({ params }: LeasesPageProps) {
           </div>
         )}
       </div>
+
+      {/* Template Choice Dialog */}
+      {showTemplateDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium mb-2">Default Template Found</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              A saved commercial lease template exists for this LLC. Would you like to use it to pre-fill the new lease, or start from scratch?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowTemplateDialog(false)}
+                className="px-4 py-2 text-sm border border-input rounded-md hover:bg-secondary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => createDraft('commercial')}
+                disabled={creating}
+                className="px-4 py-2 text-sm border border-input rounded-md hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                Start Fresh
+              </button>
+              <button
+                onClick={() => createDraft('commercial', true)}
+                disabled={creating}
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {creating ? 'Creating...' : 'Use Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

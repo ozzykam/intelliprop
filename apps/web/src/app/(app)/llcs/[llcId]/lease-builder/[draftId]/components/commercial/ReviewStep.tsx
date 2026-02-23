@@ -124,6 +124,24 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
         )}
       </section>
 
+      {/* Save as Default Template */}
+      <section className="space-y-2">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draft.saveAsDefault || false}
+            onChange={(e) => updateDraft({ saveAsDefault: e.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-input"
+          />
+          <div>
+            <span className="text-sm font-medium">Save as default template for future commercial leases</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Terms from this lease will be pre-filled when creating new commercial leases. Tenant, unit, and date fields will not be saved.
+            </p>
+          </div>
+        </label>
+      </section>
+
       {/* Property */}
       <section className="space-y-2">
         <h3 className="text-sm font-medium border-b pb-1">Property & Location</h3>

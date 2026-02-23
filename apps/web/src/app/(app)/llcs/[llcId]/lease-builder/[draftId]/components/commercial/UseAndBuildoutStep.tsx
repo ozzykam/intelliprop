@@ -364,7 +364,7 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
           >
             <option value="landlord">Landlord (all improvements become landlord property)</option>
             <option value="tenant_trade_fixtures">
-              Tenant Trade Fixtures (tenant may remove trade fixtures)
+              Tenant Trade Fixtures (tenant must remove trade fixtures)
             </option>
           </select>
         </div>

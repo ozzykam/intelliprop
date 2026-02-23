@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { requireLlcRole } from '@/lib/auth/requireLlcMember';
-import { generateLeasePackage } from '@/lib/services/leaseBuilder.service';
+import { generateLeasePackage, getDraft, saveDefaultTemplate } from '@/lib/services/leaseBuilder.service';
 import { buildPrintableHtml } from '@/lib/services/pdfGenerator';
 
 interface RouteParams {
@@ -26,8 +26,21 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
     await requireLlcRole(llcId, ['admin', 'manager']);
 
+    // Check if user wants to save as default template (read draft before generation marks it completed)
+    const draftBeforeGenerate = await getDraft(llcId, draftId);
+    const shouldSaveDefault = draftBeforeGenerate?.saveAsDefault === true;
+
     // Assemble and save the lease package
     const leasePackage = await generateLeasePackage(llcId, draftId, user.uid);
+
+    // Save as default template if requested (silent — don't fail generation if this errors)
+    if (shouldSaveDefault && draftBeforeGenerate) {
+      try {
+        await saveDefaultTemplate(llcId, draftBeforeGenerate);
+      } catch (err) {
+        console.warn('Failed to save default template:', err);
+      }
+    }
 
     // Build printable HTML from assembled documents
     const printableHtml = buildPrintableHtml(leasePackage.documents);

@@ -900,6 +900,132 @@ export async function createDraft(
   return { id: docRef.id };
 }
 
+// ============================================================================
+// DEFAULT TEMPLATES
+// ============================================================================
+
+/**
+ * Save the reusable fields from a completed draft as a default template.
+ * Stored at `llcs/{llcId}/leaseDefaults/commercial`.
+ */
+export async function saveDefaultTemplate(
+  llcId: string,
+  draft: LeaseBuilderDraft
+): Promise<void> {
+  const docRef = adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('leaseDefaults')
+    .doc(draft.leaseClass);
+
+  const templateData = {
+    leaseClass: draft.leaseClass,
+    leaseType: draft.leaseType,
+    propertyProfile: draft.propertyProfile,
+    propertyId: draft.propertyId || null,
+    signerUserId: draft.signerUserId || null,
+    templateVersion: draft.templateVersion,
+    commercial: draft.commercial,
+    residential: draft.residential,
+    savedAt: FieldValue.serverTimestamp(),
+  };
+
+  // Strip undefined values
+  const sanitized = JSON.parse(JSON.stringify(templateData));
+  await docRef.set({ ...sanitized, savedAt: FieldValue.serverTimestamp() });
+}
+
+/**
+ * Check if a default template exists for a lease class.
+ */
+export async function getDefaultTemplate(
+  llcId: string,
+  leaseClass: string
+): Promise<Record<string, unknown> | null> {
+  const doc = await adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('leaseDefaults')
+    .doc(leaseClass)
+    .get();
+
+  if (!doc.exists) return null;
+  return doc.data() as Record<string, unknown>;
+}
+
+/**
+ * Delete a default template.
+ */
+export async function deleteDefaultTemplate(
+  llcId: string,
+  leaseClass: string
+): Promise<void> {
+  await adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('leaseDefaults')
+    .doc(leaseClass)
+    .delete();
+}
+
+/**
+ * Create a new draft pre-populated from the default template.
+ * Returns null if no template exists.
+ */
+export async function createDraftFromTemplate(
+  llcId: string,
+  leaseClass: LeaseClass,
+  actorUserId: string
+): Promise<{ id: string; fromTemplate: boolean } | null> {
+  const template = await getDefaultTemplate(llcId, leaseClass);
+  if (!template) return null;
+
+  const docRef = draftsCollection(llcId).doc();
+
+  const clonedDraft: Omit<LeaseBuilderDraft, 'id'> = {
+    llcId,
+    leaseClass,
+    currentStep: 'property_selection' as WizardStep,
+    status: 'in_progress',
+    propertyId: (template.propertyId as string) || '',
+    unitIds: [],
+    tenantIds: [],
+    signerUserId: (template.signerUserId as string) || undefined,
+    leaseType: (template.leaseType as 'fixed_term' | 'month_to_month') || 'fixed_term',
+    propertyProfile: (template.propertyProfile as LeaseBuilderDraft['propertyProfile']) || {
+      city: '',
+      county: '',
+      hasSharedUtilities: false,
+    },
+    commercial: leaseClass === 'commercial'
+      ? (template.commercial as LeaseBuilderDraft['commercial'])
+      : undefined,
+    residential: leaseClass === 'residential'
+      ? (template.residential as LeaseBuilderDraft['residential'])
+      : undefined,
+    triggeredDisclosures: [],
+    triggeredOverlays: [],
+    clonedFromDraftId: 'default_template',
+    templateVersion: (template.templateVersion as string) ||
+      (leaseClass === 'residential'
+        ? TEMPLATE_VERSIONS.MN_RESIDENTIAL_CORE
+        : TEMPLATE_VERSIONS.MN_COMMERCIAL_CORE),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdByUserId: actorUserId,
+  };
+
+  // Strip undefined values for Firestore
+  const sanitized = JSON.parse(JSON.stringify(clonedDraft));
+  await docRef.set({
+    ...sanitized,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return { id: docRef.id, fromTemplate: true };
+}
+
 /**
  * Get a draft by ID.
  */
