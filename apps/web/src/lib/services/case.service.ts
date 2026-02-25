@@ -378,6 +378,11 @@ export async function deleteCase(
     throw new Error('HAS_CHILDREN: Cannot delete a case that has court dates. Remove court dates first.');
   }
 
+  const activitiesSnap = await caseRef.collection('activities').limit(1).get();
+  if (!activitiesSnap.empty) {
+    throw new Error('HAS_CHILDREN: Cannot delete a case that has activities. Remove activities first.');
+  }
+
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
   const batch = adminDb.batch();
 

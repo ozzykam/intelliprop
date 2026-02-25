@@ -229,3 +229,31 @@ export const caseResolutionSchema = z.object({
   terms: z.string().max(5000).optional(),
   notes: z.string().max(2000).optional(),
 });
+
+// --- Case Activity schemas ---
+
+export const activityTypeSchema = z.enum([
+  'internal_note', 'phone_call', 'voicemail',
+  'email_sent', 'email_received', 'research_update',
+  'action_taken', 'strategy_discussion', 'other',
+]);
+
+export const activityVisibilitySchema = z.enum(['internal', 'shared']);
+
+export const createActivitySchema = z.object({
+  activityType: activityTypeSchema,
+  description: z.string().min(1).max(5000),
+  relatedTaskId: z.string().optional(),
+  relatedCourtDateId: z.string().optional(),
+  relatedDocumentId: z.string().optional(),
+  visibility: activityVisibilitySchema.default('internal'),
+});
+
+export const updateActivitySchema = z.object({
+  activityType: activityTypeSchema.optional(),
+  description: z.string().min(1).max(5000).optional(),
+  relatedTaskId: z.string().nullable().optional(),
+  relatedCourtDateId: z.string().nullable().optional(),
+  relatedDocumentId: z.string().nullable().optional(),
+  visibility: activityVisibilitySchema.optional(),
+});

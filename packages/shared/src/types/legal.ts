@@ -216,3 +216,40 @@ export type CourtDateOutcome =
   | 'motion_denied'
   | 'taken_under_advisement'
   | 'other';
+
+// --- Case Activity ---
+
+export type ActivityType =
+  | 'internal_note'
+  | 'phone_call'
+  | 'voicemail'
+  | 'email_sent'
+  | 'email_received'
+  | 'research_update'
+  | 'action_taken'
+  | 'strategy_discussion'
+  | 'other';
+
+export type ActivityVisibility = 'internal' | 'shared';
+
+export interface ActivityEdit {
+  description: string;
+  editedAt: string;
+  editedByUserId: string;
+}
+
+export interface CaseActivity {
+  id: string;
+  caseId: string;
+  llcId: string;
+  activityType: ActivityType;
+  description: string;
+  relatedTaskId?: string;
+  relatedCourtDateId?: string;
+  relatedDocumentId?: string;
+  visibility: ActivityVisibility;
+  createdByUserId: string;
+  editHistory?: ActivityEdit[];
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}

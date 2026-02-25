@@ -91,6 +91,22 @@ interface Document {
   storagePath?: string;
 }
 
+interface ActivityRecord {
+  id: string;
+  caseId: string;
+  llcId: string;
+  activityType: string;
+  description: string;
+  relatedTaskId?: string;
+  relatedCourtDateId?: string;
+  relatedDocumentId?: string;
+  visibility: string;
+  createdByUserId: string;
+  editHistory?: { description: string; editedAt: string; editedByUserId: string }[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
 const DOCUMENT_TYPES = [
   { value: 'filing', label: 'Filing' },
   { value: 'evidence', label: 'Evidence' },
@@ -100,6 +116,30 @@ const DOCUMENT_TYPES = [
   { value: 'settlement', label: 'Settlement' },
   { value: 'other', label: 'Other' },
 ];
+
+const ACTIVITY_TYPES: Record<string, string> = {
+  internal_note: 'Internal Note',
+  phone_call: 'Phone Call',
+  voicemail: 'Voicemail',
+  email_sent: 'Email Sent',
+  email_received: 'Email Received',
+  research_update: 'Research Update',
+  action_taken: 'Action Taken',
+  strategy_discussion: 'Strategy Discussion',
+  other: 'Other',
+};
+
+const ACTIVITY_TYPE_COLORS: Record<string, string> = {
+  internal_note: 'bg-gray-100 text-gray-700',
+  phone_call: 'bg-blue-100 text-blue-700',
+  voicemail: 'bg-indigo-100 text-indigo-700',
+  email_sent: 'bg-green-100 text-green-700',
+  email_received: 'bg-teal-100 text-teal-700',
+  research_update: 'bg-purple-100 text-purple-700',
+  action_taken: 'bg-orange-100 text-orange-700',
+  strategy_discussion: 'bg-yellow-100 text-yellow-700',
+  other: 'bg-gray-100 text-gray-600',
+};
 
 interface MemberOption {
   userId: string;
@@ -231,6 +271,20 @@ function getDaysUntil(dateStr: string): number {
   return Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs} hour${diffHrs !== 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+}
+
 function normalizeOpposingParty(val: OpposingPartyData[] | OpposingPartyData | undefined): OpposingPartyData[] {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -294,6 +348,22 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
+  // Activity state
+  const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [showActivityForm, setShowActivityForm] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityTypeFilter, setActivityTypeFilter] = useState('');
+  const [activityFormType, setActivityFormType] = useState('internal_note');
+  const [activityFormDescription, setActivityFormDescription] = useState('');
+  const [activityFormVisibility, setActivityFormVisibility] = useState('internal');
+  const [savingActivity, setSavingActivity] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [editingActivityDescription, setEditingActivityDescription] = useState('');
+  const [updatingActivityId, setUpdatingActivityId] = useState<string | null>(null);
+  const activitiesFetchedRef = useRef(false);
+
   // Ref for court dates section
   const courtDatesSectionRef = useRef<HTMLDivElement>(null);
 
@@ -314,6 +384,107 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     setTimeout(() => {
       courtDatesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
+  };
+
+  const fetchActivities = useCallback(async () => {
+    setLoadingActivities(true);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/activities`);
+      const json = await res.json();
+      if (json.ok) setActivities(json.data);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingActivities(false);
+    }
+  }, [llcId, caseId]);
+
+  // Lazy-load activities when section is first expanded
+  useEffect(() => {
+    if (activityExpanded && !activitiesFetchedRef.current) {
+      activitiesFetchedRef.current = true;
+      fetchActivities();
+    }
+  }, [activityExpanded, fetchActivities]);
+
+  const handleSaveActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activityFormDescription.trim()) return;
+
+    setSavingActivity(true);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activityType: activityFormType,
+          description: activityFormDescription.trim(),
+          visibility: activityFormVisibility,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setActivities(prev => [data.data, ...prev]);
+        setActivityFormType('internal_note');
+        setActivityFormDescription('');
+        setActivityFormVisibility('internal');
+        setShowActivityForm(false);
+        setActivityExpanded(true);
+        activitiesFetchedRef.current = true;
+      } else {
+        alert(data.error?.message || 'Failed to log activity');
+      }
+    } catch {
+      alert('Failed to log activity');
+    } finally {
+      setSavingActivity(false);
+    }
+  };
+
+  const handleUpdateActivity = async (activityId: string) => {
+    if (!editingActivityDescription.trim()) return;
+
+    setUpdatingActivityId(activityId);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/activities/${activityId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: editingActivityDescription.trim() }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setActivities(prev => prev.map(a => a.id === activityId ? data.data : a));
+        setEditingActivityId(null);
+        setEditingActivityDescription('');
+      } else {
+        alert(data.error?.message || 'Failed to update activity');
+      }
+    } catch {
+      alert('Failed to update activity');
+    } finally {
+      setUpdatingActivityId(null);
+    }
+  };
+
+  const handleDeleteActivity = async (activityId: string) => {
+    if (!confirm('Are you sure you want to delete this activity?')) return;
+
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/activities/${activityId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setActivities(prev => prev.filter(a => a.id !== activityId));
+      } else {
+        alert(data.error?.message || 'Failed to delete activity');
+      }
+    } catch {
+      alert('Failed to delete activity');
+    }
   };
 
   const fetchData = useCallback(async () => {
@@ -1322,6 +1493,139 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             )}
           </div>
+
+          {/* Case Activity Section */}
+          <div className="border rounded-lg p-5">
+            <button
+              onClick={() => setActivityExpanded(!activityExpanded)}
+              className="flex items-center justify-between w-full"
+            >
+              <h2 className="font-semibold flex items-center gap-2">
+                Case Activity
+                {activities.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-secondary rounded-full text-xs font-normal">
+                    {activities.length}
+                  </span>
+                )}
+              </h2>
+              <svg
+                className={`w-5 h-5 text-muted-foreground transition-transform ${activityExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {activityExpanded && (
+              <div className="mt-4 space-y-3">
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={activitySearch}
+                    onChange={(e) => setActivitySearch(e.target.value)}
+                    placeholder="Search activities..."
+                    className="flex-1 px-3 py-1.5 border rounded text-sm bg-background"
+                  />
+                  <select
+                    value={activityTypeFilter}
+                    onChange={(e) => setActivityTypeFilter(e.target.value)}
+                    className="px-3 py-1.5 border rounded text-sm bg-background"
+                  >
+                    <option value="">All Types</option>
+                    {Object.entries(ACTIVITY_TYPES).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {loadingActivities ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground">Loading activities...</p>
+                  </div>
+                ) : activities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No activities logged yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activities
+                      .filter(a => {
+                        if (activityTypeFilter && a.activityType !== activityTypeFilter) return false;
+                        if (activitySearch && !a.description.toLowerCase().includes(activitySearch.toLowerCase())) return false;
+                        return true;
+                      })
+                      .map(activity => (
+                        <div key={activity.id} className="p-3 bg-secondary/30 rounded-md">
+                          {editingActivityId === activity.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={editingActivityDescription}
+                                onChange={(e) => setEditingActivityDescription(e.target.value)}
+                                rows={3}
+                                className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                              />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleUpdateActivity(activity.id)}
+                                  disabled={updatingActivityId === activity.id}
+                                  className="px-3 py-1 bg-primary text-primary-foreground rounded text-xs hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {updatingActivityId === activity.id ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => { setEditingActivityId(null); setEditingActivityDescription(''); }}
+                                  className="px-3 py-1 border rounded text-xs hover:bg-secondary"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${ACTIVITY_TYPE_COLORS[activity.activityType] || 'bg-gray-100 text-gray-700'}`}>
+                                    {ACTIVITY_TYPES[activity.activityType] || activity.activityType}
+                                  </span>
+                                  {activity.visibility === 'internal' && (
+                                    <span className="text-xs text-muted-foreground">Internal</span>
+                                  )}
+                                  {activity.editHistory && activity.editHistory.length > 0 && (
+                                    <span className="text-xs text-muted-foreground italic">edited</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      setEditingActivityId(activity.id);
+                                      setEditingActivityDescription(activity.description);
+                                    }}
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteActivity(activity.id)}
+                                    className="text-xs text-destructive hover:underline"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-sm mt-1 whitespace-pre-wrap">{activity.description}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {getMemberName(activity.createdByUserId)} &bull; {formatRelativeTime(activity.createdAt)}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column - Sidebar */}
@@ -1338,6 +1642,15 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 Add Court Date
+              </button>
+              <button
+                onClick={() => setShowActivityForm(true)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm border rounded-md hover:bg-secondary transition-colors text-left"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Log Activity
               </button>
               <Link
                 href={`/llcs/${llcId}/legal/${caseId}/tasks`}
@@ -1504,6 +1817,75 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Log Activity Modal */}
+      {showActivityForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowActivityForm(false)} />
+          <div className="relative bg-background border rounded-lg shadow-lg w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="text-lg font-semibold">Log Activity</h2>
+              <button
+                onClick={() => setShowActivityForm(false)}
+                className="text-muted-foreground hover:text-foreground text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleSaveActivity} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Activity Type</label>
+                <select
+                  value={activityFormType}
+                  onChange={(e) => setActivityFormType(e.target.value)}
+                  className="w-full px-3 py-2 border rounded text-sm bg-background"
+                >
+                  {Object.entries(ACTIVITY_TYPES).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={activityFormDescription}
+                  onChange={(e) => setActivityFormDescription(e.target.value)}
+                  rows={4}
+                  placeholder="What happened..."
+                  className="w-full px-3 py-2 border rounded text-sm bg-background resize-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Visibility</label>
+                <select
+                  value={activityFormVisibility}
+                  onChange={(e) => setActivityFormVisibility(e.target.value)}
+                  className="w-full px-3 py-2 border rounded text-sm bg-background"
+                >
+                  <option value="internal">Internal Only</option>
+                  <option value="shared">Shared</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={!activityFormDescription.trim() || savingActivity}
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 text-sm disabled:opacity-50"
+                >
+                  {savingActivity ? 'Saving...' : 'Log Activity'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowActivityForm(false)}
+                  className="px-4 py-2 border rounded-md text-sm hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
