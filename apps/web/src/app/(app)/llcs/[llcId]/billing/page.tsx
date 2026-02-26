@@ -266,7 +266,7 @@ export default async function BillingPage({ params }: BillingPageProps) {
                       )}
                     </div>
                     <Link
-                      href={`/llcs/${llcId}/leases/${charge.leaseId}`}
+                      href={`/llcs/${llcId}/published-leases/${charge.leaseId}`}
                       className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
                       title="View Lease"
                     >
