@@ -528,6 +528,12 @@ export default function PublishedLeaseDetailPage({ params }: PageProps) {
           <span className={`px-3 py-1 rounded text-sm font-medium ${STATUS_COLORS[lease.status] || 'bg-gray-100'}`}>
             {lease.status}
           </span>
+          <Link
+            href={`/llcs/${llcId}/published-leases/${publishedLeaseId}/charges`}
+            className="px-3 py-1 text-sm border rounded hover:bg-secondary transition-colors"
+          >
+            Manage Charges
+          </Link>
           {lease.status === 'active' && (
             <button
               onClick={() => handleStatusChange('terminated')}

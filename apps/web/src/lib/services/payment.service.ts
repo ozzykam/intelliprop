@@ -1,12 +1,13 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { PaymentStatus } from '@shared/types';
-import { updateChargePayment, getOpenChargesForLease } from './charge.service';
+import { updateChargePayment, getOpenChargesForLease, getOpenChargesForPublishedLease } from './charge.service';
 
 export type ManualPaymentMethod = 'cash' | 'check' | 'money_order' | 'bank_transfer' | 'other';
 
 export interface RecordPaymentInput {
-  leaseId: string;
+  leaseId?: string;
+  publishedLeaseId?: string;
   tenantId: string;
   amount: number; // Total payment amount in cents
   paymentMethod: ManualPaymentMethod;
@@ -23,6 +24,7 @@ export interface PaymentWithId {
   id: string;
   llcId: string;
   leaseId: string;
+  publishedLeaseId?: string;
   tenantId: string;
   amount: number;
   currency: string;
@@ -53,22 +55,45 @@ export async function recordPayment(
   input: RecordPaymentInput,
   actorUserId: string
 ): Promise<PaymentWithId> {
-  // Verify lease exists
-  const leaseDoc = await adminDb
-    .collection('llcs')
-    .doc(llcId)
-    .collection('leases')
-    .doc(input.leaseId)
-    .get();
+  let resolvedLeaseId: string;
 
-  if (!leaseDoc.exists) {
-    throw new Error('NOT_FOUND: Lease not found');
+  if (input.publishedLeaseId) {
+    // Published lease path
+    const publishedLeaseDoc = await adminDb
+      .collection('llcs')
+      .doc(llcId)
+      .collection('publishedLeases')
+      .doc(input.publishedLeaseId)
+      .get();
+
+    if (!publishedLeaseDoc.exists) {
+      throw new Error('NOT_FOUND: Published lease not found');
+    }
+    // Same dual-key pattern as nightly scheduler
+    resolvedLeaseId = input.publishedLeaseId;
+  } else {
+    // Legacy lease path
+    const leaseDoc = await adminDb
+      .collection('llcs')
+      .doc(llcId)
+      .collection('leases')
+      .doc(input.leaseId!)
+      .get();
+
+    if (!leaseDoc.exists) {
+      throw new Error('NOT_FOUND: Lease not found');
+    }
+    resolvedLeaseId = input.leaseId!;
   }
 
   // If no allocations provided, auto-allocate to oldest open charges
   let allocations = input.chargeAllocations;
   if (!allocations || allocations.length === 0) {
-    allocations = await autoAllocatePayment(llcId, input.leaseId, input.amount);
+    if (input.publishedLeaseId) {
+      allocations = await autoAllocatePaymentForPublishedLease(llcId, input.publishedLeaseId, input.amount);
+    } else {
+      allocations = await autoAllocatePayment(llcId, resolvedLeaseId, input.amount);
+    }
   }
 
   // Validate allocations don't exceed payment amount
@@ -83,9 +108,9 @@ export async function recordPayment(
     .collection('payments')
     .doc();
 
-  const paymentData = {
+  const paymentData: Record<string, unknown> = {
     llcId,
-    leaseId: input.leaseId,
+    leaseId: resolvedLeaseId,
     tenantId: input.tenantId,
     amount: input.amount,
     currency: 'usd',
@@ -101,6 +126,10 @@ export async function recordPayment(
     createdAt: FieldValue.serverTimestamp(),
   };
 
+  if (input.publishedLeaseId) {
+    paymentData.publishedLeaseId = input.publishedLeaseId;
+  }
+
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
 
   const batch = adminDb.batch();
@@ -113,7 +142,8 @@ export async function recordPayment(
     entityPath: `llcs/${llcId}/payments/${paymentRef.id}`,
     changes: {
       after: {
-        leaseId: input.leaseId,
+        leaseId: resolvedLeaseId,
+        publishedLeaseId: input.publishedLeaseId || undefined,
         tenantId: input.tenantId,
         amount: input.amount,
         paymentMethod: input.paymentMethod,
@@ -132,7 +162,8 @@ export async function recordPayment(
   return {
     id: paymentRef.id,
     llcId,
-    leaseId: input.leaseId,
+    leaseId: resolvedLeaseId,
+    publishedLeaseId: input.publishedLeaseId,
     tenantId: input.tenantId,
     amount: input.amount,
     currency: 'usd',
@@ -156,6 +187,36 @@ async function autoAllocatePayment(
   amount: number
 ): Promise<{ chargeId: string; amount: number }[]> {
   const openCharges = await getOpenChargesForLease(llcId, leaseId);
+  const allocations: { chargeId: string; amount: number }[] = [];
+  let remaining = amount;
+
+  for (const charge of openCharges) {
+    if (remaining <= 0) break;
+
+    const chargeBalance = charge.amount - charge.paidAmount;
+    const allocationAmount = Math.min(remaining, chargeBalance);
+
+    if (allocationAmount > 0) {
+      allocations.push({
+        chargeId: charge.id,
+        amount: allocationAmount,
+      });
+      remaining -= allocationAmount;
+    }
+  }
+
+  return allocations;
+}
+
+/**
+ * Auto-allocate a payment to the oldest open charges for a published lease (FIFO).
+ */
+async function autoAllocatePaymentForPublishedLease(
+  llcId: string,
+  publishedLeaseId: string,
+  amount: number
+): Promise<{ chargeId: string; amount: number }[]> {
+  const openCharges = await getOpenChargesForPublishedLease(llcId, publishedLeaseId);
   const allocations: { chargeId: string; amount: number }[] = [];
   let remaining = amount;
 
@@ -203,6 +264,7 @@ export async function getPayment(
     id: paymentDoc.id,
     llcId: data.llcId,
     leaseId: data.leaseId,
+    publishedLeaseId: data.publishedLeaseId || undefined,
     tenantId: data.tenantId,
     amount: data.amount,
     currency: data.currency,
@@ -238,6 +300,44 @@ export async function listPaymentsForLease(
       id: doc.id,
       llcId: data.llcId,
       leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
+      tenantId: data.tenantId,
+      amount: data.amount,
+      currency: data.currency,
+      status: data.status as PaymentStatus,
+      paymentMethod: data.paymentMethod,
+      appliedTo: data.appliedTo || [],
+      memo: data.memo || undefined,
+      receiptUrl: data.receiptUrl || undefined,
+      stripePaymentIntentId: data.stripePaymentIntentId || undefined,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || undefined,
+    };
+  });
+}
+
+/**
+ * List payments for a published lease.
+ */
+export async function listPaymentsForPublishedLease(
+  llcId: string,
+  publishedLeaseId: string
+): Promise<PaymentWithId[]> {
+  const snapshot = await adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('payments')
+    .where('publishedLeaseId', '==', publishedLeaseId)
+    .orderBy('createdAt', 'desc')
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      llcId: data.llcId,
+      leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
       tenantId: data.tenantId,
       amount: data.amount,
       currency: data.currency,
@@ -261,6 +361,7 @@ export async function listPayments(
   filters?: {
     status?: PaymentStatus;
     leaseId?: string;
+    publishedLeaseId?: string;
     tenantId?: string;
     fromDate?: string;
     toDate?: string;
@@ -278,6 +379,9 @@ export async function listPayments(
   if (filters?.leaseId) {
     query = query.where('leaseId', '==', filters.leaseId);
   }
+  if (filters?.publishedLeaseId) {
+    query = query.where('publishedLeaseId', '==', filters.publishedLeaseId);
+  }
   if (filters?.tenantId) {
     query = query.where('tenantId', '==', filters.tenantId);
   }
@@ -290,6 +394,7 @@ export async function listPayments(
       id: doc.id,
       llcId: data.llcId,
       leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
       tenantId: data.tenantId,
       amount: data.amount,
       currency: data.currency,

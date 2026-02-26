@@ -21,13 +21,17 @@ export const chargeStatusSchema = z.enum([
 ]);
 
 export const createChargeSchema = z.object({
-  leaseId: z.string().min(1),
+  leaseId: z.string().min(1).optional(),
+  publishedLeaseId: z.string().min(1).optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/), // YYYY-MM
   type: chargeTypeSchema,
   description: z.string().max(500).optional(),
   amount: z.number().positive(), // In cents
   dueDate: z.string().datetime(),
-});
+}).refine(
+  (data) => data.leaseId || data.publishedLeaseId,
+  { message: 'Either leaseId or publishedLeaseId is required' }
+);
 
 export const updateChargeSchema = z.object({
   description: z.string().max(500).optional(),
@@ -64,7 +68,8 @@ export const paymentApplicationSchema = z.object({
  * Schema for manually recording a payment (cash, check, etc.)
  */
 export const recordPaymentSchema = z.object({
-  leaseId: z.string().min(1),
+  leaseId: z.string().min(1).optional(),
+  publishedLeaseId: z.string().min(1).optional(),
   tenantId: z.string().min(1),
   amount: z.number().positive(), // Total payment amount in cents
   paymentMethod: z.enum(['cash', 'check', 'money_order', 'bank_transfer', 'other']),
@@ -72,7 +77,10 @@ export const recordPaymentSchema = z.object({
   memo: z.string().max(500).optional(),
   paymentDate: z.string().datetime().optional(), // ISO date, defaults to now
   chargeAllocations: z.array(paymentApplicationSchema).optional(), // How to apply payment to charges
-});
+}).refine(
+  (data) => data.leaseId || data.publishedLeaseId,
+  { message: 'Either leaseId or publishedLeaseId is required' }
+);
 
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 

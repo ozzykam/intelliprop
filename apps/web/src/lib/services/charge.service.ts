@@ -3,7 +3,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { ChargeType, ChargeStatus } from '@shared/types';
 
 export interface CreateChargeInput {
-  leaseId: string;
+  leaseId?: string;
+  publishedLeaseId?: string;
   period: string; // YYYY-MM
   type: ChargeType;
   description?: string;
@@ -16,6 +17,7 @@ export interface ChargeWithId {
   id: string;
   llcId: string;
   leaseId: string;
+  publishedLeaseId?: string;
   tenantUserId?: string;
   period: string;
   type: ChargeType;
@@ -48,19 +50,43 @@ export async function createCharge(
   input: CreateChargeInput,
   actorUserId: string
 ): Promise<ChargeWithId> {
-  // Verify lease exists and get tenant info
-  const leaseDoc = await adminDb
-    .collection('llcs')
-    .doc(llcId)
-    .collection('leases')
-    .doc(input.leaseId)
-    .get();
+  let tenantUserIds: string[] = [];
+  let resolvedLeaseId: string;
 
-  if (!leaseDoc.exists) {
-    throw new Error('NOT_FOUND: Lease not found');
+  if (input.publishedLeaseId) {
+    // Published lease path
+    const publishedLeaseDoc = await adminDb
+      .collection('llcs')
+      .doc(llcId)
+      .collection('publishedLeases')
+      .doc(input.publishedLeaseId)
+      .get();
+
+    if (!publishedLeaseDoc.exists) {
+      throw new Error('NOT_FOUND: Published lease not found');
+    }
+
+    const publishedLeaseData = publishedLeaseDoc.data();
+    tenantUserIds = publishedLeaseData?.tenantIds || [];
+    // Same dual-key pattern as nightly scheduler: leaseId = publishedLeaseId
+    resolvedLeaseId = input.publishedLeaseId;
+  } else {
+    // Legacy lease path
+    const leaseDoc = await adminDb
+      .collection('llcs')
+      .doc(llcId)
+      .collection('leases')
+      .doc(input.leaseId!)
+      .get();
+
+    if (!leaseDoc.exists) {
+      throw new Error('NOT_FOUND: Lease not found');
+    }
+
+    const leaseData = leaseDoc.data();
+    tenantUserIds = leaseData?.tenantUserIds || [];
+    resolvedLeaseId = input.leaseId!;
   }
-
-  const leaseData = leaseDoc.data();
 
   const chargeRef = adminDb
     .collection('llcs')
@@ -68,10 +94,11 @@ export async function createCharge(
     .collection('charges')
     .doc();
 
-  const chargeData = {
+  const chargeData: Record<string, unknown> = {
     llcId,
-    leaseId: input.leaseId,
-    tenantUserIds: leaseData?.tenantUserIds || [],
+    leaseId: resolvedLeaseId,
+    tenantUserIds,
+    tenantUserId: tenantUserIds[0] || null,
     period: input.period,
     type: input.type,
     description: input.description || null,
@@ -82,6 +109,10 @@ export async function createCharge(
     linkedChargeId: input.linkedChargeId || null,
     createdAt: FieldValue.serverTimestamp(),
   };
+
+  if (input.publishedLeaseId) {
+    chargeData.publishedLeaseId = input.publishedLeaseId;
+  }
 
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
 
@@ -95,7 +126,8 @@ export async function createCharge(
     entityPath: `llcs/${llcId}/charges/${chargeRef.id}`,
     changes: {
       after: {
-        leaseId: input.leaseId,
+        leaseId: resolvedLeaseId,
+        publishedLeaseId: input.publishedLeaseId || undefined,
         type: input.type,
         amount: input.amount,
         period: input.period,
@@ -109,7 +141,8 @@ export async function createCharge(
   return {
     id: chargeRef.id,
     llcId,
-    leaseId: input.leaseId,
+    leaseId: resolvedLeaseId,
+    publishedLeaseId: input.publishedLeaseId,
     period: input.period,
     type: input.type,
     description: input.description,
@@ -148,6 +181,7 @@ export async function getCharge(
     id: chargeDoc.id,
     llcId: data.llcId,
     leaseId: data.leaseId,
+    publishedLeaseId: data.publishedLeaseId || undefined,
     tenantUserId: data.tenantUserId,
     period: data.period,
     type: data.type as ChargeType,
@@ -192,6 +226,7 @@ export async function listChargesForLease(
       id: doc.id,
       llcId: data.llcId,
       leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
       tenantUserId: data.tenantUserId,
       period: data.period,
       type: data.type as ChargeType,
@@ -219,6 +254,7 @@ export async function listCharges(
     status?: ChargeStatus;
     type?: ChargeType;
     leaseId?: string;
+    publishedLeaseId?: string;
     fromDate?: string;
     toDate?: string;
   }
@@ -238,6 +274,9 @@ export async function listCharges(
   if (filters?.leaseId) {
     query = query.where('leaseId', '==', filters.leaseId);
   }
+  if (filters?.publishedLeaseId) {
+    query = query.where('publishedLeaseId', '==', filters.publishedLeaseId);
+  }
 
   const snapshot = await query.get();
 
@@ -247,6 +286,7 @@ export async function listCharges(
       id: doc.id,
       llcId: data.llcId,
       leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
       tenantUserId: data.tenantUserId,
       period: data.period,
       type: data.type as ChargeType,
@@ -299,6 +339,7 @@ export async function getOpenChargesForLease(
       id: doc.id,
       llcId: data.llcId,
       leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
       tenantUserId: data.tenantUserId,
       period: data.period,
       type: data.type as ChargeType,
@@ -422,6 +463,7 @@ export async function voidCharge(
     id: chargeId,
     llcId: data.llcId,
     leaseId: data.leaseId,
+    publishedLeaseId: data.publishedLeaseId || undefined,
     period: data.period,
     type: data.type as ChargeType,
     description: data.description || undefined,
@@ -434,6 +476,129 @@ export async function voidCharge(
     voidReason: reason,
     createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * List charges for a published lease.
+ */
+export async function listChargesForPublishedLease(
+  llcId: string,
+  publishedLeaseId: string,
+  status?: ChargeStatus
+): Promise<ChargeWithId[]> {
+  let query = adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('charges')
+    .where('publishedLeaseId', '==', publishedLeaseId)
+    .orderBy('dueDate', 'desc') as FirebaseFirestore.Query;
+
+  if (status) {
+    query = query.where('status', '==', status);
+  }
+
+  const snapshot = await query.get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      llcId: data.llcId,
+      leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
+      tenantUserId: data.tenantUserId,
+      period: data.period,
+      type: data.type as ChargeType,
+      description: data.description || undefined,
+      amount: data.amount,
+      paidAmount: data.paidAmount || 0,
+      status: data.status as ChargeStatus,
+      dueDate: data.dueDate,
+      linkedChargeId: data.linkedChargeId || undefined,
+      voidedAt: data.voidedAt?.toDate?.()?.toISOString() || undefined,
+      voidedBy: data.voidedBy || undefined,
+      voidReason: data.voidReason || undefined,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || undefined,
+    };
+  });
+}
+
+/**
+ * Get open (unpaid) charges for a published lease.
+ */
+export async function getOpenChargesForPublishedLease(
+  llcId: string,
+  publishedLeaseId: string
+): Promise<ChargeWithId[]> {
+  const snapshot = await adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('charges')
+    .where('publishedLeaseId', '==', publishedLeaseId)
+    .where('status', 'in', ['open', 'partial'])
+    .orderBy('dueDate', 'asc')
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      llcId: data.llcId,
+      leaseId: data.leaseId,
+      publishedLeaseId: data.publishedLeaseId || undefined,
+      tenantUserId: data.tenantUserId,
+      period: data.period,
+      type: data.type as ChargeType,
+      description: data.description || undefined,
+      amount: data.amount,
+      paidAmount: data.paidAmount || 0,
+      status: data.status as ChargeStatus,
+      dueDate: data.dueDate,
+      linkedChargeId: data.linkedChargeId || undefined,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || undefined,
+    };
+  });
+}
+
+/**
+ * Calculate the balance for a published lease.
+ */
+export async function getChargeBalanceForPublishedLease(
+  llcId: string,
+  publishedLeaseId: string
+): Promise<ChargeBalance> {
+  const charges = await listChargesForPublishedLease(llcId, publishedLeaseId);
+  const today = new Date().toISOString().slice(0, 10);
+
+  let totalCharges = 0;
+  let totalPaid = 0;
+  let overdueAmount = 0;
+  let openCharges = 0;
+
+  for (const charge of charges) {
+    if (charge.status === 'void') continue;
+
+    totalCharges += charge.amount;
+    totalPaid += charge.paidAmount;
+
+    if (charge.status === 'open' || charge.status === 'partial') {
+      openCharges++;
+      const remaining = charge.amount - charge.paidAmount;
+      if (charge.dueDate < today) {
+        overdueAmount += remaining;
+      }
+    }
+  }
+
+  return {
+    totalCharges,
+    totalPaid,
+    balance: totalCharges - totalPaid,
+    overdueAmount,
+    openCharges,
   };
 }
 

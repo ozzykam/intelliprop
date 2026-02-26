@@ -31,6 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       status: searchParams.get('status') as 'open' | 'paid' | 'partial' | 'void' | undefined,
       type: searchParams.get('type') as 'rent' | 'late_fee' | 'utility' | 'deposit' | 'pet_deposit' | 'pet_rent' | 'parking' | 'damage' | 'other' | undefined,
       leaseId: searchParams.get('leaseId') || undefined,
+      publishedLeaseId: searchParams.get('publishedLeaseId') || undefined,
       fromDate: searchParams.get('fromDate') || undefined,
       toDate: searchParams.get('toDate') || undefined,
     };
