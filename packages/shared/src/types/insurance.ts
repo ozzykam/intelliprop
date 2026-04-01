@@ -713,11 +713,11 @@ export interface ClaimTask {
   notes?: string;
   dueDate?: string; // YYYY-MM-DD
   completed: boolean;
-  completedAt?: FirebaseFirestore.Timestamp | string;
+  completedAt?: Timestamp | string;
   completedByUserId?: string;
   createdByUserId: string;
-  createdAt: FirebaseFirestore.Timestamp | string;
-  updatedAt?: FirebaseFirestore.Timestamp | string;
+  createdAt: Timestamp | string;
+  updatedAt?: Timestamp | string;
 }
 
 export interface CreateClaimTaskInput {
@@ -787,8 +787,8 @@ export interface ClaimActivity {
   notes?: string;
   occurredAt?: string; // YYYY-MM-DD
   createdByUserId: string;
-  createdAt: FirebaseFirestore.Timestamp | string;
-  updatedAt?: FirebaseFirestore.Timestamp | string;
+  createdAt: Timestamp | string;
+  updatedAt?: Timestamp | string;
 }
 
 export interface CreateClaimActivityInput {
