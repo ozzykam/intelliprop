@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: 'Leases', href: '/leases' },
   { label: 'Billing', href: '/billing' },
   { label: 'Work Orders', href: '/work-orders' },
+  { label: 'Insurance', href: '/insurance' },
   { label: 'Legal', href: '/legal' },
   { label: 'Members', href: '/members' },
   { label: 'Settings', href: '/settings' },

@@ -1,6 +1,6 @@
 import { adminDb } from '@/lib/firebase/admin';
 
-export type AlertType = 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due';
+export type AlertType = 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due' | 'claim_task_due';
 export type AlertSeverity = 'warning' | 'critical';
 
 export interface Alert {
@@ -14,6 +14,7 @@ export interface Alert {
   entityType: string;
   entityId: string;
   caseId?: string;
+  claimId?: string;
   dueDate?: string;
   amount?: number;
 }
@@ -68,7 +69,7 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
   const llcRef = adminDb.collection('llcs').doc(llcId);
 
   // Fetch all alert sources in parallel
-  const [leasesSnap, chargesSnap, casesSnap, tasksSnap] = await Promise.all([
+  const [leasesSnap, chargesSnap, casesSnap, tasksSnap, claimsSnap] = await Promise.all([
     // Active leases expiring within 60 days
     llcRef.collection('leases').where('status', '==', 'active').get(),
     // Open/partial charges
@@ -77,7 +78,17 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     llcRef.collection('cases').where('status', 'in', ['open', 'stayed']).get(),
     // Pending tasks (query all cases for tasks)
     adminDb.collectionGroup('tasks').where('status', 'in', ['pending', 'in_progress']).get(),
+    // All claims — used to fetch claim tasks per-claim (avoids needing a collection group index)
+    llcRef.collection('insuranceClaims').get(),
   ]);
+
+  // Fetch incomplete tasks for each claim in parallel
+  const claimTaskSnaps = await Promise.all(
+    claimsSnap.docs.map(claimDoc =>
+      claimDoc.ref.collection('tasks').where('completed', '==', false).get()
+    )
+  );
+  const claimTaskDocs = claimTaskSnaps.flatMap(snap => snap.docs);
 
   // Process expiring / expired leases (still marked active)
   for (const doc of leasesSnap.docs) {
@@ -263,6 +274,51 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
         entityType: 'task',
         entityId: doc.id,
         caseId: caseRef.id,
+        dueDate: task.dueDate,
+      });
+    }
+  }
+
+  // Process claim tasks with due dates (upcoming + overdue)
+  for (const doc of claimTaskDocs) {
+    const task = doc.data();
+    if (!task.dueDate) continue;
+
+    const claimRef = doc.ref.parent.parent;
+    if (!claimRef) continue;
+
+    if (task.dueDate < today) {
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `claim-task-${doc.id}`,
+        type: 'claim_task_due',
+        severity: 'critical',
+        title: 'Claim Task Overdue',
+        description: task.title || `Task overdue by ${daysOverdue} days`,
+        llcId,
+        llcName,
+        entityType: 'claim_task',
+        entityId: doc.id,
+        claimId: claimRef.id,
+        dueDate: task.dueDate,
+      });
+    } else if (task.dueDate <= futureDate7) {
+      const daysUntilDue = Math.ceil(
+        (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `claim-task-${doc.id}`,
+        type: 'claim_task_due',
+        severity: daysUntilDue <= 2 ? 'critical' : 'warning',
+        title: 'Claim Task Due',
+        description: task.title || `Task due in ${daysUntilDue} days`,
+        llcId,
+        llcName,
+        entityType: 'claim_task',
+        entityId: doc.id,
+        claimId: claimRef.id,
         dueDate: task.dueDate,
       });
     }

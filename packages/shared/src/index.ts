@@ -15,6 +15,7 @@ export * from './types/mortgage';
 export * from './types/activation';
 export * from './types/leaseBuilder';
 export * from './types/publishedLease';
+export * from './types/insurance';
 
 // Constants
 export * from './constants/roles';
@@ -33,6 +34,7 @@ export * from './validators/mortgage';
 export * from './validators/activation';
 export * from './validators/leaseBuilder';
 export * from './validators/publishedLease';
+export * from './validators/insurance';
 
 // Utils
 export * from './utils/ids';
