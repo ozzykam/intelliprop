@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { use } from 'react';
 import {
-  INSURANCE_POLICY_TYPES,
   INSURANCE_POLICY_TYPE_LABELS,
   InsurancePolicyType,
   InsurancePolicyEntityType,
@@ -28,11 +27,11 @@ export default function NewInsurancePolicyPage({ params }: NewPolicyPageProps) {
   const basePath = `/llcs/${llcId}/insurance`;
 
   const [entityType, setEntityType] = useState<InsurancePolicyEntityType>('property');
-  const [entityId, setEntityId] = useState('');
+  const [entityId] = useState('');
   const [entityName, setEntityName] = useState('');
-  const [propertyId, setPropertyId] = useState('');
+  const [propertyId] = useState('');
   const [propertyName, setPropertyName] = useState('');
-  const [unitId, setUnitId] = useState('');
+  const [unitId] = useState('');
   const [unitLabel, setUnitLabel] = useState('');
   const [policyType, setPolicyType] = useState<InsurancePolicyType>('property');
   const [status, setStatus] = useState('active');

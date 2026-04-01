@@ -8,8 +8,6 @@ import {
   AppraisalEstimate,
   Appraiser,
   Umpire,
-  DisputedItem,
-  AppraisalCourtAction,
   APPRAISAL_PROCESS_STATUS_LABELS,
   APPRAISAL_PROCESS_STATUS_COLORS,
 } from '@shared/types';

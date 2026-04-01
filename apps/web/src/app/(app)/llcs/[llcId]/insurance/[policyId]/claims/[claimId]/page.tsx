@@ -1292,11 +1292,11 @@ export default function ClaimDetailPage({ params }: ClaimPageProps) {
   );
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoField({ label, value }: { label: string; value?: string }) {
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className="text-sm mt-0.5">{value}</p>
+      <p className="text-sm mt-0.5">{value ?? '—'}</p>
     </div>
   );
 }

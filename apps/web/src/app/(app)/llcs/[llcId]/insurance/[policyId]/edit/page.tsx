@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { use } from 'react';
 import {
   InsurancePolicy,
-  INSURANCE_POLICY_TYPES,
   INSURANCE_POLICY_TYPE_LABELS,
   InsurancePolicyType,
 } from '@shared/types';
