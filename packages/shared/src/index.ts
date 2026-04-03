@@ -16,6 +16,7 @@ export * from './types/activation';
 export * from './types/leaseBuilder';
 export * from './types/publishedLease';
 export * from './types/insurance';
+export * from './types/assignment';
 
 // Constants
 export * from './constants/roles';
@@ -35,6 +36,7 @@ export * from './validators/activation';
 export * from './validators/leaseBuilder';
 export * from './validators/publishedLease';
 export * from './validators/insurance';
+export * from './validators/assignment';
 
 // Utils
 export * from './utils/ids';

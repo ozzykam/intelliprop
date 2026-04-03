@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { label: 'Work Orders', href: '/work-orders' },
   { label: 'Insurance', href: '/insurance' },
   { label: 'Legal', href: '/legal' },
+  { label: 'Assignments', href: '/assignments' },
   { label: 'Members', href: '/members' },
   { label: 'Settings', href: '/settings' },
 ];

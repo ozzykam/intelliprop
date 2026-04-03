@@ -5,7 +5,8 @@
       "Bash(dir:*)",
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }
