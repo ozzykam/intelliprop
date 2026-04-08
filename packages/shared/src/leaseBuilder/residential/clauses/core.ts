@@ -125,13 +125,13 @@ export const residentialCoreClauses: ClauseDefinition[] = [
 <p>{{landlord.name}}<br/>
 a Minnesota limited liability company</p>
 <p>By: ___________________________________</p>
-<p>Printed Name: {{landlord.representativeName}}</p>
-<p>Title: {{landlord.represetativeTitle}}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.representativeName}}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.represetativeTitle}}</p>
 <p>Date: ___________________________________</p>
 <br/>
 <p><strong>TENANT(S):</strong></p>
 <p>Signature: ___________________________________</p>
-<p>Printed Name: {{tenant.name1}}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;{{tenant.name1}}</p>
 <p>Date: ___________________________________</p>
 <br/>
 <p>Signature: ___________________________________</p>

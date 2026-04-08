@@ -1030,8 +1030,8 @@ function generateAddendumHtml(
 `<p><strong>TENANT:</strong></p>
 <p>${t.name}</p>
 <p>By: ___________________________________</p>
-<p>Printed Name: ${t.signerName || '___________________________________'}</p>
-<p>Title: ${t.signerTitle || '___________________________________'}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;${t.signerName || '___________________________________'}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;${t.signerTitle || '___________________________________'}</p>
 <p>Date: ___________________________________</p>`
     ).join('\n<br/>\n');
 
@@ -1041,8 +1041,8 @@ function generateAddendumHtml(
 <p>${context.landlordName}<br/>
 a Minnesota limited liability company</p>
 <p>By: ___________________________________</p>
-<p>Printed Name: ${context.landlordSignerName}</p>
-<p>Title: ${context.landlordSignerTitle}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;${context.landlordSignerName}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;${context.landlordSignerTitle}</p>
 <p>Date: ___________________________________</p>
 <br/>
 ${tenantSigs}`;

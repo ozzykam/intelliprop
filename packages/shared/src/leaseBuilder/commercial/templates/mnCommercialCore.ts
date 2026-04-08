@@ -4,88 +4,197 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 <head>
   <meta charset="UTF-8" />
   <style>
+    /* =============================================
+       PAGE SETUP — compact margins
+       ============================================= */
     @page {
       size: letter;
-      margin: 1in;
+      margin: 0.75in;
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #666;
+      }
     }
+
+    /* =============================================
+       BASE TYPOGRAPHY — compact sizing
+       ============================================= */
     body {
       font-family: 'Times New Roman', Times, serif;
-      font-size: 12pt;
-      line-height: 1.6;
+      font-size: 11pt;
+      line-height: 1.4;
       color: #000;
     }
+
     h1 {
-      font-size: 18pt;
+      font-size: 16pt;
       text-align: center;
+      margin-top: 24pt;
       margin-bottom: 4pt;
       text-transform: uppercase;
+      letter-spacing: 1pt;
     }
+
     h2 {
-      font-size: 14pt;
+      font-size: 13pt;
       text-align: center;
       margin-top: 4pt;
-      margin-bottom: 20pt;
+      margin-bottom: 24pt;
+      font-weight: normal;
+      font-style: italic;
     }
+
     h3 {
-      font-size: 12pt;
+      font-size: 11pt;
       margin-top: 18pt;
       margin-bottom: 6pt;
       text-transform: uppercase;
+      page-break-after: avoid;
+      break-after: avoid;
     }
+
     p {
       text-align: justify;
-      margin: 6pt 0;
+      margin: 4pt 0;
+      widows: 3;
+      orphans: 3;
     }
+
+    /* =============================================
+       LISTS
+       ============================================= */
     ol, ul {
-      margin: 6pt 0 6pt 24pt;
+      margin: 4pt 0 4pt 24pt;
     }
+
     li {
-      margin-bottom: 4pt;
+      margin-bottom: 3pt;
+      widows: 3;
+      orphans: 3;
     }
+
+    /* Keep content glued to its heading */
+    h3 + p,
+    h3 + ol,
+    h3 + ul,
+    h3 + table,
+    h3 + div {
+      page-break-before: avoid;
+      break-before: avoid;
+    }
+
+    /* =============================================
+       TABLES
+       ============================================= */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 12pt 0;
+      margin: 8pt 0;
     }
+
     td, th {
-      padding: 4pt 8pt;
+      padding: 3pt 6pt;
       vertical-align: top;
+      text-align: left;
     }
+
+    tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .parties-table td {
+      width: 50%;
+      padding: 0.25em 0.75em;
+    }
+
+    .parties-table p {
+      text-align: left;
+    }
+
+    /* =============================================
+       HEADER / TITLE BLOCK
+       ============================================= */
+    .header-info {
+      text-align: center;
+      margin-bottom: 18pt;
+    }
+
+    .header-info p {
+      text-align: center;
+    }
+
+    /* =============================================
+       SIGNATURE BLOCKS
+       ============================================= */
+    .signature-block {
+      margin-top: 36pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .signature-block p {
+      text-align: left;
+    }
+
+    .signature-field {
+      margin: 14pt 0;
+      text-align: left;
+      white-space: nowrap;
+    }
+
     .signature-line {
       display: inline-block;
       width: 250px;
       border-bottom: 1px solid #000;
       margin-left: 8px;
+      vertical-align: bottom;
     }
+
     .date-line {
       display: inline-block;
       width: 150px;
       border-bottom: 1px solid #000;
       margin-left: 8px;
+      vertical-align: bottom;
     }
+
+    /* =============================================
+       PAGE FLOW CONTROLS
+       ============================================= */
     .page-break {
       page-break-before: always;
+      break-before: always;
     }
-    .header-info {
-      text-align: center;
-      margin-bottom: 24pt;
-    }
-    .parties-table td {
-      width: 50%;
-      padding: 4pt 8pt;
-    }
-    .exhibit-ref {
-      font-style: italic;
-      color: #333;
-    }
+
     .no-break {
       page-break-inside: avoid;
       break-inside: avoid;
     }
+
+    /* =============================================
+       MISC
+       ============================================= */
+    .exhibit-ref {
+      font-style: italic;
+      color: #333;
+    }
+
+    /* =============================================
+       PRINT OVERRIDES
+       ============================================= */
     @media print {
+      a {
+        color: #000;
+        text-decoration: none;
+      }
+
       .page-break {
         page-break-before: always;
+        break-before: always;
       }
+
       .no-break {
         page-break-inside: avoid;
         break-inside: avoid;
@@ -127,7 +236,7 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 
 <h3>PREMISES</h3>
 
-<p>Landlord hereby leases to Tenant, and Tenant hereby leases from Landlord, the following described premises (the "Premises"):</p>
+<p>Landlord hereby leases to Tenant, and Tenant hereby leases from Landlord, the following described premises (the &quot;Premises&quot;):</p>
 
 <table>
   <tr>
@@ -166,33 +275,36 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 
 <p>All notices required or permitted under this Lease shall be in writing and shall be deemed delivered when: (a) personally delivered; (b) sent by certified mail, return receipt requested, to the address of the respective party set forth above or such other address as may be designated in writing; or (c) sent by nationally recognized overnight courier to such address. Notice shall be deemed received on the date of personal delivery, three (3) business days after mailing, or one (1) business day after deposit with an overnight courier.</p>
 
-<div class="no-break">
-<h3>EXECUTION</h3>
+<!-- Force execution block to its own page -->
+<div class="page-break no-break">
+  <h3>EXECUTION</h3>
 
-<p>IN WITNESS WHEREOF, the parties have executed this Commercial Lease Agreement as of the date first written above.</p>
+  <p style="text-align: left;">IN WITNESS WHEREOF, the parties have executed this Commercial Lease Agreement as of the date first written above.</p>
 
-<table>
-  <tr>
-    <td width="50%">
-      <p><strong>LANDLORD:</strong></p>
-      <p>{{landlord.name}}</p>
-      <br/>
-      <p>Signature: <span class="signature-line"></span></p>
-      <p>Printed Name: <span class="signature-line"></span></p>
-      <p>Title: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
-    </td>
-    <td width="50%">
-      <p><strong>TENANT:</strong></p>
-      <p>{{tenant.name}}</p>
-      <br/>
-      <p>Signature: <span class="signature-line"></span></p>
-      <p>Printed Name: <span class="signature-line"></span></p>
-      <p>Title: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
-    </td>
-  </tr>
-</table>
+  <div class="signature-block">
+    <table>
+      <tr>
+        <td width="50%">
+          <p><strong>LANDLORD:</strong></p>
+          <p>{{landlord.name}}</p>
+          <br/>
+          <p class="signature-field">Signature: <span class="signature-line"></span></p>
+          <p class="signature-field">Printed Name: <span class="signature-line"></span></p>
+          <p class="signature-field">Title: <span class="signature-line"></span></p>
+          <p class="signature-field">Date: <span class="date-line"></span></p>
+        </td>
+        <td width="50%">
+          <p><strong>TENANT:</strong></p>
+          <p>{{tenant.name}}</p>
+          <br/>
+          <p class="signature-field">Signature: <span class="signature-line"></span></p>
+          <p class="signature-field">Printed Name: <span class="signature-line"></span></p>
+          <p class="signature-field">Title: <span class="signature-line"></span></p>
+          <p class="signature-field">Date: <span class="date-line"></span></p>
+        </td>
+      </tr>
+    </table>
+  </div>
 </div>
 
 </body>

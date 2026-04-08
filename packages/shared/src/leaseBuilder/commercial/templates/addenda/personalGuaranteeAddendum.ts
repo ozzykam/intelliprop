@@ -108,8 +108,8 @@ export const PERSONAL_GUARANTEE_ADDENDUM_TEMPLATE = `
     <td width="50%" style="padding-right: 24pt; vertical-align: top;">
       <p>{{landlord.name}}<br/>a Minnesota limited liability company</p>
       <p>By: ___________________________________</p>
-      <p>Printed Name: {{landlord.signerName}}</p>
-      <p>Title: {{landlord.signerTitle}}</p>
+      <p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.signerName}}</p>
+      <p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.signerTitle}}</p>
       <p>Date: ___________________________________</p>
     </td>
     <td width="50%"></td>

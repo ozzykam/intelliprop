@@ -165,28 +165,58 @@ export const commercialCoreClauses: ClauseDefinition[] = [
       'The signature block where authorized representatives of both landlord and tenant entities sign and date the lease, with printed names and titles.',
     htmlContent: `<h3>Signatures</h3>
 <p>IN WITNESS WHEREOF, the Parties have executed this Lease as of the date last written below, each by a duly authorized representative.</p>
-<p><strong>LANDLORD:</strong></p>
-<p>
-  {{landlord.name}}<br/>
-  a Minnesota limited liability company
-</p>
-<p>By: ___________________________________</p>
-<p>Printed Name: {{landlord.signerName}}</p>
-<p>Title: {{landlord.signerTitle}}</p>
-<p>Date: ___________________________________</p>
 <br/>
-<p><strong>TENANT:</strong></p>
-<p>{{tenant.name}}</p>
-<p>By: ___________________________________</p>
-<p>Printed Name: {{tenant.signerName}}</p>
-<p>Title: {{tenant.signerTitle}}</p>
-<p>Date: ___________________________________</p>`,
+<p style="text-align: left; margin-bottom: 0; margin-top: 15;"><strong>LANDLORD</strong></p>
+<p style="text-align: left; margin-top: 0; text-transform: uppercase;">{{landlord.name}}</p>
+<table style="margin-top: 0; margin-bottom: 0; width: 60%">
+  <tr>
+    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">By:</td>
+    <td style="vertical-align: top; padding: 0; width: 15%;">
+      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt;">&nbsp;</div>
+      <div>{{landlord.signerName}}</div>
+      <div>{{landlord.signerTitle}}</div>
+    </td>
+    <td style="width: 2%; padding: 0;"></td>
+    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">Date:</td>
+    <td style="vertical-align: top; padding: 0; width: 10%;">
+      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt; width: 100%;">&nbsp;</div>
+      <div>&nbsp;</div>
+      <div>&nbsp;</div>
+    </td>
+  </tr>
+</table>
+
+<br/>
+
+<p style="text-align: left; margin-bottom: 0; margin-top: 15;"><strong>TENANT</strong></p>
+<p style="text-align: left; margin-top: 0; text-transform: uppercase;">{{tenant.name}}</p>
+<table style="margin-top: 0; margin-bottom: 0; width: 60%">
+  <tr>
+    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">By:</td>
+    <td style="vertical-align: top; padding: 0; width: 15%;">
+      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt;">&nbsp;</div>
+      <div>{{tenant.signerName}}</div>
+      <div>{{tenant.signerTitle}}</div>
+    </td>
+    <td style="width: 2%; padding: 0;"></td>
+    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">Date:</td>
+    <td style="vertical-align: top; padding: 0; width: 10%;">
+      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt; width: 100%;">&nbsp;</div>
+      <div>&nbsp;</div>
+      <div>&nbsp;</div>
+    </td>
+  </tr>
+</table>`,
     isRequired: true,
     placeholders: [
       'landlord.name',
+      'landlord.stateOfFormation',
+      'landlord.entityType',
       'landlord.signerName',
       'landlord.signerTitle',
       'tenant.name',
+      'tenant.stateOfFormation',
+      'tenant.entityType',
       'tenant.signerName',
       'tenant.signerTitle',
     ],
