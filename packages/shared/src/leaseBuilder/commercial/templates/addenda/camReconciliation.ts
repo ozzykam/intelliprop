@@ -112,18 +112,30 @@ export const CAM_RECONCILIATION_ADDENDUM_TEMPLATE = `
 
 <p>Controllable operating expenses (expenses within Landlord's reasonable control, excluding taxes, insurance, utilities, and snow removal) shall not increase by more than five percent (5%) per year on a cumulative, compounding basis over the base year. The base year shall be the first full calendar year of the Lease term.</p>
 
-<h3>SIGNATURES</h3>
+<div class="no-break">
+<h3>Signatures</h3>
+
+<p>IN WITNESS WHEREOF, the parties have executed this Addendum as of the date last written below, each by a duly authorized representative.</p>
 
 <table>
   <tr>
-    <td width="50%">
-      <p>Landlord Signature: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
+    <td width="50%" style="padding-right: 24pt; vertical-align: top;">
+      <p><strong>LANDLORD:</strong></p>
+      <p>{{landlord.name}}<br/>a Minnesota limited liability company</p>
+      <p>By: ___________________________________</p>
+      <p>Printed Name: {{landlord.signerName}}</p>
+      <p>Title: {{landlord.signerTitle}}</p>
+      <p>Date: ___________________________________</p>
     </td>
-    <td width="50%">
-      <p>Tenant Signature: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
+    <td width="50%" style="padding-left: 24pt; vertical-align: top;">
+      <p><strong>TENANT:</strong></p>
+      <p>{{tenant.name}}</p>
+      <p>By: ___________________________________</p>
+      <p>Printed Name: {{tenant.signerName}}</p>
+      <p>Title: {{tenant.signerTitle}}</p>
+      <p>Date: ___________________________________</p>
     </td>
   </tr>
 </table>
+</div>
 `;

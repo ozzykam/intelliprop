@@ -78,9 +78,17 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
       font-style: italic;
       color: #333;
     }
+    .no-break {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     @media print {
       .page-break {
         page-break-before: always;
+      }
+      .no-break {
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
     }
   </style>
@@ -158,6 +166,7 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 
 <p>All notices required or permitted under this Lease shall be in writing and shall be deemed delivered when: (a) personally delivered; (b) sent by certified mail, return receipt requested, to the address of the respective party set forth above or such other address as may be designated in writing; or (c) sent by nationally recognized overnight courier to such address. Notice shall be deemed received on the date of personal delivery, three (3) business days after mailing, or one (1) business day after deposit with an overnight courier.</p>
 
+<div class="no-break">
 <h3>EXECUTION</h3>
 
 <p>IN WITNESS WHEREOF, the parties have executed this Commercial Lease Agreement as of the date first written above.</p>
@@ -184,15 +193,7 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
     </td>
   </tr>
 </table>
-
-<br/>
-<hr/>
-<p style="font-size: 9pt; text-align: center; color: #666;">
-  <strong>DISCLAIMER:</strong> This lease template is provided for informational purposes and is designed to comply with Minnesota state law and applicable local ordinances as of the template version date. It does not constitute legal advice. Landlords and tenants are encouraged to consult with a licensed Minnesota attorney before executing this agreement. Laws and regulations may change; verify current compliance requirements before use.
-</p>
-<p style="font-size: 8pt; text-align: center; color: #999;">
-  Template Version: {{templateVersion}} | Generated: {{generatedDate}}
-</p>
+</div>
 
 </body>
 </html>

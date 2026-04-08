@@ -196,13 +196,6 @@ export const MN_RESIDENTIAL_CORE_TEMPLATE: string = `<!DOCTYPE html>
   <!-- ═══════════════════════════════════════════════════════════════════════
        DISCLAIMER FOOTER
        ═══════════════════════════════════════════════════════════════════════ -->
-  <div class="disclaimer">
-    <p><strong>DISCLAIMER:</strong> This lease agreement was generated using a template reviewed by legal counsel.
-    It is not a substitute for independent legal advice. Laws may change, and local ordinances may impose additional
-    requirements. This document reflects the best-known rules as of the template version date. Landlords and tenants
-    are encouraged to consult with an attorney for their specific circumstances.</p>
-    <p>Template Version: {{templateVersion}} | Generated: {{generatedDate}}</p>
-  </div>
 
 </body>
 </html>`;

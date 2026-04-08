@@ -80,23 +80,22 @@ export const PERSONAL_GUARANTEE_ADDENDUM_TEMPLATE = `
 
 <p>The undersigned Guarantor acknowledges having read and understood this Guarantee and agrees to be bound by its terms.</p>
 
+<div class="no-break">
 <table>
   <tr>
-    <td width="50%">
+    <td width="50%" style="padding-right: 24pt; vertical-align: top;">
       <p><strong>GUARANTOR:</strong></p>
-      <br/>
-      <p>Signature: <span class="signature-line"></span></p>
-      <p>Printed Name: <span class="signature-line"></span></p>
-      <p>Address: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
+      <p>Signature: ___________________________________</p>
+      <p>Printed Name: ___________________________________</p>
+      <p>Address: ___________________________________</p>
+      <p>Date: ___________________________________</p>
     </td>
-    <td width="50%">
-      <p><strong>GUARANTOR (if additional):</strong></p>
-      <br/>
-      <p>Signature: <span class="signature-line"></span></p>
-      <p>Printed Name: <span class="signature-line"></span></p>
-      <p>Address: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
+    <td width="50%" style="padding-left: 24pt; vertical-align: top;">
+      <p><strong>ADDITIONAL GUARANTOR (if applicable):</strong></p>
+      <p>Signature: ___________________________________</p>
+      <p>Printed Name: ___________________________________</p>
+      <p>Address: ___________________________________</p>
+      <p>Date: ___________________________________</p>
     </td>
   </tr>
 </table>
@@ -106,13 +105,15 @@ export const PERSONAL_GUARANTEE_ADDENDUM_TEMPLATE = `
 <p><strong>ACCEPTED BY LANDLORD:</strong></p>
 <table>
   <tr>
-    <td width="50%">
-      <p>Signature: <span class="signature-line"></span></p>
-      <p>Printed Name: <span class="signature-line"></span></p>
-      <p>Title: <span class="signature-line"></span></p>
-      <p>Date: <span class="date-line"></span></p>
+    <td width="50%" style="padding-right: 24pt; vertical-align: top;">
+      <p>{{landlord.name}}<br/>a Minnesota limited liability company</p>
+      <p>By: ___________________________________</p>
+      <p>Printed Name: {{landlord.signerName}}</p>
+      <p>Title: {{landlord.signerTitle}}</p>
+      <p>Date: ___________________________________</p>
     </td>
     <td width="50%"></td>
   </tr>
 </table>
+</div>
 `;

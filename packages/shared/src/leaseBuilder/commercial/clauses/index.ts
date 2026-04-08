@@ -21,6 +21,8 @@ import { commercialEnvironmentalClauses } from './environmental';
 import { commercialAdaClauses } from './ada';
 import { commercialCasualtyClauses } from './casualty';
 import { commercialSignageClauses } from './signage';
+import { commercialSubordinationClauses } from './subordination';
+import { commercialMiscProvisionsClauses } from './miscProvisions';
 
 export const commercialClauseRegistry: ClauseDefinition[] = [
   ...commercialCoreClauses,
@@ -41,6 +43,8 @@ export const commercialClauseRegistry: ClauseDefinition[] = [
   ...commercialAdaClauses,
   ...commercialCasualtyClauses,
   ...commercialSignageClauses,
+  ...commercialSubordinationClauses,
+  ...commercialMiscProvisionsClauses,
 ].sort((a, b) => a.sortOrder - b.sortOrder);
 
 export { commercialCoreClauses } from './core';
@@ -61,3 +65,5 @@ export { commercialEnvironmentalClauses } from './environmental';
 export { commercialAdaClauses } from './ada';
 export { commercialCasualtyClauses } from './casualty';
 export { commercialSignageClauses } from './signage';
+export { commercialSubordinationClauses } from './subordination';
+export { commercialMiscProvisionsClauses } from './miscProvisions';

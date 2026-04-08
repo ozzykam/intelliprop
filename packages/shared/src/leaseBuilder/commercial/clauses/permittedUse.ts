@@ -27,7 +27,9 @@ export const commercialPermittedUseClauses: ClauseDefinition[] = [
   <li>Would constitute a public or private nuisance, or annoy, disturb, or endanger other tenants or occupants of the Building;</li>
   <li>Would cause structural damage to the Building or any portion thereof;</li>
   <li>Would overload the floors, walls, or electrical systems of the Premises beyond their designed capacity; or</li>
-  <li>Would cause odors, noise, vibrations, or emissions that are detectable outside the Premises.</li>
+  <li>Would cause odors, noise, vibrations, or emissions that are detectable outside the Premises;</li>
+  <li>Would involve the use of the Premises, or any part thereof, as living quarters, sleeping accommodations, or residential use of any kind; or</li>
+  <li>Would constitute waste, including allowing the Premises to fall into a state of disrepair, destruction, or degradation beyond ordinary wear and tear.</li>
 </ol>
 <p><strong>Continuous Operation.</strong> Tenant shall continuously operate its business in the Premises during the Term in a first-class manner consistent with the Permitted Use. Tenant shall not vacate or abandon the Premises during the Term without Landlord&rsquo;s prior written consent.</p>`,
     isRequired: true,
