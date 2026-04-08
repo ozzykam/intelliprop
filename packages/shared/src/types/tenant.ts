@@ -1,4 +1,4 @@
-import { Timestamp } from './common';
+import { Timestamp, Address, EmergencyContact } from './common';
 
 /**
  * Tenant type discriminator
@@ -65,17 +65,14 @@ export interface BusinessTenant extends BaseTenant {
  */
 export type Tenant = IndividualTenant | BusinessTenant;
 
-export interface EmergencyContact {
-  name: string;
-  relationship: string;
-  phone: string;
-}
+export type { EmergencyContact };
 
 export interface PrimaryContact {
   name: string;
   title?: string;
   email?: string;
   phone?: string;
+  address?: Address;
 }
 
 /**

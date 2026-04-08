@@ -1,4 +1,4 @@
-import { Timestamp } from './common';
+import { Timestamp, Address, EmergencyContact } from './common';
 import { EmployeeCapabilities } from './rbac';
 
 /**
@@ -32,10 +32,20 @@ interface BaseActivation {
   // Verification
   dateOfBirth: string; // ISO date string YYYY-MM-DD
 
+  // Contact
+  email?: string;
+  phone?: string;
+
   // Assignments (for staff roles)
   llcIds: string[];
   propertyIds: string[];
   capabilities?: EmployeeCapabilities;
+  // Assignee designation
+  isAssignee?: boolean;
+  assigneeEntityType?: 'individual' | 'company';
+  // Contact / address
+  mailingAddress?: Address;
+  emergencyContact?: EmergencyContact;
 
   // Link to tenant record (for tenant role)
   tenantId?: string;
@@ -84,10 +94,16 @@ export interface CreateIndividualActivationInput {
   lastName: string;
   dateOfBirth: string;
   ssn4: string;
+  email?: string;
+  phone?: string;
   llcIds?: string[];
   propertyIds?: string[];
   capabilities?: EmployeeCapabilities;
   tenantId?: string;
+  isAssignee?: boolean;
+  assigneeEntityType?: 'individual' | 'company';
+  mailingAddress?: Address;
+  emergencyContact?: EmergencyContact;
 }
 
 /**
@@ -102,10 +118,16 @@ export interface CreateBusinessActivationInput {
   dateOfBirth: string;
   einLast4: string;
   businessName: string;
+  email?: string;
+  phone?: string;
   llcIds?: string[];
   propertyIds?: string[];
   capabilities?: EmployeeCapabilities;
   tenantId?: string;
+  isAssignee?: boolean;
+  assigneeEntityType?: 'individual' | 'company';
+  mailingAddress?: Address;
+  emergencyContact?: EmergencyContact;
 }
 
 /**

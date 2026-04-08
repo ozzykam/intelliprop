@@ -50,6 +50,12 @@ export async function createActivation(
   // Add optional fields
   const data: Record<string, unknown> = { ...baseData };
 
+  if (input.email) {
+    data.email = input.email;
+  }
+  if (input.phone) {
+    data.phone = input.phone;
+  }
   if (input.middleInitial) {
     data.middleInitial = input.middleInitial;
   }
@@ -58,6 +64,18 @@ export async function createActivation(
   }
   if (input.tenantId) {
     data.tenantId = input.tenantId;
+  }
+  if (input.isAssignee) {
+    data.isAssignee = input.isAssignee;
+  }
+  if (input.assigneeEntityType) {
+    data.assigneeEntityType = input.assigneeEntityType;
+  }
+  if (input.mailingAddress) {
+    data.mailingAddress = input.mailingAddress;
+  }
+  if (input.emergencyContact) {
+    data.emergencyContact = input.emergencyContact;
   }
 
   // Add type-specific fields
@@ -322,6 +340,14 @@ export async function createAccount(
     createdAt: FieldValue.serverTimestamp(),
   };
 
+  if (activation.isAssignee) {
+    userData.isAssignee = true;
+    if (activation.assigneeEntityType) userData.assigneeEntityType = activation.assigneeEntityType;
+  }
+  if (activation.phone) userData.phoneNumber = activation.phone;
+  if (activation.mailingAddress) userData.mailingAddress = activation.mailingAddress;
+  if (activation.emergencyContact) userData.emergencyContact = activation.emergencyContact;
+
   // For tenants, add tenant links
   if (activation.role === 'tenant' && activation.tenantId) {
     let llcIdsForLinks = activation.llcIds.filter(id => id);
@@ -421,6 +447,133 @@ export async function createAccount(
     activatedUserId: userId,
     confirmationToken: FieldValue.delete(),
     confirmationTokenExpiresAt: FieldValue.delete(),
+  });
+
+  return { userId, userType };
+}
+
+/**
+ * Override activate - Super-admin bypasses the user-facing verification flow
+ * and directly creates an account for a pending activation.
+ */
+export async function overrideActivation(
+  activationId: string,
+  email: string,
+  password: string
+): Promise<{ userId: string; userType: UserType }> {
+  const activation = await getActivation(activationId);
+  if (!activation || activation.status !== 'pending') {
+    throw new Error('Activation not found or already used');
+  }
+
+  // Check if email is already in use
+  try {
+    await adminAuth.getUserByEmail(email);
+    throw new Error('Email already in use');
+  } catch (error: unknown) {
+    const authError = error as { code?: string };
+    if (authError.code !== 'auth/user-not-found') {
+      throw error;
+    }
+  }
+
+  const displayName = activation.middleInitial
+    ? `${activation.firstName} ${activation.middleInitial}. ${activation.lastName}`
+    : `${activation.firstName} ${activation.lastName}`;
+
+  const userRecord = await adminAuth.createUser({ email, password, displayName });
+  const userId = userRecord.uid;
+  const userType: UserType = activation.role === 'tenant' ? 'tenant' : 'staff';
+
+  const userData: Record<string, unknown> = {
+    email,
+    displayName,
+    userType,
+    status: 'active',
+    isSuperAdmin: false,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  if (activation.isAssignee) {
+    userData.isAssignee = true;
+    if (activation.assigneeEntityType) userData.assigneeEntityType = activation.assigneeEntityType;
+  }
+  if (activation.phone) userData.phoneNumber = activation.phone;
+  if (activation.mailingAddress) userData.mailingAddress = activation.mailingAddress;
+  if (activation.emergencyContact) userData.emergencyContact = activation.emergencyContact;
+
+  if (activation.role === 'tenant' && activation.tenantId) {
+    let llcIdsForLinks = activation.llcIds.filter(id => id);
+    if (llcIdsForLinks.length === 0) {
+      const leasesSnap = await adminDb
+        .collectionGroup('leases')
+        .where('tenantIds', 'array-contains', activation.tenantId)
+        .where('status', 'in', ['draft', 'active'])
+        .get();
+      const discoveredLlcIds = new Set<string>();
+      for (const doc of leasesSnap.docs) {
+        const leaseData = doc.data();
+        if (leaseData.llcId) discoveredLlcIds.add(leaseData.llcId);
+      }
+      llcIdsForLinks = Array.from(discoveredLlcIds);
+    }
+    userData.tenantLinks = llcIdsForLinks.length > 0
+      ? llcIdsForLinks.map(llcId => ({ llcId, tenantId: activation.tenantId! }))
+      : [{ llcId: '', tenantId: activation.tenantId }];
+  } else {
+    userData.tenantLinks = [];
+  }
+
+  await adminDb.collection('users').doc(userId).set(userData);
+
+  if (activation.role !== 'tenant' && activation.llcIds.length > 0) {
+    const assignmentData = {
+      userId,
+      role: activation.role,
+      llcIds: activation.llcIds,
+      propertyIds: activation.propertyIds,
+      capabilities: activation.capabilities || {
+        workOrderAccess: true,
+        taskAccess: true,
+        paymentProcessing: false,
+      },
+      status: 'active',
+      assignedByUserId: activation.createdBy,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+    await adminDb.collection('userAssignments').add(assignmentData);
+  }
+
+  if (activation.role === 'admin') {
+    for (const llcId of activation.llcIds) {
+      await adminDb.collection('llcs').doc(llcId).collection('members').doc(userId).set({
+        userId,
+        role: 'admin',
+        status: 'active',
+        joinedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  if (activation.role === 'tenant' && activation.tenantId) {
+    await adminDb.collection('tenants').doc(activation.tenantId).update({
+      userId,
+      updates: FieldValue.arrayUnion({ updatedAt: new Date().toISOString(), updatedBy: userId }),
+    });
+    const leaseSnap = await adminDb
+      .collectionGroup('leases')
+      .where('tenantIds', 'array-contains', activation.tenantId)
+      .get();
+    for (const leaseDoc of leaseSnap.docs) {
+      await leaseDoc.ref.update({ tenantUserIds: FieldValue.arrayUnion(userId) });
+    }
+  }
+
+  await adminDb.collection(COLLECTION).doc(activationId).update({
+    status: 'activated',
+    activatedAt: FieldValue.serverTimestamp(),
+    activatedUserId: userId,
   });
 
   return { userId, userType };

@@ -25,10 +25,28 @@ export const createIndividualActivationSchema = z.object({
   lastName: z.string().min(1).max(100),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   ssn4: z.string().regex(/^\d{4}$/, 'Must be exactly 4 digits'),
+  email: z.string().email().optional(),
+  phone: z.string().max(30).optional(),
   llcIds: z.array(z.string()).optional(),
   propertyIds: z.array(z.string()).optional(),
   capabilities: capabilitiesSchema.optional(),
   tenantId: z.string().optional(),
+  isAssignee: z.boolean().optional(),
+  assigneeEntityType: z.enum(['individual', 'company']).optional(),
+  mailingAddress: z.object({
+    street1: z.string().min(1).max(200),
+    street2: z.string().max(200).optional(),
+    city: z.string().min(1).max(100),
+    state: z.string().min(1).max(100),
+    zipCode: z.string().min(1).max(20),
+    country: z.string().max(100).optional(),
+  }).optional(),
+  emergencyContact: z.object({
+    name: z.string().min(1).max(200),
+    relationship: z.string().max(100).optional(),
+    phone: z.string().max(30).optional(),
+    email: z.string().email().optional().or(z.literal('')),
+  }).optional(),
 });
 
 /**
@@ -43,10 +61,28 @@ export const createBusinessActivationSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   einLast4: z.string().regex(/^\d{4}$/, 'Must be exactly 4 digits'),
   businessName: z.string().min(1).max(200),
+  email: z.string().email().optional(),
+  phone: z.string().max(30).optional(),
   llcIds: z.array(z.string()).optional(),
   propertyIds: z.array(z.string()).optional(),
   capabilities: capabilitiesSchema.optional(),
   tenantId: z.string().optional(),
+  isAssignee: z.boolean().optional(),
+  assigneeEntityType: z.enum(['individual', 'company']).optional(),
+  mailingAddress: z.object({
+    street1: z.string().min(1).max(200),
+    street2: z.string().max(200).optional(),
+    city: z.string().min(1).max(100),
+    state: z.string().min(1).max(100),
+    zipCode: z.string().min(1).max(20),
+    country: z.string().max(100).optional(),
+  }).optional(),
+  emergencyContact: z.object({
+    name: z.string().min(1).max(200),
+    relationship: z.string().max(100).optional(),
+    phone: z.string().max(30).optional(),
+    email: z.string().email().optional().or(z.literal('')),
+  }).optional(),
 });
 
 /**

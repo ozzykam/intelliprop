@@ -61,6 +61,27 @@ export default function NewUserPage() {
   const [workOrderAccess, setWorkOrderAccess] = useState(true);
   const [taskAccess, setTaskAccess] = useState(true);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [isAssignee, setIsAssignee] = useState(false);
+  const [assigneeEntityType, setAssigneeEntityType] = useState<'individual' | 'company'>('individual');
+  // Staff mailing address
+  const [staffMailingStreet, setStaffMailingStreet] = useState('');
+  const [staffMailingUnit, setStaffMailingUnit] = useState('');
+  const [staffMailingCity, setStaffMailingCity] = useState('');
+  const [staffMailingState, setStaffMailingState] = useState('');
+  const [staffMailingZip, setStaffMailingZip] = useState('');
+  // Staff emergency contact
+  const [staffEmergencyName, setStaffEmergencyName] = useState('');
+  const [staffEmergencyRelationship, setStaffEmergencyRelationship] = useState('');
+  const [staffEmergencyPhone, setStaffEmergencyPhone] = useState('');
+  const [staffEmergencyEmail, setStaffEmergencyEmail] = useState('');
+  // Business tenant primary contact address
+  const [contactStreet, setContactStreet] = useState('');
+  const [contactUnit, setContactUnit] = useState('');
+  const [contactCity, setContactCity] = useState('');
+  const [contactState, setContactState] = useState('');
+  const [contactZip, setContactZip] = useState('');
 
   // Data
   const [llcs, setLlcs] = useState<LlcOption[]>([]);
@@ -125,6 +146,17 @@ export default function NewUserPage() {
     );
   };
 
+  const buildAddress = (street: string, unit: string, city: string, state: string, zip: string) => {
+    if (!street.trim()) return undefined;
+    return {
+      street1: street.trim(),
+      ...(unit.trim() && { street2: unit.trim() }),
+      city: city.trim(),
+      state: state.trim().toUpperCase(),
+      zipCode: zip.trim(),
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -136,6 +168,11 @@ export default function NewUserPage() {
 
     if (isStaff && selectedLlcIds.length === 0) {
       setError('Please select at least one LLC for the staff role');
+      return;
+    }
+
+    if (isStaff && !isTenant && !staffEmail.trim()) {
+      setError('Email is required for staff members');
       return;
     }
 
@@ -176,6 +213,7 @@ export default function NewUserPage() {
               title: contactTitle || undefined,
               email: contactEmail || undefined,
               phone: contactPhone || undefined,
+              address: buildAddress(contactStreet, contactUnit, contactCity, contactState, contactZip),
             },
             email,
             phone: phone || undefined,
@@ -217,6 +255,8 @@ export default function NewUserPage() {
           lastName: ln,
           dateOfBirth: dob,
           ssn4: s4,
+          email: isTenant ? email : staffEmail,
+          phone: isTenant ? (phone || undefined) : (staffPhone || undefined),
           llcIds: selectedLlcIds,
           propertyIds: staffRole === 'manager' ? selectedPropertyIds : [],
           capabilities: staffRole === 'employee' || staffRole === 'manager' ? {
@@ -225,6 +265,15 @@ export default function NewUserPage() {
             paymentProcessing,
           } : undefined,
           tenantId,
+          isAssignee: isAssignee || undefined,
+          assigneeEntityType: isAssignee ? assigneeEntityType : undefined,
+          mailingAddress: buildAddress(staffMailingStreet, staffMailingUnit, staffMailingCity, staffMailingState, staffMailingZip),
+          emergencyContact: staffEmergencyName.trim() ? {
+            name: staffEmergencyName.trim(),
+            relationship: staffEmergencyRelationship.trim() || undefined,
+            phone: staffEmergencyPhone.trim() || undefined,
+            email: staffEmergencyEmail.trim() || undefined,
+          } : undefined,
         };
 
         const staffRes = await fetch('/api/activations', {
@@ -242,7 +291,7 @@ export default function NewUserPage() {
         }
       }
 
-      router.push('/admin/users?created=true');
+      router.push('/admin/users?created=staff');
     } catch {
       setError('Failed to create user');
     } finally {
@@ -434,6 +483,31 @@ export default function NewUserPage() {
                     <input id="contactPhone" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={inputClass} />
                   </div>
                 </div>
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Primary Contact Address</h4>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Street Address</label>
+                    <input type="text" value={contactStreet} onChange={(e) => setContactStreet(e.target.value)} className={inputClass} placeholder="123 Main St" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Suite / Unit</label>
+                    <input type="text" value={contactUnit} onChange={(e) => setContactUnit(e.target.value)} className={inputClass} placeholder="Suite 200 (optional)" />
+                  </div>
+                  <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">City</label>
+                      <input type="text" value={contactCity} onChange={(e) => setContactCity(e.target.value)} className={inputClass} placeholder="Minneapolis" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">State</label>
+                      <input type="text" value={contactState} onChange={(e) => setContactState(e.target.value.toUpperCase().slice(0, 2))} className={inputClass} placeholder="MN" maxLength={2} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">ZIP</label>
+                      <input type="text" value={contactZip} onChange={(e) => setContactZip(e.target.value)} className={inputClass} placeholder="55401" maxLength={10} />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -531,6 +605,39 @@ export default function NewUserPage() {
               </p>
             )}
 
+            {/* Email & Phone */}
+            {!isTenant && (
+              <div className="space-y-4">
+                <h3 className="font-medium">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="staffEmail" className="block text-sm font-medium mb-2">Email *</label>
+                    <input
+                      id="staffEmail"
+                      type="email"
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      required
+                      className={inputClass}
+                      placeholder="staff@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="staffPhone" className="block text-sm font-medium mb-2">Phone *</label>
+                    <input
+                      id="staffPhone"
+                      type="tel"
+                      value={staffPhone}
+                      onChange={(e) => setStaffPhone(e.target.value)}
+                      required
+                      className={inputClass}
+                      placeholder="(612) 555-0100"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* LLC Assignment */}
             <div className="space-y-4">
               <h3 className="font-medium">LLC Assignment *</h3>
@@ -614,6 +721,88 @@ export default function NewUserPage() {
                 </div>
               </div>
             )}
+
+            {/* Mailing Address */}
+            <div className="space-y-3 pt-2 border-t">
+              <h3 className="font-medium">Mailing Address <span className="text-xs text-muted-foreground font-normal">(optional)</span></h3>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Street Address</label>
+                <input type="text" value={staffMailingStreet} onChange={(e) => setStaffMailingStreet(e.target.value)} className={inputClass} placeholder="123 Main St" />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Suite / Unit</label>
+                <input type="text" value={staffMailingUnit} onChange={(e) => setStaffMailingUnit(e.target.value)} className={inputClass} placeholder="Suite 200 (optional)" />
+              </div>
+              <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">City</label>
+                  <input type="text" value={staffMailingCity} onChange={(e) => setStaffMailingCity(e.target.value)} className={inputClass} placeholder="Minneapolis" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">State</label>
+                  <input type="text" value={staffMailingState} onChange={(e) => setStaffMailingState(e.target.value.toUpperCase().slice(0, 2))} className={inputClass} placeholder="MN" maxLength={2} />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">ZIP</label>
+                  <input type="text" value={staffMailingZip} onChange={(e) => setStaffMailingZip(e.target.value)} className={inputClass} placeholder="55401" maxLength={10} />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div className="space-y-3 pt-2 border-t">
+              <h3 className="font-medium">Emergency Contact <span className="text-xs text-muted-foreground font-normal">(optional)</span></h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Name</label>
+                  <input type="text" value={staffEmergencyName} onChange={(e) => setStaffEmergencyName(e.target.value)} className={inputClass} placeholder="Jane Doe" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Relationship</label>
+                  <input type="text" value={staffEmergencyRelationship} onChange={(e) => setStaffEmergencyRelationship(e.target.value)} className={inputClass} placeholder="Spouse, Parent, etc." />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Phone</label>
+                  <input type="tel" value={staffEmergencyPhone} onChange={(e) => setStaffEmergencyPhone(e.target.value)} className={inputClass} placeholder="(612) 555-0100" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Email</label>
+                  <input type="email" value={staffEmergencyEmail} onChange={(e) => setStaffEmergencyEmail(e.target.value)} className={inputClass} placeholder="emergency@example.com" />
+                </div>
+              </div>
+            </div>
+
+            {/* Assignee Designation */}
+            <div className="space-y-3 pt-2 border-t">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={isAssignee} onChange={(e) => setIsAssignee(e.target.checked)} className="w-4 h-4" />
+                <div>
+                  <span className="text-sm font-medium">Assignee</span>
+                  <p className="text-xs text-muted-foreground">This user can receive Assignments of Claim. Their mailing address and contact info will pre-fill in the assignment wizard.</p>
+                </div>
+              </label>
+              {isAssignee && (
+                <div className="pl-7">
+                  <label className="block text-sm font-medium mb-2">Entity Type</label>
+                  <div className="flex gap-4">
+                    {(['individual', 'company'] as const).map(t => (
+                      <label key={t} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value={t}
+                          checked={assigneeEntityType === t}
+                          onChange={() => setAssigneeEntityType(t)}
+                          className="accent-primary"
+                        />
+                        <span className="text-sm capitalize">{t}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

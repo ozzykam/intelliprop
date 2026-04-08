@@ -34,5 +34,13 @@ export interface Address {
   city: string;
   state: string;
   zipCode: string;
-  country: string;
+  country?: string;
+}
+
+// Emergency contact — used on both tenant and user records
+export interface EmergencyContact {
+  name: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
 }

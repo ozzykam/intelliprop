@@ -124,6 +124,9 @@ export interface AssignmentOfClaim {
   // rent_debt optional links
   tenantId?: string;
   tenantName?: string;
+  tenantAddress?: string;
+  tenantPhone?: string;
+  tenantEmail?: string;
   propertyAddress?: string;
   // insurance_claim optional links
   insuranceClaimId?: string;
@@ -161,6 +164,9 @@ export interface CreateAssignmentInput {
   claimValueCents?: number;
   tenantId?: string;
   tenantName?: string;
+  tenantAddress?: string;
+  tenantPhone?: string;
+  tenantEmail?: string;
   propertyAddress?: string;
   insuranceClaimId?: string;
   insuranceClaimNumber?: string;

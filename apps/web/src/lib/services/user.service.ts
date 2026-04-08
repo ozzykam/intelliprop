@@ -1,6 +1,6 @@
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { User, UserType, UserStatus, TenantLink } from '@shared/types';
+import { User, UserType, UserStatus, TenantLink, Address, EmergencyContact } from '@shared/types';
 
 const COLLECTION = 'users';
 
@@ -136,6 +136,15 @@ export async function searchUsersByEmail(
 /**
  * Update a user.
  */
+export async function listAssignees(): Promise<User[]> {
+  const snapshot = await adminDb
+    .collection(COLLECTION)
+    .where('isAssignee', '==', true)
+    .orderBy('displayName', 'asc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+}
+
 export async function updateUser(
   userId: string,
   updates: {
@@ -148,6 +157,10 @@ export async function updateUser(
     status?: UserStatus;
     isSuperAdmin?: boolean;
     tenantLinks?: TenantLink[];
+    isAssignee?: boolean;
+    assigneeEntityType?: 'individual' | 'company';
+    mailingAddress?: Address;
+    emergencyContact?: EmergencyContact;
   }
 ): Promise<User> {
   const doc = adminDb.collection(COLLECTION).doc(userId);

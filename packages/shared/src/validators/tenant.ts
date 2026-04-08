@@ -6,11 +6,21 @@ const emergencyContactSchema = z.object({
   phone: z.string().min(1).max(20),
 });
 
+const addressSchema = z.object({
+  street1: z.string().min(1).max(200),
+  street2: z.string().max(200).optional(),
+  city: z.string().min(1).max(100),
+  state: z.string().min(1).max(100),
+  zipCode: z.string().min(1).max(20),
+  country: z.string().max(100).optional(),
+});
+
 const primaryContactSchema = z.object({
   name: z.string().min(1).max(200),
   title: z.string().max(100).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(20).optional(),
+  address: addressSchema.optional(),
 });
 
 const businessTypeSchema = z.enum([

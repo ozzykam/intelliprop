@@ -105,6 +105,22 @@ export const tenantLinkSchema = z.object({
 /**
  * Update user schema (super-admin only)
  */
+const addressSchema = z.object({
+  street1: z.string().min(1).max(200),
+  street2: z.string().max(200).optional(),
+  city: z.string().min(1).max(100),
+  state: z.string().min(1).max(100),
+  zipCode: z.string().min(1).max(20),
+  country: z.string().max(100).optional(),
+});
+
+const emergencyContactSchema = z.object({
+  name: z.string().min(1).max(200),
+  relationship: z.string().max(100).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+});
+
 export const updateUserSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   phoneNumber: z.string().max(20).optional(),
@@ -112,6 +128,10 @@ export const updateUserSchema = z.object({
   status: userStatusSchema.optional(),
   isSuperAdmin: z.boolean().optional(),
   tenantLinks: z.array(tenantLinkSchema).optional(),
+  isAssignee: z.boolean().optional(),
+  assigneeEntityType: z.enum(['individual', 'company']).optional(),
+  mailingAddress: addressSchema.optional(),
+  emergencyContact: emergencyContactSchema.optional(),
 });
 
 /**

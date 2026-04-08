@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   aocStep1Schema,
@@ -10,6 +10,7 @@ import {
   AocExhibitKey,
   AOC_EXHIBIT_DEFINITIONS,
   ASSIGNMENT_CLAIM_TYPE_LABELS,
+  User,
 } from '@shared/types';
 import { generateAocDocument } from '@shared/assignmentOfClaim/generator';
 
@@ -26,7 +27,19 @@ type WizardState = {
   claimDescription: string;
   claimValueDollars: string;
   tenantName: string;
-  propertyAddress: string;
+  tenantStreet: string;
+  tenantUnit: string;
+  tenantCity: string;
+  tenantState: string;
+  tenantZip: string;
+  tenantSameAsProperty: boolean;
+  tenantPhone: string;
+  tenantEmail: string;
+  propertyStreet: string;
+  propertyUnit: string;
+  propertyCity: string;
+  propertyState: string;
+  propertyZip: string;
   insuranceClaimNumber: string;
   insurer: string;
   // Step 2
@@ -51,7 +64,19 @@ const INITIAL: WizardState = {
   claimDescription: '',
   claimValueDollars: '',
   tenantName: '',
-  propertyAddress: '',
+  tenantStreet: '',
+  tenantUnit: '',
+  tenantCity: '',
+  tenantState: '',
+  tenantZip: '',
+  tenantSameAsProperty: false,
+  tenantPhone: '',
+  tenantEmail: '',
+  propertyStreet: '',
+  propertyUnit: '',
+  propertyCity: '',
+  propertyState: '',
+  propertyZip: '',
   insuranceClaimNumber: '',
   insurer: '',
   assigneeName: '',
@@ -72,6 +97,43 @@ function dollarsToCents(val: string): number {
   return Math.round(parseFloat(val || '0') * 100);
 }
 
+function formatUserAddress(u: User): string {
+  if (!u.mailingAddress) return '';
+  const { street1, street2, city, state, zipCode } = u.mailingAddress;
+  const parts = [street1];
+  if (street2) parts.push(street2);
+  const csz = [city, [state, zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  if (csz) parts.push(csz);
+  return parts.join(', ');
+}
+
+function buildTenantAddress(s: WizardState): string | undefined {
+  if (s.tenantSameAsProperty) return buildPropertyAddress(s);
+  const street = s.tenantStreet.trim();
+  if (!street) return undefined;
+  const parts = [street];
+  if (s.tenantUnit.trim()) parts.push(s.tenantUnit.trim());
+  const cityStateZip = [
+    s.tenantCity.trim(),
+    [s.tenantState.trim().toUpperCase(), s.tenantZip.trim()].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ');
+  if (cityStateZip) parts.push(cityStateZip);
+  return parts.join(', ');
+}
+
+function buildPropertyAddress(s: WizardState): string | undefined {
+  const street = s.propertyStreet.trim();
+  if (!street) return undefined;
+  const parts = [street];
+  if (s.propertyUnit.trim()) parts.push(s.propertyUnit.trim());
+  const cityStateZip = [
+    s.propertyCity.trim(),
+    [s.propertyState.trim().toUpperCase(), s.propertyZip.trim()].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ');
+  if (cityStateZip) parts.push(cityStateZip);
+  return parts.join(', ');
+}
+
 function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
   return {
     id: 'preview',
@@ -81,7 +143,10 @@ function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
     claimDescription: s.claimDescription,
     claimValueCents: s.claimValueDollars ? dollarsToCents(s.claimValueDollars) : undefined,
     tenantName: s.tenantName || undefined,
-    propertyAddress: s.propertyAddress || undefined,
+    tenantAddress: buildTenantAddress(s),
+    tenantPhone: s.tenantPhone || undefined,
+    tenantEmail: s.tenantEmail || undefined,
+    propertyAddress: buildPropertyAddress(s),
     insuranceClaimNumber: s.insuranceClaimNumber || undefined,
     insurer: s.insurer || undefined,
     assignee: {
@@ -110,6 +175,14 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
   const [state, setState] = useState<WizardState>(INITIAL);
   const [fieldError, setFieldError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [savedAssignees, setSavedAssignees] = useState<User[]>([]);
+
+  useEffect(() => {
+    fetch('/api/assignees')
+      .then(r => r.json())
+      .then(data => { if (data.ok) setSavedAssignees(data.data); })
+      .catch(() => {});
+  }, []);
 
   const set = (patch: Partial<WizardState>) => setState(prev => ({ ...prev, ...patch }));
 
@@ -121,7 +194,10 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
         claimDescription: state.claimDescription,
         claimValueCents: state.claimValueDollars ? dollarsToCents(state.claimValueDollars) : undefined,
         tenantName: state.tenantName || undefined,
-        propertyAddress: state.propertyAddress || undefined,
+        tenantAddress: buildTenantAddress(state),
+        tenantPhone: state.tenantPhone || undefined,
+        tenantEmail: state.tenantEmail || undefined,
+        propertyAddress: buildPropertyAddress(state),
         insuranceClaimNumber: state.insuranceClaimNumber || undefined,
         insurer: state.insurer || undefined,
       });
@@ -182,7 +258,10 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
         claimDescription: state.claimDescription,
         claimValueCents: state.claimValueDollars ? dollarsToCents(state.claimValueDollars) : undefined,
         tenantName: state.tenantName || undefined,
-        propertyAddress: state.propertyAddress || undefined,
+        tenantAddress: buildTenantAddress(state),
+        tenantPhone: state.tenantPhone || undefined,
+        tenantEmail: state.tenantEmail || undefined,
+        propertyAddress: buildPropertyAddress(state),
         insuranceClaimNumber: state.insuranceClaimNumber || undefined,
         insurer: state.insurer || undefined,
         assignee: {
@@ -305,11 +384,137 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
                 <label className="block text-sm font-medium mb-1">Property Address</label>
                 <input
                   type="text"
-                  value={state.propertyAddress}
-                  onChange={e => set({ propertyAddress: e.target.value })}
+                  value={state.propertyStreet}
+                  onChange={e => set({ propertyStreet: e.target.value })}
                   className="w-full border rounded-md px-3 py-1.5 text-sm"
-                  placeholder="123 Main St, Minneapolis MN 55401"
+                  placeholder="Street address (e.g. 1815 E Lake St)"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Suite / Unit (optional)</label>
+                <input
+                  type="text"
+                  value={state.propertyUnit}
+                  onChange={e => set({ propertyUnit: e.target.value })}
+                  className="w-full border rounded-md px-3 py-1.5 text-sm"
+                  placeholder="Suite 200, Unit 4B, etc."
+                />
+              </div>
+              <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-1">City</label>
+                  <input
+                    type="text"
+                    value={state.propertyCity}
+                    onChange={e => set({ propertyCity: e.target.value })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                    placeholder="Minneapolis"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">State</label>
+                  <input
+                    type="text"
+                    value={state.propertyState}
+                    onChange={e => set({ propertyState: e.target.value.toUpperCase().slice(0, 2) })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm uppercase"
+                    placeholder="MN"
+                    maxLength={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">ZIP</label>
+                  <input
+                    type="text"
+                    value={state.propertyZip}
+                    onChange={e => set({ propertyZip: e.target.value.slice(0, 10) })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                    placeholder="55401"
+                    maxLength={10}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium">Tenant Mailing / Current Address</label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={state.tenantSameAsProperty}
+                      onChange={e => set({ tenantSameAsProperty: e.target.checked })}
+                    />
+                    Same as property address
+                  </label>
+                </div>
+                {state.tenantSameAsProperty ? (
+                  <div className="text-sm border rounded-md px-3 py-1.5 bg-secondary/30 text-muted-foreground min-h-[34px]">
+                    {buildPropertyAddress(state) ?? <span className="italic">Fill in property address above</span>}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={state.tenantStreet}
+                      onChange={e => set({ tenantStreet: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="Street address"
+                    />
+                    <input
+                      type="text"
+                      value={state.tenantUnit}
+                      onChange={e => set({ tenantUnit: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="Suite / Unit (optional)"
+                    />
+                    <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                      <input
+                        type="text"
+                        value={state.tenantCity}
+                        onChange={e => set({ tenantCity: e.target.value })}
+                        className="w-full border rounded-md px-3 py-1.5 text-sm"
+                        placeholder="City"
+                      />
+                      <input
+                        type="text"
+                        value={state.tenantState}
+                        onChange={e => set({ tenantState: e.target.value.toUpperCase().slice(0, 2) })}
+                        className="w-full border rounded-md px-3 py-1.5 text-sm uppercase"
+                        placeholder="MN"
+                        maxLength={2}
+                      />
+                      <input
+                        type="text"
+                        value={state.tenantZip}
+                        onChange={e => set({ tenantZip: e.target.value.slice(0, 10) })}
+                        className="w-full border rounded-md px-3 py-1.5 text-sm"
+                        placeholder="55401"
+                        maxLength={10}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tenant Phone</label>
+                  <input
+                    type="tel"
+                    value={state.tenantPhone}
+                    onChange={e => set({ tenantPhone: e.target.value })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                    placeholder="(612) 555-0100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tenant Email</label>
+                  <input
+                    type="email"
+                    value={state.tenantEmail}
+                    onChange={e => set({ tenantEmail: e.target.value })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                    placeholder="tenant@example.com"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -373,6 +578,37 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
       {/* Step 2 */}
       {state.step === 2 && (
         <div className="space-y-4">
+          {savedAssignees.length > 0 && (
+            <div className="p-3 border rounded-lg bg-secondary/20">
+              <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Saved Assignees</label>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {savedAssignees.map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => set({
+                      assigneeName: a.displayName ?? '',
+                      assigneeEntityType: a.assigneeEntityType ?? 'individual',
+                      assigneeAddress: formatUserAddress(a),
+                      assigneePhone: a.phoneNumber ?? '',
+                      assigneeEmail: a.email ?? '',
+                    })}
+                    className="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-secondary/60 transition-colors"
+                  >
+                    <span className="font-medium">{a.displayName ?? a.email}</span>
+                    {a.assigneeEntityType && (
+                      <span className="ml-2 text-xs text-muted-foreground capitalize">{a.assigneeEntityType}</span>
+                    )}
+                    {a.mailingAddress && (
+                      <div className="text-xs text-muted-foreground truncate">{formatUserAddress(a)}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Click to pre-fill. You can edit any field below.</p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-2">Entity Type</label>
             <div className="flex gap-3">
@@ -593,6 +829,20 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
               <div>
                 <div className="text-xs text-muted-foreground">Claim Value</div>
                 <div className="font-medium">${parseFloat(state.claimValueDollars).toFixed(2)}</div>
+              </div>
+            )}
+            {state.claimType === 'rent_debt' && buildTenantAddress(state) && (
+              <div className="col-span-2">
+                <div className="text-xs text-muted-foreground">Tenant Address</div>
+                <div className="font-medium">{buildTenantAddress(state)}</div>
+              </div>
+            )}
+            {state.claimType === 'rent_debt' && (state.tenantPhone || state.tenantEmail) && (
+              <div className="col-span-2">
+                <div className="text-xs text-muted-foreground">Tenant Contact</div>
+                <div className="font-medium">
+                  {[state.tenantPhone, state.tenantEmail].filter(Boolean).join(' · ')}
+                </div>
               </div>
             )}
             <div>

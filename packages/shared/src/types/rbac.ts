@@ -1,4 +1,4 @@
-import { Timestamp } from './common';
+import { Timestamp, Address, EmergencyContact } from './common';
 import {
   BusinessRole,
   AssignmentStatus,
@@ -36,6 +36,13 @@ export interface User {
 
   // Staff-specific fields (when userType === 'staff')
   isSuperAdmin?: boolean;
+  // Assignee designation — staff users that can receive Assignments of Claim
+  isAssignee?: boolean;
+  assigneeEntityType?: 'individual' | 'company';
+
+  // Contact / address (all users)
+  mailingAddress?: Address;
+  emergencyContact?: EmergencyContact;
 
   // Tenant-specific fields (when userType === 'tenant')
   // Links to tenant records: /llcs/{llcId}/tenants/{tenantId}
@@ -77,7 +84,7 @@ export type PlatformUser = User;
 export interface UserAssignment {
   id: string;
   userId: string;
-  role: Exclude<BusinessRole, 'admin'>; // 'manager' | 'employee'
+  role: BusinessRole; // 'admin' | 'manager' | 'employee'
   llcIds: string[]; // LLCs this assignment grants access to
   propertyIds: string[]; // Specific properties (for managers)
   capabilities: EmployeeCapabilities;
