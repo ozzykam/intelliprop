@@ -62,6 +62,15 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [pcTitle, setPcTitle] = useState('');
   const [pcEmail, setPcEmail] = useState('');
   const [pcPhone, setPcPhone] = useState('');
+  const [pcStreet, setPcStreet] = useState('');
+  const [pcCity, setPcCity] = useState('');
+  const [pcState, setPcState] = useState('');
+  const [pcZip, setPcZip] = useState('');
+  // Registration address
+  const [regStreet, setRegStreet] = useState('');
+  const [regCity, setRegCity] = useState('');
+  const [regState, setRegState] = useState('');
+  const [regZip, setRegZip] = useState('');
 
   // UI state
   const [error, setError] = useState('');
@@ -106,6 +115,14 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
             setPcTitle(t.primaryContact?.title || '');
             setPcEmail(t.primaryContact?.email || '');
             setPcPhone(t.primaryContact?.phone || '');
+            setPcStreet(t.primaryContact?.address?.street1 || '');
+            setPcCity(t.primaryContact?.address?.city || '');
+            setPcState(t.primaryContact?.address?.state || '');
+            setPcZip(t.primaryContact?.address?.zipCode || '');
+            setRegStreet(t.registrationAddress?.street1 || '');
+            setRegCity(t.registrationAddress?.city || '');
+            setRegState(t.registrationAddress?.state || '');
+            setRegZip(t.registrationAddress?.zipCode || '');
           }
         } else {
           setError(tenantData.error?.message || 'Failed to load tenant');
@@ -153,7 +170,14 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           businessType,
           einLast4: einLast4 || undefined,
           stateOfIncorporation: stateOfIncorporation || undefined,
-          primaryContact: { name: pcName, title: pcTitle || undefined, email: pcEmail || undefined, phone: pcPhone || undefined },
+          primaryContact: {
+            name: pcName,
+            title: pcTitle || undefined,
+            email: pcEmail || undefined,
+            phone: pcPhone || undefined,
+            address: pcStreet ? { street1: pcStreet, city: pcCity, state: pcState.toUpperCase(), zipCode: pcZip } : undefined,
+          },
+          registrationAddress: regStreet ? { street1: regStreet, city: regCity, state: regState.toUpperCase(), zipCode: regZip } : undefined,
           email,
           phone: phone || undefined,
           notes: notes || undefined,
@@ -465,6 +489,62 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                     onChange={(e) => setPcPhone(e.target.value)}
                     className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                </div>
+              </div>
+
+              <h3 className="text-sm font-medium text-muted-foreground pt-2">Primary Contact Address</h3>
+              <div>
+                <label className="block text-sm font-medium mb-2">Street Address</label>
+                <input type="text" value={pcStreet} onChange={(e) => setPcStreet(e.target.value)}
+                  placeholder="123 Main St"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-2">City</label>
+                  <input type="text" value={pcCity} onChange={(e) => setPcCity(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">State</label>
+                  <input type="text" value={pcState} onChange={(e) => setPcState(e.target.value.toUpperCase().slice(0, 2))}
+                    maxLength={2} placeholder="TX"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">ZIP</label>
+                  <input type="text" value={pcZip} onChange={(e) => setPcZip(e.target.value)}
+                    maxLength={10}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Registration Address</h3>
+              <div>
+                <label className="block text-sm font-medium mb-2">Street Address</label>
+                <input type="text" value={regStreet} onChange={(e) => setRegStreet(e.target.value)}
+                  placeholder="123 Main St"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-2">City</label>
+                  <input type="text" value={regCity} onChange={(e) => setRegCity(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">State</label>
+                  <input type="text" value={regState} onChange={(e) => setRegState(e.target.value.toUpperCase().slice(0, 2))}
+                    maxLength={2} placeholder="TX"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">ZIP</label>
+                  <input type="text" value={regZip} onChange={(e) => setRegZip(e.target.value)}
+                    maxLength={10}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
             </div>

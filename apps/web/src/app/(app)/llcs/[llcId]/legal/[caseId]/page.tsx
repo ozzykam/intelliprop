@@ -21,6 +21,8 @@ interface OpposingPartyData {
   email?: string;
   phone?: string;
   name?: string;
+  entityType?: 'individual' | 'business';
+  address?: { street1: string; city: string; state: string; zipCode: string };
 }
 
 interface CounselData {
@@ -943,11 +945,22 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                         <p className="font-medium">
                           {op.type === 'tenant' ? op.tenantName : op.name}
                         </p>
+                        {op.type === 'other' && op.entityType && (
+                          <p className="text-xs text-muted-foreground capitalize">{op.entityType}</p>
+                        )}
                         {op.propertyAddress && (
                           <p className="text-xs text-muted-foreground">{op.propertyAddress}</p>
                         )}
+                        {op.phone && (
+                          <p className="text-xs text-muted-foreground">{op.phone}</p>
+                        )}
                         {op.email && (
                           <p className="text-xs text-muted-foreground">{op.email}</p>
+                        )}
+                        {op.address && (
+                          <p className="text-xs text-muted-foreground">
+                            {op.address.street1}, {op.address.city}, {op.address.state} {op.address.zipCode}
+                          </p>
                         )}
                       </div>
                     ))}

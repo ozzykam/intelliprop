@@ -82,6 +82,12 @@ export default function NewUserPage() {
   const [contactCity, setContactCity] = useState('');
   const [contactState, setContactState] = useState('');
   const [contactZip, setContactZip] = useState('');
+  // Business tenant registration address
+  const [regStreet, setRegStreet] = useState('');
+  const [regUnit, setRegUnit] = useState('');
+  const [regCity, setRegCity] = useState('');
+  const [regState, setRegState] = useState('');
+  const [regZip, setRegZip] = useState('');
 
   // Data
   const [llcs, setLlcs] = useState<LlcOption[]>([]);
@@ -215,6 +221,7 @@ export default function NewUserPage() {
               phone: contactPhone || undefined,
               address: buildAddress(contactStreet, contactUnit, contactCity, contactState, contactZip),
             },
+            registrationAddress: buildAddress(regStreet, regUnit, regCity, regState, regZip),
             email,
             phone: phone || undefined,
             notes: notes || undefined,
@@ -505,6 +512,32 @@ export default function NewUserPage() {
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">ZIP</label>
                       <input type="text" value={contactZip} onChange={(e) => setContactZip(e.target.value)} className={inputClass} placeholder="55401" maxLength={10} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Registration Address</h4>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Street Address</label>
+                    <input type="text" value={regStreet} onChange={(e) => setRegStreet(e.target.value)} className={inputClass} placeholder="123 Main St" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Suite / Unit</label>
+                    <input type="text" value={regUnit} onChange={(e) => setRegUnit(e.target.value)} className={inputClass} placeholder="Suite 200 (optional)" />
+                  </div>
+                  <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">City</label>
+                      <input type="text" value={regCity} onChange={(e) => setRegCity(e.target.value)} className={inputClass} placeholder="Minneapolis" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">State</label>
+                      <input type="text" value={regState} onChange={(e) => setRegState(e.target.value.toUpperCase().slice(0, 2))} className={inputClass} placeholder="MN" maxLength={2} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">ZIP</label>
+                      <input type="text" value={regZip} onChange={(e) => setRegZip(e.target.value)} className={inputClass} placeholder="55401" maxLength={10} />
                     </div>
                   </div>
                 </div>

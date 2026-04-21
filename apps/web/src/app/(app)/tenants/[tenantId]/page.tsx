@@ -34,6 +34,15 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [contactTitle, setContactTitle] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [contactStreet, setContactStreet] = useState('');
+  const [contactCity, setContactCity] = useState('');
+  const [contactState, setContactState] = useState('');
+  const [contactZip, setContactZip] = useState('');
+  // Registration address
+  const [regStreet, setRegStreet] = useState('');
+  const [regCity, setRegCity] = useState('');
+  const [regState, setRegState] = useState('');
+  const [regZip, setRegZip] = useState('');
 
   // Shared fields
   const [email, setEmail] = useState('');
@@ -79,7 +88,15 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
               setContactTitle(t.primaryContact.title || '');
               setContactEmail(t.primaryContact.email || '');
               setContactPhone(t.primaryContact.phone || '');
+              setContactStreet(t.primaryContact.address?.street1 || '');
+              setContactCity(t.primaryContact.address?.city || '');
+              setContactState(t.primaryContact.address?.state || '');
+              setContactZip(t.primaryContact.address?.zipCode || '');
             }
+            setRegStreet(t.registrationAddress?.street1 || '');
+            setRegCity(t.registrationAddress?.city || '');
+            setRegState(t.registrationAddress?.state || '');
+            setRegZip(t.registrationAddress?.zipCode || '');
           }
         } else {
           setError(data.error?.message || 'Failed to load tenant');
@@ -129,7 +146,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           title: contactTitle || undefined,
           email: contactEmail || undefined,
           phone: contactPhone || undefined,
+          address: contactStreet ? { street1: contactStreet, city: contactCity, state: contactState.toUpperCase(), zipCode: contactZip } : undefined,
         },
+        registrationAddress: regStreet ? { street1: regStreet, city: regCity, state: regState.toUpperCase(), zipCode: regZip } : undefined,
         email,
         phone: phone || undefined,
         notes: notes || undefined,
@@ -456,6 +475,60 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                   onChange={(e) => setContactPhone(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+              </div>
+            </div>
+
+            <h3 className="font-medium pt-4">Primary Contact Address</h3>
+            <div>
+              <label className="block text-sm font-medium mb-2">Street Address</label>
+              <input type="text" value={contactStreet} onChange={(e) => setContactStreet(e.target.value)}
+                placeholder="123 Main St"
+                className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-2">City</label>
+                <input type="text" value={contactCity} onChange={(e) => setContactCity(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">State</label>
+                <input type="text" value={contactState} onChange={(e) => setContactState(e.target.value.toUpperCase().slice(0, 2))}
+                  maxLength={2} placeholder="TX"
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">ZIP</label>
+                <input type="text" value={contactZip} onChange={(e) => setContactZip(e.target.value)}
+                  maxLength={10}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+
+            <h3 className="font-medium pt-4">Registration Address</h3>
+            <div>
+              <label className="block text-sm font-medium mb-2">Street Address</label>
+              <input type="text" value={regStreet} onChange={(e) => setRegStreet(e.target.value)}
+                placeholder="123 Main St"
+                className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-2">City</label>
+                <input type="text" value={regCity} onChange={(e) => setRegCity(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">State</label>
+                <input type="text" value={regState} onChange={(e) => setRegState(e.target.value.toUpperCase().slice(0, 2))}
+                  maxLength={2} placeholder="TX"
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">ZIP</label>
+                <input type="text" value={regZip} onChange={(e) => setRegZip(e.target.value)}
+                  maxLength={10}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
           </div>

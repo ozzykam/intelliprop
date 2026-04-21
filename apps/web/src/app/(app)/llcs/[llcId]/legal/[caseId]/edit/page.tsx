@@ -21,6 +21,8 @@ interface OpposingPartyData {
   email?: string;
   phone?: string;
   name?: string;
+  entityType?: 'individual' | 'business';
+  address?: { street1: string; city: string; state: string; zipCode: string };
 }
 
 interface CounselData {
@@ -100,8 +102,15 @@ interface CounselEntry {
 interface OpposingPartyEntry {
   type: 'tenant' | 'other';
   tenantId: string;
-  name: string;
   tenantSearch: string;
+  name: string;
+  entityType: 'individual' | 'business';
+  phone: string;
+  email: string;
+  addressStreet: string;
+  addressCity: string;
+  addressState: string;
+  addressZip: string;
 }
 
 interface CaseEditPageProps {
@@ -152,7 +161,11 @@ function getTenantDisplayName(t: TenantOption): string {
 }
 
 const emptyCounsel = (): CounselEntry => ({ name: '', email: '', phone: '', firmName: '', address: '' });
-const emptyOpposingParty = (): OpposingPartyEntry => ({ type: 'other', tenantId: '', name: '', tenantSearch: '' });
+const emptyOpposingParty = (): OpposingPartyEntry => ({
+  type: 'other', tenantId: '', tenantSearch: '', name: '',
+  entityType: 'individual', phone: '', email: '',
+  addressStreet: '', addressCity: '', addressState: '', addressZip: '',
+});
 
 // Normalize data from Firestore: single object -> array, handle old string format for ourCounsel
 function normalizeOpposingParty(val: OpposingPartyData[] | OpposingPartyData | undefined): OpposingPartyData[] {
@@ -252,8 +265,15 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
     setOpposingParties(opArr.map((op) => ({
       type: op.type,
       tenantId: op.type === 'tenant' ? (op.tenantId || '') : '',
-      name: op.type === 'other' ? (op.name || '') : '',
       tenantSearch: '',
+      name: op.type === 'other' ? (op.name || '') : '',
+      entityType: op.type === 'other' ? (op.entityType || 'individual') : 'individual',
+      phone: op.phone || '',
+      email: op.email || '',
+      addressStreet: op.address?.street1 || '',
+      addressCity: op.address?.city || '',
+      addressState: op.address?.state || '',
+      addressZip: op.address?.zipCode || '',
     })));
 
     // Opposing Counsel - normalize from single or array
@@ -411,7 +431,21 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
           });
         }
       } else if (op.type === 'other' && op.name) {
-        result.push({ type: 'other', name: op.name });
+        result.push({
+          type: 'other',
+          name: op.name,
+          entityType: op.entityType,
+          ...(op.phone && { phone: op.phone }),
+          ...(op.email && { email: op.email }),
+          ...(op.addressStreet && {
+            address: {
+              street1: op.addressStreet,
+              city: op.addressCity,
+              state: op.addressState.toUpperCase(),
+              zipCode: op.addressZip,
+            }
+          }),
+        });
       }
     }
     return result;
@@ -745,12 +779,71 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
                     )}
                   </div>
                 ) : (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Name</label>
-                    <input value={op.name}
-                      onChange={(e) => updateOpposingParty(idx, { name: e.target.value })}
-                      placeholder="Opposing party name"
-                      className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                  <div className="space-y-3">
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="radio" name={`opEntityType-${idx}`} value="individual"
+                          checked={op.entityType === 'individual'}
+                          onChange={() => updateOpposingParty(idx, { entityType: 'individual' })} />
+                        Individual
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="radio" name={`opEntityType-${idx}`} value="business"
+                          checked={op.entityType === 'business'}
+                          onChange={() => updateOpposingParty(idx, { entityType: 'business' })} />
+                        Business
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Name</label>
+                      <input value={op.name}
+                        onChange={(e) => updateOpposingParty(idx, { name: e.target.value })}
+                        placeholder="Opposing party name"
+                        className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Phone</label>
+                        <input value={op.phone}
+                          onChange={(e) => updateOpposingParty(idx, { phone: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Email</label>
+                        <input type="email" value={op.email}
+                          onChange={(e) => updateOpposingParty(idx, { email: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Street Address</label>
+                      <input value={op.addressStreet}
+                        onChange={(e) => updateOpposingParty(idx, { addressStreet: e.target.value })}
+                        placeholder="123 Main St"
+                        className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                    </div>
+                    <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">City</label>
+                        <input value={op.addressCity}
+                          onChange={(e) => updateOpposingParty(idx, { addressCity: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">State</label>
+                        <input value={op.addressState}
+                          onChange={(e) => updateOpposingParty(idx, { addressState: e.target.value.toUpperCase().slice(0, 2) })}
+                          maxLength={2}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">ZIP</label>
+                        <input value={op.addressZip}
+                          onChange={(e) => updateOpposingParty(idx, { addressZip: e.target.value })}
+                          maxLength={10}
+                          className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
