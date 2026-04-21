@@ -941,21 +941,34 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 {normalizeOpposingParty(caseData.opposingParty).length > 0 ? (
                   <div className="space-y-2">
                     {normalizeOpposingParty(caseData.opposingParty).map((op, idx) => (
-                      <div key={idx} className="p-3 bg-secondary/30 rounded-md">
-                        <p className="font-medium">
-                          {op.type === 'tenant' ? op.tenantName : op.name}
-                        </p>
-                        {op.type === 'other' && op.entityType && (
-                          <p className="text-xs text-muted-foreground capitalize">{op.entityType}</p>
-                        )}
+                      <div key={idx} className="p-3 bg-secondary/30 rounded-md space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">
+                            {op.type === 'tenant' ? op.tenantName : op.name}
+                          </p>
+                          {op.type === 'other' && op.entityType && (
+                            <span className="text-xs px-1.5 py-0.5 bg-secondary rounded capitalize text-muted-foreground leading-none">
+                              {op.entityType}
+                            </span>
+                          )}
+                          {op.type === 'tenant' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-secondary rounded text-muted-foreground leading-none">
+                              tenant
+                            </span>
+                          )}
+                        </div>
                         {op.propertyAddress && (
                           <p className="text-xs text-muted-foreground">{op.propertyAddress}</p>
                         )}
-                        {op.phone && (
-                          <p className="text-xs text-muted-foreground">{op.phone}</p>
-                        )}
-                        {op.email && (
-                          <p className="text-xs text-muted-foreground">{op.email}</p>
+                        {(op.phone || op.email) && (
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                            {op.phone && (
+                              <span className="text-xs text-foreground/70">{op.phone}</span>
+                            )}
+                            {op.email && (
+                              <span className="text-xs text-foreground/70">{op.email}</span>
+                            )}
+                          </div>
                         )}
                         {op.address && (
                           <p className="text-xs text-muted-foreground">

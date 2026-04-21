@@ -54,6 +54,15 @@ export const opposingPartySchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('other'),
     name: z.string().min(1).max(200),
+    entityType: z.enum(['individual', 'business']).optional(),
+    phone: z.string().max(20).optional(),
+    email: z.string().email().optional(),
+    address: z.object({
+      street1: z.string().max(200),
+      city: z.string().max(100),
+      state: z.string().max(2),
+      zipCode: z.string().max(10),
+    }).optional(),
   }),
 ]);
 
