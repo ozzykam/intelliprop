@@ -48,10 +48,12 @@ export const propertyProfileSchema = z.object({
   minneapolisLicenseStatus: z.enum(['yes', 'no', 'unsure']).optional(),
   stPaulRentStabilization: z.enum(['subject', 'exempt', 'unsure']).optional(),
   // Commercial
-  commercialSpaceType: z.enum(['office', 'retail', 'industrial', 'mixed', 'restaurant', 'medical']).optional(),
+  commercialSpaceTypes: z.array(z.enum(['office', 'retail', 'industrial', 'warehouse', 'restaurant', 'medical'])).min(1).optional(),
   zoningConfirmed: z.boolean().optional(),
   liquorLicenseRequired: z.boolean().optional(),
   outdoorPatioUse: z.boolean().optional(),
+  buildingTotalSqft: z.number().positive().optional(),
+  landlordAddress: z.string().optional(),
 });
 
 // ============================================================================
@@ -174,6 +176,7 @@ export const residentialTermsSchema = z.object({
 export const commercialLeaseStructureSchema = z.object({
   leaseType: z.enum(['nnn', 'gross', 'modified_gross']),
   startDate: z.string().min(1),
+  termMonths: z.number().int().min(1).max(600).optional(),
   endDate: z.string().optional(),
   noticeToTerminateDays: z.number().int().min(1).optional(),
   renewalOptions: z.number().int().min(0).max(10),
@@ -186,6 +189,13 @@ export const rentStepSchema = z.object({
   monthlyRent: z.number().positive(),
 });
 
+export const commercialConvenienceFeeSchema = z.object({
+  method: paymentMethodSchema,
+  feeType: z.enum(['flat', 'percentage']),
+  flatAmount: z.number().nonnegative().optional(),
+  percentage: z.number().min(0).max(100).optional(),
+});
+
 export const commercialFinancialTermsSchema = z.object({
   baseRentMonthly: z.number().positive(),
   dueDay: z.number().int().min(1).max(28),
@@ -194,8 +204,14 @@ export const commercialFinancialTermsSchema = z.object({
   escalationPercentage: z.number().positive().max(100).optional(),
   escalationStepSchedule: z.array(rentStepSchema).optional(),
   gracePeriodDays: z.number().int().min(0).max(30).optional(),
+  lateFeeType: z.enum(['flat', 'percentage']).optional(),
   lateFeeAmount: z.number().nonnegative().optional(),
+  lateFeePercentage: z.number().min(0).max(100).optional(),
   defaultInterestRate: z.number().min(0).max(100).optional(),
+  freeRentMonths: z.number().int().min(0).max(24).optional(),
+  paymentMethods: z.array(paymentMethodSchema).optional(),
+  returnedPaymentFee: z.number().nonnegative().optional(),
+  convenienceFees: z.array(commercialConvenienceFeeSchema).optional(),
   camEnabled: z.boolean(),
   camProRataShare: z.number().min(0).max(100).optional(),
   camIncludesPropertyTax: z.boolean(),
@@ -242,9 +258,30 @@ export const commercialOperationsTermsSchema = z.object({
   insuranceBusinessInterruption: z.boolean(),
   insuranceWorkersComp: z.boolean(),
   insuranceLandlordAdditionalInsured: z.boolean(),
+  utilityInterruptionAbatementDays: z.number().int().min(1).max(14).optional(),
+  utilityAbatementScope: z.enum(['narrow', 'moderate', 'broad']).optional(),
   environmentalComplianceIncluded: z.literal(true), // Cannot be false
   adaResponsibility: z.enum(['landlord', 'tenant', 'shared']),
   adaSharedDescription: z.string().max(1000).optional(),
+});
+
+const guarantorEntrySchema = z.object({
+  firstName: z.string().min(1).max(100),
+  middleInitial: z.string().max(5).optional(),
+  lastName: z.string().min(1).max(100),
+  title: z.string().max(100).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().max(200).optional(),
+  address: z.object({
+    street1: z.string().max(200),
+    street2: z.string().max(200).optional(),
+    city: z.string().max(100),
+    state: z.string().max(50),
+    zipCode: z.string().max(20),
+  }).optional(),
+  dateOfBirth: z.string().optional(),
+  idType: z.enum(['passport', 'drivers_license', 'state_id', 'other']).optional(),
+  idNumber: z.string().max(100).optional(),
 });
 
 export const commercialRiskTermsSchema = z.object({
@@ -264,6 +301,8 @@ export const commercialRiskTermsSchema = z.object({
   personalGuaranteeRequired: z.boolean(),
   personalGuaranteeType: z.enum(['continuing', 'limited', 'good_guy']).optional(),
   personalGuaranteeCap: z.number().nonnegative().optional(),
+  includePrimaryContactAsGuarantor: z.boolean().optional(),
+  guarantors: z.array(guarantorEntrySchema).optional(),
   indemnificationMutual: z.boolean(),
   casualtyTerminationRight: z.enum(['landlord', 'both', 'neither']),
 });
@@ -315,6 +354,7 @@ export const updateLeaseBuilderDraftSchema = z.object({
   unitIds: z.array(z.string()).optional(),
   tenantIds: z.array(z.string()).optional(),
   signerUserId: z.string().optional(),
+  tenantSigner: z.object({ name: z.string(), title: z.string().optional() }).optional(),
   leaseType: z.enum(['fixed_term', 'month_to_month']).optional(),
   propertyProfile: propertyProfileSchema.optional(),
   residential: residentialTermsSchema.optional(),

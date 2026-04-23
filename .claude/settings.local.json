@@ -6,7 +6,12 @@
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
       "Bash(wc:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm run:*)",
+      "Bash(where pdftotext:*)",
+      "Bash(pdftotext:*)",
+      "Bash(find C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs\\\\[llcId]\\\\lease-builder\\\\[draftId]:*)",
+      "Bash(find C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs:*)"
     ]
   }
 }

@@ -38,6 +38,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [contactCity, setContactCity] = useState('');
   const [contactState, setContactState] = useState('');
   const [contactZip, setContactZip] = useState('');
+  const [contactDateOfBirth, setContactDateOfBirth] = useState('');
+  const [contactIdType, setContactIdType] = useState('');
+  const [contactIdNumber, setContactIdNumber] = useState('');
   // Registration address
   const [regStreet, setRegStreet] = useState('');
   const [regCity, setRegCity] = useState('');
@@ -92,6 +95,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
               setContactCity(t.primaryContact.address?.city || '');
               setContactState(t.primaryContact.address?.state || '');
               setContactZip(t.primaryContact.address?.zipCode || '');
+              setContactDateOfBirth(t.primaryContact.dateOfBirth || '');
+              setContactIdType(t.primaryContact.idType || '');
+              setContactIdNumber(t.primaryContact.idNumber || '');
             }
             setRegStreet(t.registrationAddress?.street1 || '');
             setRegCity(t.registrationAddress?.city || '');
@@ -147,6 +153,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
           email: contactEmail || undefined,
           phone: contactPhone || undefined,
           address: contactStreet ? { street1: contactStreet, city: contactCity, state: contactState.toUpperCase(), zipCode: contactZip } : undefined,
+          dateOfBirth: contactDateOfBirth || undefined,
+          idType: contactIdType || undefined,
+          idNumber: contactIdNumber || undefined,
         },
         registrationAddress: regStreet ? { street1: regStreet, city: regCity, state: regState.toUpperCase(), zipCode: regZip } : undefined,
         email,
@@ -217,7 +226,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
       </div>
 
       <div className="flex-1 p-6 m-6 border rounded-lg">
-      <h1 className="text-2xl font-bold mb-6">Edit Tenant</h1>
+      <h1 className="text-2xl font-bold mb-6">Edit Tenants</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
@@ -474,6 +483,45 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="contactDateOfBirth" className="block text-sm font-medium mb-2">Date of Birth</label>
+                <input
+                  id="contactDateOfBirth"
+                  type="date"
+                  value={contactDateOfBirth}
+                  onChange={(e) => setContactDateOfBirth(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label htmlFor="contactIdType" className="block text-sm font-medium mb-2">ID Type</label>
+                <select
+                  id="contactIdType"
+                  value={contactIdType}
+                  onChange={(e) => setContactIdType(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select...</option>
+                  <option value="passport">Passport</option>
+                  <option value="drivers_license">Driver&apos;s License</option>
+                  <option value="state_id">State ID</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contactIdNumber" className="block text-sm font-medium mb-2">ID Number</label>
+                <input
+                  id="contactIdNumber"
+                  type="text"
+                  value={contactIdNumber}
+                  onChange={(e) => setContactIdNumber(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="ID number"
                 />
               </div>
             </div>

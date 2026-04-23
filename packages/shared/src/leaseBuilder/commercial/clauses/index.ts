@@ -23,6 +23,7 @@ import { commercialCasualtyClauses } from './casualty';
 import { commercialSignageClauses } from './signage';
 import { commercialSubordinationClauses } from './subordination';
 import { commercialMiscProvisionsClauses } from './miscProvisions';
+import { commercialAlterationsClauses } from './alterations';
 
 export const commercialClauseRegistry: ClauseDefinition[] = [
   ...commercialCoreClauses,
@@ -31,6 +32,7 @@ export const commercialClauseRegistry: ClauseDefinition[] = [
   ...commercialDepositClauses,
   ...commercialPermittedUseClauses,
   ...commercialTiClauses,
+  ...commercialAlterationsClauses,
   ...commercialMaintenanceClauses,
   ...commercialUtilityClauses,
   ...commercialInsuranceClauses,
@@ -67,3 +69,4 @@ export { commercialCasualtyClauses } from './casualty';
 export { commercialSignageClauses } from './signage';
 export { commercialSubordinationClauses } from './subordination';
 export { commercialMiscProvisionsClauses } from './miscProvisions';
+export { commercialAlterationsClauses } from './alterations';

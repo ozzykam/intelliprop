@@ -81,24 +81,7 @@ export const PERSONAL_GUARANTEE_ADDENDUM_TEMPLATE = `
 <p>The undersigned Guarantor acknowledges having read and understood this Guarantee and agrees to be bound by its terms.</p>
 
 <div class="no-break">
-<table>
-  <tr>
-    <td width="50%" style="padding-right: 24pt; vertical-align: top;">
-      <p><strong>GUARANTOR:</strong></p>
-      <p>Signature: ___________________________________</p>
-      <p>Printed Name: ___________________________________</p>
-      <p>Address: ___________________________________</p>
-      <p>Date: ___________________________________</p>
-    </td>
-    <td width="50%" style="padding-left: 24pt; vertical-align: top;">
-      <p><strong>ADDITIONAL GUARANTOR (if applicable):</strong></p>
-      <p>Signature: ___________________________________</p>
-      <p>Printed Name: ___________________________________</p>
-      <p>Address: ___________________________________</p>
-      <p>Date: ___________________________________</p>
-    </td>
-  </tr>
-</table>
+{{lease.guarantorSignatureBlocks}}
 
 <br/>
 

@@ -3,6 +3,33 @@
 import { useState } from 'react';
 import type { LeaseBuilderDraft, CommercialLeaseStructure } from '@shared/types/leaseBuilder';
 
+/** Returns the last day of the month that is `termMonths` after the start date's month. */
+function computeEndDate(startDateStr: string, termMonths: number): string {
+  const start = new Date(startDateStr + 'T00:00:00');
+  if (isNaN(start.getTime()) || termMonths < 1) return '';
+  const totalMonths = start.getMonth() + termMonths;
+  const endYear = start.getFullYear() + Math.floor(totalMonths / 12);
+  const endMonth = totalMonths % 12; // 0-indexed
+  // Day 0 of month+1 = last day of endMonth
+  const lastDay = new Date(endYear, endMonth + 1, 0);
+  return `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+}
+
+function formatTermDuration(months: number): string {
+  if (!months) return '';
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0) return `${months} month${months !== 1 ? 's' : ''}`;
+  if (rem === 0) return `${years} year${years !== 1 ? 's' : ''}`;
+  return `${years} year${years !== 1 ? 's' : ''}, ${rem} month${rem !== 1 ? 's' : ''}`;
+}
+
+function formatDisplayDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 interface StepProps {
   draft: LeaseBuilderDraft & { id: string };
   llcId: string;
@@ -96,7 +123,7 @@ export default function LeaseStructureStep({ draft, updateDraft }: StepProps) {
         </div>
       </div>
 
-      {/* Term Dates */}
+      {/* Term */}
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Term</h2>
         <div className="grid grid-cols-2 gap-4">
@@ -105,18 +132,32 @@ export default function LeaseStructureStep({ draft, updateDraft }: StepProps) {
             <input
               type="date"
               value={structure.startDate}
-              onChange={(e) => updateStructure({ startDate: e.target.value })}
+              onChange={(e) => {
+                const startDate = e.target.value;
+                const endDate = structure.termMonths
+                  ? computeEndDate(startDate, structure.termMonths)
+                  : undefined;
+                updateStructure({ startDate, endDate });
+              }}
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {isFixedTerm && (
             <div>
-              <label className="block text-sm font-medium mb-2">End Date</label>
+              <label className="block text-sm font-medium mb-2">Lease Duration (months)</label>
               <input
-                type="date"
-                value={structure.endDate || ''}
-                onChange={(e) => updateStructure({ endDate: e.target.value })}
+                type="number"
+                value={structure.termMonths ?? ''}
+                onChange={(e) => {
+                  const termMonths = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  const endDate = termMonths && structure.startDate
+                    ? computeEndDate(structure.startDate, termMonths)
+                    : undefined;
+                  updateStructure({ termMonths, endDate });
+                }}
+                placeholder="e.g. 36"
+                min={1}
                 className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
@@ -144,6 +185,16 @@ export default function LeaseStructureStep({ draft, updateDraft }: StepProps) {
             </div>
           )}
         </div>
+
+        {/* Computed end date preview */}
+        {isFixedTerm && structure.termMonths && structure.startDate && structure.endDate && (
+          <div className="p-3 bg-secondary/30 border border-input rounded-md text-sm">
+            <span className="font-medium">Lease term: </span>
+            {formatTermDuration(structure.termMonths)}
+            <span className="text-muted-foreground"> &mdash; expires </span>
+            <span className="font-medium">{formatDisplayDate(structure.endDate)}</span>
+          </div>
+        )}
       </div>
 
       {/* Renewal Options */}

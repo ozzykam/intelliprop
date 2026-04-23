@@ -217,7 +217,7 @@ export function PropertyUnitsTable({ llcId, propertyId, showActions = true }: Pr
                 {showActions && (
                   <td className="px-4 py-3 text-right">
                     <Link
-                      href={`/llcs/${llcId}/properties/${propertyId}/units/${unit.id}`}
+                      href={`/llcs/${llcId}/properties/${propertyId}/units/${unit.id}/edit`}
                       className="text-xs text-muted-foreground hover:text-foreground mr-3"
                     >
                       Edit

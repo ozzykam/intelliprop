@@ -181,6 +181,32 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
       color: #333;
     }
 
+    /* KEY TERMS SUMMARY */
+    .key-terms-summary {
+      border: 1.5pt solid #000;
+      margin: 0 0 18pt 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .key-terms-summary caption {
+      font-size: 10pt; font-weight: bold; text-transform: uppercase;
+      letter-spacing: 0.5pt; text-align: center;
+      padding: 4pt 6pt; background: #1a1a1a; color: #fff; caption-side: top;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .key-terms-summary td {
+      padding: 3pt 8pt; font-size: 10pt; vertical-align: top;
+      border-bottom: 0.5pt solid #ccc;
+    }
+    .key-terms-summary td:first-child { width: 38%; font-weight: bold; white-space: nowrap; }
+    .key-terms-summary tr:last-child td { border-bottom: none; }
+
+    /* TABLE OF CONTENTS */
+    .toc-section { margin: 18pt 0 12pt 0; page-break-inside: avoid; break-inside: avoid; }
+    .toc-section h3 { margin-bottom: 4pt; }
+    .toc-list { list-style: none; margin: 0; padding: 0; }
+    .toc-list li { font-size: 10pt; padding: 1.5pt 0; margin-bottom: 0; }
+
     /* =============================================
        PRINT OVERRIDES
        ============================================= */
@@ -212,64 +238,21 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
   <p><strong>Lease Type:</strong> {{commercial.leaseStructure.leaseType}}</p>
 </div>
 
+{{keyTermsSummary}}
+
 <h3>PARTIES</h3>
 
-<table class="parties-table">
-  <tr>
-    <td>
-      <p><strong>LANDLORD:</strong></p>
-      <p>{{landlord.name}}</p>
-      <p>{{landlord.address}}</p>
-      <p>{{landlord.phone}}</p>
-      <p>{{landlord.email}}</p>
-    </td>
-    <td>
-      <p><strong>TENANT:</strong></p>
-      <p>{{tenant.name}}</p>
-      <p>A {{tenant.stateOfFormation}} {{tenant.entityType}}</p>
-      <p>{{tenant.address}}</p>
-      <p>{{tenant.phone}}</p>
-      <p>{{tenant.email}}</p>
-    </td>
-  </tr>
-</table>
+{{partiesBlock}}
 
 <h3>PREMISES</h3>
 
-<p>Landlord hereby leases to Tenant, and Tenant hereby leases from Landlord, the following described premises (the &quot;Premises&quot;):</p>
+<p>Landlord hereby leases to Tenant, and Tenant hereby leases from Landlord, approximately {{premises.sqft}} sq.&nbsp;ft. of {{propertyProfile.commercialSpaceTypes}} space located at {{property.address}}, Suite {{unit.number}} (the &ldquo;Premises&rdquo;), together with the right to use, in common with other tenants and their invitees, the common areas of the building including lobbies, corridors, restrooms, elevators, stairways, and parking areas, subject to the rules and regulations established by Landlord from time to time.</p>
 
-<table>
-  <tr>
-    <td width="30%"><strong>Property Address:</strong></td>
-    <td>{{property.address}}</td>
-  </tr>
-  <tr>
-    <td><strong>Suite/Unit:</strong></td>
-    <td>{{unit.number}}</td>
-  </tr>
-  <tr>
-    <td><strong>Rentable Square Feet:</strong></td>
-    <td>{{propertyProfile.premisesSqft}} sq. ft.</td>
-  </tr>
-  <tr>
-    <td><strong>Space Type:</strong></td>
-    <td>{{propertyProfile.commercialSpaceType}}</td>
-  </tr>
-</table>
-
-<p>together with the right to use, in common with other tenants of the building and their invitees, the common areas of the building including lobbies, corridors, restrooms, elevators, stairways, and parking areas, subject to the rules and regulations established by Landlord from time to time.</p>
+{{tableOfContents}}
 
 <!-- BEGIN CLAUSE CONTENT -->
 {{clauseContent}}
 <!-- END CLAUSE CONTENT -->
-
-<h3>GOVERNING LAW AND ENTIRE AGREEMENT</h3>
-
-<p>This Lease shall be governed by and construed in accordance with the laws of the State of Minnesota. This Lease, together with all exhibits, addenda, and amendments attached hereto, constitutes the entire agreement between Landlord and Tenant with respect to the Premises. No prior or contemporaneous agreements or representations, whether oral or written, shall be binding upon either party unless incorporated herein. This Lease may not be amended or modified except by a written instrument signed by both parties.</p>
-
-<h3>SEVERABILITY</h3>
-
-<p>If any provision of this Lease is held to be invalid or unenforceable by a court of competent jurisdiction, the remaining provisions shall continue in full force and effect. The invalid or unenforceable provision shall be reformed to the minimum extent necessary to make it valid and enforceable while preserving the original intent of the parties.</p>
 
 <h3>NOTICES</h3>
 
@@ -289,8 +272,8 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
           <p>{{landlord.name}}</p>
           <br/>
           <p class="signature-field">Signature: <span class="signature-line"></span></p>
-          <p class="signature-field">Printed Name: <span class="signature-line"></span></p>
-          <p class="signature-field">Title: <span class="signature-line"></span></p>
+          <p class="signature-field">Printed Name: {{landlord.signerName}}</p>
+          <p class="signature-field">Title: {{landlord.signerTitle}}</p>
           <p class="signature-field">Date: <span class="date-line"></span></p>
         </td>
         <td width="50%">
@@ -298,8 +281,8 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
           <p>{{tenant.name}}</p>
           <br/>
           <p class="signature-field">Signature: <span class="signature-line"></span></p>
-          <p class="signature-field">Printed Name: <span class="signature-line"></span></p>
-          <p class="signature-field">Title: <span class="signature-line"></span></p>
+          <p class="signature-field">Printed Name: {{tenant.signerName}}</p>
+          <p class="signature-field">Title: {{tenant.signerTitle}}</p>
           <p class="signature-field">Date: <span class="date-line"></span></p>
         </td>
       </tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { LeaseBuilderDraft } from '@shared/types/leaseBuilder';
 
 interface StepProps {
@@ -42,6 +42,83 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
   const use = draft.commercial?.useAndBuildout;
   const ops = draft.commercial?.operations;
   const risk = draft.commercial?.risk;
+
+  // Tenant signer state
+  const [primaryContact, setPrimaryContact] = useState<{ name: string; title?: string } | null>(null);
+  const [tenantSignerKey, setTenantSignerKey] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+
+  useEffect(() => {
+    const tenantId = draft.tenantIds?.[0];
+    if (!tenantId) return;
+    fetch(`/api/llcs/${llcId}/tenants/${tenantId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.data?.type === 'business' && data.data?.primaryContact?.name) {
+          setPrimaryContact(data.data.primaryContact);
+        }
+      })
+      .catch(() => {});
+  }, [llcId, draft.tenantIds?.[0]]);
+
+  const signerOptions = useMemo(() => {
+    const opts: { key: string; label: string; name: string; title?: string }[] = [];
+    if (primaryContact) {
+      opts.push({
+        key: 'primary',
+        label: `${primaryContact.name}${primaryContact.title ? ` (${primaryContact.title})` : ''} — Primary Contact`,
+        name: primaryContact.name,
+        title: primaryContact.title,
+      });
+    }
+    for (const [i, g] of (risk?.guarantors ?? []).entries()) {
+      const parts = [g.firstName];
+      if (g.middleInitial) parts.push(`${g.middleInitial}.`);
+      parts.push(g.lastName);
+      const fullName = parts.join(' ');
+      opts.push({
+        key: `guarantor_${i}`,
+        label: `${fullName}${g.title ? ` (${g.title})` : ''} — Guarantor`,
+        name: fullName,
+        title: g.title,
+      });
+    }
+    return opts;
+  }, [primaryContact, risk?.guarantors]);
+
+  // Restore saved tenantSigner to key once options load
+  useEffect(() => {
+    if (!signerOptions.length) return;
+    const saved = draft.tenantSigner;
+    if (!saved?.name) return;
+    const match = signerOptions.find(o => o.name === saved.name);
+    if (match) {
+      setTenantSignerKey(match.key);
+    } else {
+      setTenantSignerKey('custom');
+      setCustomName(saved.name);
+      setCustomTitle(saved.title ?? '');
+    }
+  }, [signerOptions]); // intentionally run only when options change (initial load)
+
+  function handleTenantSignerKeyChange(key: string) {
+    setTenantSignerKey(key);
+    if (key === '') {
+      updateDraft({ tenantSigner: undefined });
+    } else if (key === 'custom') {
+      // don't commit yet — user still needs to type
+    } else {
+      const opt = signerOptions.find(o => o.key === key);
+      if (opt) updateDraft({ tenantSigner: { name: opt.name, title: opt.title } });
+    }
+  }
+
+  function commitCustomSigner() {
+    if (customName.trim()) {
+      updateDraft({ tenantSigner: { name: customName.trim(), title: customTitle.trim() || undefined } });
+    }
+  }
 
   // Fetch LLC members for signer selection
   useEffect(() => {
@@ -124,6 +201,54 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
         )}
       </section>
 
+      {/* Tenant Signer */}
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium border-b pb-1">Tenant Signer</h3>
+        <p className="text-sm text-muted-foreground">
+          Select the individual who will sign this lease on behalf of the tenant.
+        </p>
+        <select
+          value={tenantSignerKey}
+          onChange={(e) => handleTenantSignerKeyChange(e.target.value)}
+          className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">Select a signer</option>
+          {signerOptions.map(o => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+          <option value="custom">Someone else...</option>
+        </select>
+
+        {tenantSignerKey === 'custom' && (
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  onBlur={commitCustomSigner}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Jane Smith"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Title</label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  onBlur={commitCustomSigner}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="CEO, President, Manager..."
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Save as Default Template */}
       <section className="space-y-2">
         <label className="flex items-start gap-3 cursor-pointer">
@@ -149,7 +274,7 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
           <dt className="text-muted-foreground">City</dt>
           <dd>{draft.propertyProfile?.city || '—'}</dd>
           <dt className="text-muted-foreground">Space Type</dt>
-          <dd className="capitalize">{draft.propertyProfile?.commercialSpaceType || '—'}</dd>
+          <dd className="capitalize">{draft.propertyProfile?.commercialSpaceTypes?.join(', ') || '—'}</dd>
           <dt className="text-muted-foreground">Square Feet</dt>
           <dd>{draft.propertyProfile?.premisesSqft?.toLocaleString() ?? '—'}</dd>
           <dt className="text-muted-foreground">Zoning Confirmed</dt>

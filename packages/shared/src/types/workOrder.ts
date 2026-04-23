@@ -148,6 +148,7 @@ export interface WorkOrderSummary {
   status: WorkOrderStatus;
   assignedEmployeeIds: string[];
   scheduledDate?: string;
+  completedDate?: string;
   createdAt: Timestamp;
 }
 

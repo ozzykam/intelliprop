@@ -45,7 +45,7 @@ export const minneapolisCommercialOverlay: CityOverlay = {
       type: 'add_clause',
       additionalClauseId: 'comm-sidewalk-snow-mpls',
       conditions: [
-        { field: 'propertyProfile.commercialSpaceType', operator: 'equals', value: 'retail' },
+        { field: 'propertyProfile.commercialSpaceTypes', operator: 'contains', value: 'retail' },
       ],
     },
 

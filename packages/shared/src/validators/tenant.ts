@@ -21,6 +21,9 @@ const primaryContactSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(20).optional(),
   address: addressSchema.optional(),
+  dateOfBirth: z.string().optional(),
+  idType: z.enum(['passport', 'drivers_license', 'state_id', 'other']).optional(),
+  idNumber: z.string().max(100).optional(),
 });
 
 const businessTypeSchema = z.enum([

@@ -20,6 +20,7 @@ import {
   determineTriggeredDisclosures,
   determineTriggeredAddenda,
   TEMPLATE_VERSIONS,
+  commercialClauseRegistry,
 } from '@shared/leaseBuilder';
 import type { AssemblyResult } from '@shared/leaseBuilder';
 
@@ -233,6 +234,43 @@ function getTenantName(tenant: Tenant): string {
 }
 
 // ============================================================================
+// DRAFT SANITIZER
+// ============================================================================
+
+/**
+ * Removes empty/invalid array entries that Firestore may save (e.g. an array
+ * initialised with a placeholder empty-map object). Without this cleanup these
+ * entries make truthy conditions fire even though there is no real data, and
+ * produce garbled rows in rendered HTML.
+ */
+function sanitizeDraft(draft: LeaseBuilderDraft & { id: string }): LeaseBuilderDraft & { id: string } {
+  const fin = draft.commercial?.financial;
+  if (!fin) return draft;
+
+  // Strip convenience fee entries that have no actual fee value
+  const convenienceFees = (fin.convenienceFees ?? []).filter(
+    (f) => f.method && (f.feeType === 'flat' ? (f.flatAmount ?? 0) > 0 : (f.percentage ?? 0) > 0)
+  );
+
+  // Strip step schedule entries that have no real rent value
+  const escalationStepSchedule = (fin.escalationStepSchedule ?? []).filter(
+    (s) => s.year != null && (s.monthlyRent ?? 0) > 0
+  );
+
+  return {
+    ...draft,
+    commercial: {
+      ...draft.commercial,
+      financial: {
+        ...fin,
+        convenienceFees: convenienceFees.length > 0 ? convenienceFees : undefined,
+        escalationStepSchedule: escalationStepSchedule.length > 0 ? escalationStepSchedule : undefined,
+      },
+    },
+  };
+}
+
+// ============================================================================
 // TEMPLATE CONTEXT BUILDER
 // ============================================================================
 
@@ -376,13 +414,36 @@ function populateTenants(
     ctx['tenant.stateOfFormation'] = resolveStateName(ct.stateOfIncorporation || '');
     ctx['tenant.signerName'] = ct.primaryContact?.name || '';
     ctx['tenant.signerTitle'] = ct.primaryContact?.title || '';
-    ctx['tenant.address'] = '';
+    // Override with explicitly chosen signer if set
+    if (draft.tenantSigner?.name) {
+      ctx['tenant.signerName'] = draft.tenantSigner.name;
+      ctx['tenant.signerTitle'] = draft.tenantSigner.title ?? '';
+    }
+    const addr = ct.primaryContact?.address;
+    ctx['tenant.address'] = addr
+      ? [addr.street1, addr.street2, `${addr.city}, ${addr.state} ${addr.zipCode}`]
+          .filter(Boolean).join(', ')
+      : '';
+    // Primary contact fields for guarantor logic
+    ctx['tenant.primaryContact.name'] = ct.primaryContact?.name || '';
+    ctx['tenant.primaryContact.title'] = ct.primaryContact?.title || '';
+    ctx['tenant.primaryContact.phone'] = ct.primaryContact?.phone || '';
+    ctx['tenant.primaryContact.email'] = ct.primaryContact?.email || '';
+    ctx['tenant.primaryContact.address'] = addr
+      ? [addr.street1, addr.street2, `${addr.city}, ${addr.state} ${addr.zipCode}`]
+          .filter(Boolean).join(', ')
+      : '';
   } else {
     ctx['tenant.address'] = '';
     ctx['tenant.entityType'] = '';
     ctx['tenant.stateOfFormation'] = '';
     ctx['tenant.signerName'] = '';
     ctx['tenant.signerTitle'] = '';
+    ctx['tenant.primaryContact.name'] = '';
+    ctx['tenant.primaryContact.title'] = '';
+    ctx['tenant.primaryContact.phone'] = '';
+    ctx['tenant.primaryContact.email'] = '';
+    ctx['tenant.primaryContact.address'] = '';
   }
 }
 
@@ -402,8 +463,9 @@ function populatePropertyAndUnit(
   const unitNumbers = units.map((u) => u.unitNumber).filter(Boolean);
   ctx['unit.number'] = unitNumbers.join(', ');
 
-  const totalSqft = draft.propertyProfile?.premisesSqft ||
-    units.reduce((sum, u) => sum + (u.sqft || 0), 0) || '';
+  // Unit sqft (from Firestore) is the primary source; wizard-entered premisesSqft is the fallback
+  const unitSqft = units.reduce((sum, u) => sum + (u.sqft || 0), 0);
+  const totalSqft = unitSqft || draft.propertyProfile?.premisesSqft || '';
   ctx['premises.sqft'] = String(totalSqft);
 
   if (units.length > 1) {
@@ -411,12 +473,13 @@ function populatePropertyAndUnit(
     ctx['premises.description'] = `Units ${unitNumbers.join(', ')}${sqftLabel}`;
   } else if (units.length === 1) {
     const u = units[0]!;
-    ctx['premises.description'] = `Unit ${u.unitNumber}${u.sqft ? ` (approx. ${u.sqft} sq. ft.)` : ''}`;
+    const sqft = u.sqft || draft.propertyProfile?.premisesSqft;
+    ctx['premises.description'] = `Unit ${u.unitNumber}${sqft ? ` (approx. ${sqft} sq. ft.)` : ''}`;
   } else {
     ctx['premises.description'] = '';
   }
 
-  ctx['building.totalSqft'] = property?.totalSqft ? String(property.totalSqft) : '';
+  ctx['building.totalSqft'] = String(draft.propertyProfile?.buildingTotalSqft || property?.totalSqft || '');
 }
 
 // ── Lease Dates ───────────────────────────────────────────────────────────
@@ -612,6 +675,133 @@ function populateResidentialContext(ctx: Record<string, string>, draft: LeaseBui
   ctx['residential.rent.priorRentAmount'] = formatCurrency(rent?.priorRentAmount);
 }
 
+// ── Guarantor Context Builder ────────────────────────────────────────────
+
+function buildGuarantorContext(
+  risk: import('@shared/types/leaseBuilder').CommercialRiskTerms | undefined,
+  ctx: Record<string, string>
+): { names: string; block: string; signatureBlocks: string } {
+  interface GuarantorRow {
+    displayName: string;
+    titleLine: string;
+    address: string;
+    phone: string;
+    email: string;
+  }
+
+  const rows: GuarantorRow[] = [];
+
+  // Primary contact as first guarantor (opt-in)
+  if (risk?.includePrimaryContactAsGuarantor) {
+    const pcName = ctx['tenant.primaryContact.name'] || '';
+    if (pcName) {
+      const pcTitle = ctx['tenant.primaryContact.title'] || '';
+      rows.push({
+        displayName: pcName,
+        titleLine: pcTitle ? `Primary Contact / ${pcTitle}` : 'Primary Contact',
+        address: ctx['tenant.primaryContact.address'] || '',
+        phone: ctx['tenant.primaryContact.phone'] || '',
+        email: ctx['tenant.primaryContact.email'] || '',
+      });
+    }
+  }
+
+  // Additional guarantors
+  for (const g of risk?.guarantors ?? []) {
+    const nameParts = [g.firstName];
+    if (g.middleInitial) nameParts.push(`${g.middleInitial}.`);
+    nameParts.push(g.lastName);
+    const fullName = nameParts.join(' ');
+    const addr = g.address
+      ? [g.address.street1, g.address.street2, `${g.address.city}, ${g.address.state} ${g.address.zipCode}`]
+          .filter(Boolean).join(', ')
+      : '';
+    rows.push({
+      displayName: fullName,
+      titleLine: g.title || '',
+      address: addr,
+      phone: g.phone || '',
+      email: g.email || '',
+    });
+  }
+
+  if (rows.length === 0) {
+    const signatureBlocks = `<table>
+  <tr>
+    <td width="50%" style="padding-right: 24pt; vertical-align: top;">
+      <p><strong>GUARANTOR:</strong></p>
+      <p>Signature: ___________________________________</p>
+      <p>Printed Name: ___________________________________</p>
+      <p>Address: ___________________________________</p>
+      <p>Date: ___________________________________</p>
+    </td>
+    <td width="50%" style="padding-left: 24pt; vertical-align: top;">
+      <p><strong>ADDITIONAL GUARANTOR (if applicable):</strong></p>
+      <p>Signature: ___________________________________</p>
+      <p>Printed Name: ___________________________________</p>
+      <p>Address: ___________________________________</p>
+      <p>Date: ___________________________________</p>
+    </td>
+  </tr>
+</table>`;
+    return { names: '', block: '<p><em>No guarantors specified.</em></p>', signatureBlocks };
+  }
+
+  const names = rows.map((r) => r.displayName).join(', ');
+
+  const liItems = rows.map((r) => {
+    const lines: string[] = [`<strong>${r.displayName}</strong>`];
+    if (r.titleLine) lines.push(r.titleLine);
+    if (r.address) lines.push(r.address);
+    const contactLine = [r.phone, r.email].filter(Boolean).join(' &mdash; ');
+    if (contactLine) lines.push(contactLine);
+    return `<li>${lines.join('<br>')}</li>`;
+  }).join('\n  ');
+
+  const block = `<ol>\n  ${liItems}\n</ol>`;
+
+  // Build signature blocks — two per row
+  const buildCell = (r: GuarantorRow, label: string, side: 'left' | 'right') => {
+    const padding = side === 'left'
+      ? 'style="padding-right: 24pt; vertical-align: top;"'
+      : 'style="padding-left: 24pt; vertical-align: top;"';
+    const addressLine = r.address
+      ? `<p>Address: ${r.address}</p>`
+      : `<p>Address: ___________________________________</p>`;
+    return `    <td width="50%" ${padding}>
+      <p><strong>${label}</strong></p>
+      <p>Signature: ___________________________________</p>
+      <p>Printed Name: ${r.displayName}</p>
+      ${addressLine}
+      <p>Date: ___________________________________</p>
+    </td>`;
+  };
+
+  const tableRows: string[] = [];
+  const useNumbers = rows.length > 1;
+
+  for (let i = 0; i < rows.length; i += 2) {
+    const leftRow = rows[i] as GuarantorRow;
+    const rightRow: GuarantorRow | undefined = rows[i + 1];
+    const leftLabel = useNumbers ? `GUARANTOR ${i + 1}:` : 'GUARANTOR:';
+    const leftCell = buildCell(leftRow, leftLabel, 'left');
+
+    let rightCell: string;
+    if (rightRow !== undefined) {
+      const rightLabel = `GUARANTOR ${i + 2}:`;
+      rightCell = buildCell(rightRow, rightLabel, 'right');
+    } else {
+      rightCell = '    <td width="50%"></td>';
+    }
+
+    tableRows.push(`  <tr>\n${leftCell}\n${rightCell}\n  </tr>`);
+  }
+
+  const signatureBlocks = `<table>\n${tableRows.join('\n')}\n</table>`;
+
+  return { names, block, signatureBlocks };
+}
+
 // ── Commercial Context ───────────────────────────────────────────────────
 
 function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuilderDraft) {
@@ -621,6 +811,11 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   const ub = draft.commercial?.useAndBuildout;
   const ops = draft.commercial?.operations;
   const risk = draft.commercial?.risk;
+
+  // ── Property Profile (commercial-specific) ──
+  ctx['propertyProfile.commercialSpaceTypes'] = (draft.propertyProfile?.commercialSpaceTypes ?? [])
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' '))
+    .join(', ');
 
   // ── Lease Structure ──
   const leaseTypeLabels: Record<string, string> = {
@@ -633,12 +828,60 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   ctx['lease.renewalTermLength'] = ls?.renewalTermLength || '';
   ctx['lease.renewalNoticePeriodDays'] = String(ls?.renewalNoticePeriodDays || '');
 
+  // Term duration display (e.g. "38 months (3 years, 2 months)")
+  if (ls?.termMonths) {
+    const m = ls.termMonths;
+    const years = Math.floor(m / 12);
+    const rem = m % 12;
+    let label = `${m} month${m !== 1 ? 's' : ''}`;
+    if (years > 0) {
+      const yearPart = `${years} year${years !== 1 ? 's' : ''}`;
+      const remPart = rem > 0 ? `, ${rem} month${rem !== 1 ? 's' : ''}` : '';
+      label = `${m} months (${yearPart}${remPart})`;
+    }
+    ctx['lease.termDuration'] = label;
+  } else {
+    ctx['lease.termDuration'] = '';
+  }
+
   // ── Financial ──
   ctx['lease.baseRentMonthly'] = formatCurrency(fin?.baseRentMonthly);
   ctx['lease.dueDay'] = String(fin?.dueDay || 1);
+  ctx['lease.freeRentMonths'] = String(fin?.freeRentMonths ?? '');
   ctx['lease.lateFeeAmount'] = formatCurrency(fin?.lateFeeAmount);
+  ctx['lease.lateFeeIsFlat'] = fin?.lateFeeType !== 'percentage' ? 'true' : '';
+  // If percentage mode but no value saved, default to 5 (mirrors wizard button default)
+  ctx['lease.lateFeePercentage'] = (fin?.lateFeePercentage ?? (fin?.lateFeeType === 'percentage' ? 5 : undefined))?.toString() ?? '';
   ctx['lease.defaultInterestRate'] = String(fin?.defaultInterestRate || '');
-  ctx['lease.returnedPaymentFee'] = formatCurrency(fin?.lateFeeAmount);
+  ctx['lease.returnedPaymentFee'] = formatCurrency(fin?.returnedPaymentFee);
+
+  // Payment methods
+  const paymentMethodLabels: Record<string, string> = {
+    online_portal: 'online portal',
+    ach: 'ACH transfer',
+    check: 'check',
+    money_order: 'money order',
+    cashiers_check: 'cashier\'s check',
+    cash: 'cash',
+  };
+  ctx['lease.paymentMethods'] = fin?.paymentMethods?.length
+    ? fin.paymentMethods.map((m) => paymentMethodLabels[m] ?? m).join(', ')
+    : '';
+
+  // Convenience fee description
+  const convFees = fin?.convenienceFees?.filter((f) => f.feeType === 'flat' ? (f.flatAmount ?? 0) > 0 : (f.percentage ?? 0) > 0) ?? [];
+  if (convFees.length > 0) {
+    ctx['lease.convenienceFeeDescription'] = convFees
+      .map((f) => {
+        const method = paymentMethodLabels[f.method] ?? f.method;
+        return f.feeType === 'flat'
+          ? `A ${formatCurrency(f.flatAmount)} convenience fee applies to ${method} payments.`
+          : `A ${f.percentage}% convenience fee applies to ${method} payments.`;
+      })
+      .join(' ');
+  } else {
+    ctx['lease.convenienceFeeDescription'] = '';
+  }
 
   // Escalation
   ctx['lease.escalationAmount'] = formatCurrency(fin?.escalationFixedAmount);
@@ -724,6 +967,7 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   };
   ctx['lease.utilityResponsibilityDescription'] = utilRespLabels[ops?.utilityResponsibility || ''] || '';
   ctx['lease.sharedUtilityAllocation'] = ops?.sharedUtilityAllocation || '';
+  ctx['lease.utilityInterruptionAbatementDays'] = String(ops?.utilityInterruptionAbatementDays ?? '');
 
   // Insurance
   ctx['lease.insuranceGLAmount'] = ops?.insuranceGLAmount
@@ -780,7 +1024,10 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
     good_guy: 'Good Guy Guarantee — Guarantor\'s obligations terminate upon Tenant\'s proper surrender of the Premises with all Rent paid through the surrender date.',
   };
   ctx['lease.guaranteeTypeDescription'] = guaranteeTypeLabels[risk?.personalGuaranteeType || ''] || '';
-  ctx['lease.guarantorNames'] = '';
+  const { names: guarantorNames, block: guarantorBlock, signatureBlocks } = buildGuarantorContext(risk, ctx);
+  ctx['lease.guarantorNames'] = guarantorNames;
+  ctx['lease.guarantorBlock'] = guarantorBlock;
+  ctx['lease.guarantorSignatureBlocks'] = signatureBlocks;
 
   ctx['commercial.risk.personalGuaranteeType'] = risk?.personalGuaranteeType || '';
   ctx['commercial.risk.personalGuaranteeCap'] = formatCurrency(risk?.personalGuaranteeCap);
@@ -797,6 +1044,11 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
     neither: 'Neither party',
   };
   ctx['casualtyTerminationRight'] = casualtyLabels[risk?.casualtyTerminationRight || ''] || 'Either party';
+
+  // Landlord address override — LLC has no address field; pull from wizard-entered profile
+  if (draft.propertyProfile?.landlordAddress) {
+    ctx['landlord.address'] = draft.propertyProfile.landlordAddress;
+  }
 }
 
 // ── Computed fields ──────────────────────────────────────────────────────
@@ -855,6 +1107,122 @@ function walkAndPopulate(
       walkAndPopulate(ctx, value, path);
     }
   }
+}
+
+// ============================================================================
+// KEY TERMS SUMMARY & TABLE OF CONTENTS GENERATORS
+// ============================================================================
+
+function buildPartiesBlock(context: Record<string, string>): string {
+  const landlordContact = [context['landlord.phone'], context['landlord.email']]
+    .filter(Boolean).join(' \u2014 ');
+  const tenantContact = [context['tenant.phone'], context['tenant.email']]
+    .filter(Boolean).join(' \u2014 ');
+
+  const landlordLines = [
+    context['landlord.name'],
+    context['landlord.address'],
+    landlordContact,
+  ].filter(Boolean).join('<br>');
+
+  const tenantLines = [
+    `${context['tenant.name']}, a ${context['tenant.stateOfFormation']} ${context['tenant.entityType']}`.replace(/,\s+a\s+\s/g, '').trim().replace(/,\s*$/, ''),
+    context['tenant.address'],
+    tenantContact,
+  ].filter(Boolean).join('<br>');
+
+  return `<p><strong>LANDLORD:</strong> ${landlordLines}</p>\n<p><strong>TENANT:</strong> ${tenantLines}</p>`;
+}
+
+function buildKeyTermsSummary(context: Record<string, string>): string {
+  const rows: Array<[string, string]> = [
+    ['Landlord', context['landlord.name'] || ''],
+    ['Tenant', context['tenant.name'] || ''],
+  ];
+
+  // Primary contact rows (commercial business tenants only)
+  const pcName = context['tenant.primaryContact.name'];
+  if (pcName) {
+    const pcTitle = context['tenant.primaryContact.title'];
+    rows.push(['Primary Contact', pcTitle ? `${pcName} / ${pcTitle}` : pcName]);
+    const pcPhone = context['tenant.primaryContact.phone'];
+    if (pcPhone) rows.push(['Contact Phone', pcPhone]);
+  }
+
+  rows.push(
+    [
+      'Premises',
+      [
+        context['property.address'],
+        context['unit.number'] ? `Suite ${context['unit.number']}` : '',
+      ].filter(Boolean).join(', '),
+    ],
+    ['Rentable Area', context['premises.sqft'] ? `${context['premises.sqft']} sq. ft.` : ''],
+    ['Space Type', context['propertyProfile.commercialSpaceTypes'] || ''],
+    ['Lease Type', context['commercial.leaseStructure.leaseType'] || ''],
+    ['Lease Term', [context['lease.startDate'], context['lease.endDate']].filter(Boolean).join(' \u2013 ')],
+    ['Lease Duration', context['lease.termDuration'] || ''],
+    ['Monthly Base Rent', context['lease.baseRentMonthly'] || ''],
+    ['Security Deposit', context['lease.securityDeposit'] || ''],
+    ['Permitted Use', context['lease.permittedUse'] || ''],
+  );
+
+  // Conditional rows
+  const freeRent = context['lease.freeRentMonths'];
+  if (freeRent && freeRent !== '0' && freeRent !== '') {
+    rows.push(['Free Rent Period', freeRent === '1' ? `${freeRent} month` : `${freeRent} months`]);
+  }
+  const camShare = context['lease.camProRataShare'];
+  if (camShare && camShare !== '' && camShare !== '0') {
+    rows.push(['CAM Pro Rata Share', `${camShare}%`]);
+  }
+
+  const tableRows = rows
+    .filter(([, v]) => v !== '')
+    .map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`)
+    .join('\n    ');
+
+  return `<table class="key-terms-summary">
+  <caption>KEY TERMS SUMMARY</caption>
+  <tbody>
+    ${tableRows}
+  </tbody>
+</table>`;
+}
+
+function buildTableOfContents(clausesIncluded: string[]): string {
+  const includedSet = new Set(clausesIncluded);
+  const registryFiltered = commercialClauseRegistry
+    .filter((c) => includedSet.has(c.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const items: string[] = ['PARTIES', 'PREMISES'];
+  for (const clause of registryFiltered) {
+    items.push(clause.title);
+  }
+
+  // Handle clause IDs in clausesIncluded that have no registry entry (custom/overlay clauses)
+  const registryIds = new Set(commercialClauseRegistry.map((c) => c.id));
+  for (const id of clausesIncluded) {
+    if (!registryIds.has(id)) {
+      items.push('[Custom Provision]');
+    }
+  }
+
+  const numberedItems = items
+    .map((title, i) => `<li>${i + 1}. ${title}</li>`)
+    .join('\n    ');
+
+  return `<div class="toc-section">
+  <h3>TABLE OF CONTENTS</h3>
+  <ol class="toc-list" style="list-style:none; padding:0;">
+    ${numberedItems}
+  </ol>
+  <ul class="toc-list" style="list-style:none; padding-left:2em; margin-top:2pt;">
+    <li>NOTICES</li>
+    <li>EXECUTION</li>
+  </ul>
+</div>`;
 }
 
 // ============================================================================
@@ -1164,8 +1532,11 @@ export async function assembleLeasePackage(
   draftId: string,
   _actorUserId: string
 ): Promise<AssemblyResult> {
-  const draft = await getDraft(llcId, draftId);
-  if (!draft) throw new Error(`Draft not found: ${draftId}`);
+  const rawDraft = await getDraft(llcId, draftId);
+  if (!rawDraft) throw new Error(`Draft not found: ${draftId}`);
+
+  // Strip empty/invalid array entries so conditions evaluate correctly
+  const draft = sanitizeDraft(rawDraft);
 
   // Build the template context (fetches LLC, property, unit, tenant data)
   const context = await buildTemplateContext(draft, llcId);
@@ -1196,6 +1567,12 @@ export async function assembleLeasePackage(
       const masterTemplate = draft.leaseClass === 'residential'
         ? MN_RESIDENTIAL_CORE_TEMPLATE
         : MN_COMMERCIAL_CORE_TEMPLATE;
+      // Inject key terms summary and table of contents for commercial leases
+      if (draft.leaseClass === 'commercial') {
+        context['partiesBlock'] = buildPartiesBlock(context);
+        context['keyTermsSummary'] = buildKeyTermsSummary(context);
+        context['tableOfContents'] = buildTableOfContents(result.clausesIncluded);
+      }
       // Insert clause content first, then replace all placeholders
       const fullHtml = replacePlaceholders(
         masterTemplate.replace('{{clauseContent}}', doc.htmlContent),

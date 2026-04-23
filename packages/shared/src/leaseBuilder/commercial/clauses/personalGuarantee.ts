@@ -17,7 +17,7 @@ export const commercialPersonalGuaranteeClauses: ClauseDefinition[] = [
       'References the personal guarantee agreement attached as an exhibit to the lease, requiring one or more individuals to personally guarantee the tenant entity obligations under the lease.',
     htmlContent: `<h3>Personal Guarantee</h3>
 <p>As a material inducement to Landlord to enter into this Lease, and as a condition precedent to Landlord&rsquo;s obligations hereunder, the following individual(s) (each, a &ldquo;Guarantor&rdquo;) shall execute and deliver to Landlord a Personal Guarantee of Lease in the form attached hereto as <strong>Exhibit D</strong> and incorporated herein by reference (the &ldquo;Guarantee&rdquo;):</p>
-<p><strong>Guarantor(s):</strong> {{lease.guarantorNames}}</p>
+{{lease.guarantorBlock}}
 <p>Pursuant to the Guarantee, each Guarantor shall unconditionally and irrevocably guarantee the full and punctual performance by Tenant of all of Tenant&rsquo;s obligations under this Lease, including but not limited to the payment of all Rent, Additional Rent, and other sums due hereunder, and the performance of all other covenants and conditions to be performed by Tenant.</p>
 <p><strong>Type of Guarantee:</strong> {{lease.guaranteeTypeDescription}}</p>
 <p>The Guarantee shall be governed by and construed in accordance with the laws of the State of Minnesota. The Guarantor(s) hereby consent to the jurisdiction of the courts of the State of Minnesota for any action arising out of or in connection with the Guarantee.</p>
@@ -34,7 +34,7 @@ export const commercialPersonalGuaranteeClauses: ClauseDefinition[] = [
       { field: 'commercial.risk.personalGuaranteeRequired', operator: 'equals', value: true },
     ],
     placeholders: [
-      'lease.guarantorNames',
+      'lease.guarantorBlock',
       'lease.guaranteeTypeDescription',
     ],
     sortOrder: 700,

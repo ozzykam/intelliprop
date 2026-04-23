@@ -12,7 +12,7 @@ interface StepProps {
 
 function centsToDisplayStr(cents: number | undefined): string {
   if (cents === undefined || cents === 0) return '';
-  return (cents / 100).toFixed(2);
+  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function displayToCents(value: string): number {

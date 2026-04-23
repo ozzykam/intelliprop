@@ -45,4 +45,32 @@ export const commercialMaintenanceClauses: ClauseDefinition[] = [
     version: '1.0.0',
     lastReviewedDate: '2026-02-11',
   },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // FLOOR LOAD
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-floor-load',
+    leaseClass: 'commercial',
+    category: 'maintenance',
+    title: 'Floor Load',
+    description:
+      'Prohibits Tenant from overloading floors beyond rated capacity; requires weight distribution to avoid concentrated loads; makes Tenant solely responsible for structural damage caused by overloading. Applies to warehouse and industrial space types.',
+    htmlContent: `<h3>Floor Load</h3>
+<p>Tenant shall not place or permit to be placed on any floor of the Premises any load, weight, or pressure that exceeds the rated floor load capacity for such floor as specified in the Building&rsquo;s structural drawings or as otherwise posted or communicated to Tenant by Landlord. Tenant shall distribute any heavy equipment, inventory, racking systems, or other materials in a manner that avoids concentrated loads and complies with the floor load limits applicable to the relevant area of the Premises.</p>
+<p>Tenant shall comply with any posted floor load limits and shall not install any racking, shelving, equipment, or storage systems without first confirming with Landlord that the proposed loads are within the structural capacity of the affected floor areas. Landlord may require Tenant to provide written calculations prepared by a licensed structural engineer confirming that any proposed installation complies with applicable floor load limits prior to commencing such installation.</p>
+<p>Any structural damage to the Premises or the Building caused by Tenant&rsquo;s overloading of floors or concentrated loading, regardless of whether Tenant was aware of the floor load limits, shall be Tenant&rsquo;s sole responsibility. Tenant shall promptly notify Landlord if Tenant becomes aware of any floor deflection, cracking, or other sign of potential overloading. The cost of all repairs to structural elements of the Premises or the Building necessitated by Tenant&rsquo;s overloading shall be paid by Tenant within thirty (30) days after receipt of Landlord&rsquo;s invoice therefor.</p>`,
+    isRequired: false,
+    conditions: [
+      {
+        field: 'propertyProfile.commercialSpaceTypes',
+        operator: 'contains_any',
+        value: ['warehouse', 'industrial'],
+      },
+    ],
+    placeholders: [],
+    sortOrder: 455,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-22',
+  },
 ];

@@ -39,4 +39,108 @@ export const commercialUtilityClauses: ClauseDefinition[] = [
     version: '1.0.0',
     lastReviewedDate: '2026-02-11',
   },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // UTILITY INTERRUPTION ABATEMENT — NARROW SCOPE
+  // Abatement only when interruption is caused by Landlord's gross negligence
+  // or willful misconduct. Acts of God, utility provider failures, and all
+  // other causes outside Landlord's control do NOT qualify.
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-utility-interruption-abatement-narrow',
+    leaseClass: 'commercial',
+    category: 'utilities',
+    title: 'Utility Interruption — Rent Abatement (Narrow)',
+    description:
+      'Rent abates only if the utility interruption was directly caused by Landlord\'s gross negligence or willful misconduct. All other causes — acts of God, utility provider failures, force majeure — are excluded.',
+    htmlContent: `<h3>Utility Interruption &mdash; Rent Abatement</h3>
+<p>Notwithstanding any other provision of this Lease, in the event that any utility service (including without limitation electricity, gas, water, sewer, heating, ventilation, or air conditioning) serving the Premises is interrupted, discontinued, or rendered inadequate for Tenant&rsquo;s Permitted Use for more than <strong>{{lease.utilityInterruptionAbatementDays}}</strong> consecutive calendar days (the &ldquo;Abatement Threshold&rdquo;), and such interruption:</p>
+<ol>
+  <li>was not caused by the negligence, willful act, or omission of Tenant, its agents, employees, contractors, or invitees;</li>
+  <li>is not the result of Tenant&rsquo;s failure to pay utility charges for which Tenant is responsible;</li>
+  <li>renders all or a material portion of the Premises untenantable for the conduct of Tenant&rsquo;s Permitted Use; <strong>and</strong></li>
+  <li>was directly and proximately caused by Landlord&rsquo;s gross negligence or willful misconduct in the operation or maintenance of the Building&rsquo;s utility systems or infrastructure &mdash;</li>
+</ol>
+<p>then all Base Rent and additional rent payable under this Lease shall fully abate beginning on the first day after the Abatement Threshold has been exceeded and continuing until such utility service is substantially restored to the Premises. For the avoidance of doubt, rent abatement shall <strong>not</strong> be triggered by any interruption caused by acts of God, natural disasters, storms, governmental action or regulation, utility provider outages or failures, Force Majeure Events (as defined in this Lease), or any other cause beyond Landlord&rsquo;s reasonable control, even if such interruption renders the Premises untenantable.</p>
+<p>Tenant shall provide Landlord with prompt written notice of any utility interruption that Tenant believes may trigger the abatement provisions of this Section. Landlord shall use commercially reasonable efforts to restore such utility service as promptly as practicable following receipt of notice.</p>
+<p>The rent abatement rights provided in this Section shall constitute Tenant&rsquo;s sole and exclusive remedy for utility interruptions, and shall not be construed as a constructive eviction, termination, or other breach by Landlord unless the utility interruption continues for more than ninety (90) consecutive days and was caused by Landlord&rsquo;s gross negligence or willful misconduct, in which case either Party may terminate this Lease upon written notice to the other Party.</p>`,
+    isRequired: false,
+    conditions: [
+      { field: 'commercial.operations.utilityInterruptionAbatementDays', operator: 'gt', value: 0 },
+      { field: 'commercial.operations.utilityAbatementScope', operator: 'equals', value: 'narrow' },
+    ],
+    placeholders: ['lease.utilityInterruptionAbatementDays'],
+    sortOrder: 505,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // UTILITY INTERRUPTION ABATEMENT — MODERATE SCOPE
+  // Abatement when interruption is within Landlord's reasonable control
+  // (maintenance failures, contractor damage, Landlord negligence).
+  // Acts of God, third-party utility provider outages, and force majeure
+  // events are explicitly excluded.
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-utility-interruption-abatement-moderate',
+    leaseClass: 'commercial',
+    category: 'utilities',
+    title: 'Utility Interruption — Rent Abatement (Moderate)',
+    description:
+      'Rent abates when the interruption is within Landlord\'s reasonable control (e.g., maintenance failure, Landlord negligence). Explicitly excludes acts of God, utility provider outages, government action, and other force majeure events.',
+    htmlContent: `<h3>Utility Interruption &mdash; Rent Abatement</h3>
+<p>Notwithstanding any other provision of this Lease, in the event that any utility service (including without limitation electricity, gas, water, sewer, heating, ventilation, or air conditioning) serving the Premises is interrupted, discontinued, or rendered inadequate for Tenant&rsquo;s Permitted Use for more than <strong>{{lease.utilityInterruptionAbatementDays}}</strong> consecutive calendar days (the &ldquo;Abatement Threshold&rdquo;), and such interruption:</p>
+<ol>
+  <li>was not caused by the negligence, willful act, or omission of Tenant, its agents, employees, contractors, or invitees;</li>
+  <li>is not the result of Tenant&rsquo;s failure to pay utility charges for which Tenant is responsible;</li>
+  <li>renders all or a material portion of the Premises untenantable for the conduct of Tenant&rsquo;s Permitted Use; <strong>and</strong></li>
+  <li>was caused by a condition within Landlord&rsquo;s reasonable control to prevent or cure, including without limitation Landlord&rsquo;s failure to maintain Building systems, Landlord&rsquo;s negligence, or the acts or omissions of a contractor retained by Landlord &mdash;</li>
+</ol>
+<p>then all Base Rent and additional rent payable under this Lease shall fully abate beginning on the first day after the Abatement Threshold has been exceeded and continuing until such utility service is substantially restored to the Premises. For the avoidance of doubt, rent abatement shall <strong>not</strong> be triggered by any interruption caused by acts of God, natural disasters, storms or other weather events, governmental action or regulation, utility provider outages or failures originating outside the Building, Force Majeure Events (as defined in this Lease), or any other cause beyond Landlord&rsquo;s reasonable control, even if such interruption renders the Premises untenantable.</p>
+<p>Tenant shall provide Landlord with prompt written notice of any utility interruption that Tenant believes may trigger the abatement provisions of this Section. Landlord shall use commercially reasonable efforts to restore such utility service as promptly as practicable following receipt of notice.</p>
+<p>The rent abatement rights provided in this Section shall constitute Tenant&rsquo;s sole and exclusive remedy for utility interruptions, and shall not be construed as a constructive eviction, termination, or other breach by Landlord unless the utility interruption continues for more than ninety (90) consecutive days due to a cause within Landlord&rsquo;s reasonable control, in which case either Party may terminate this Lease upon written notice to the other Party.</p>`,
+    isRequired: false,
+    conditions: [
+      { field: 'commercial.operations.utilityInterruptionAbatementDays', operator: 'gt', value: 0 },
+      { field: 'commercial.operations.utilityAbatementScope', operator: 'equals', value: 'moderate' },
+    ],
+    placeholders: ['lease.utilityInterruptionAbatementDays'],
+    sortOrder: 505,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // UTILITY INTERRUPTION ABATEMENT — BROAD SCOPE
+  // Abatement for any qualifying interruption not caused by Tenant,
+  // regardless of whether the cause is within Landlord's control.
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-utility-interruption-abatement-broad',
+    leaseClass: 'commercial',
+    category: 'utilities',
+    title: 'Utility Interruption — Rent Abatement (Broad)',
+    description:
+      'Rent abates for any qualifying utility interruption not caused by Tenant, including acts of God and utility provider failures — no exclusion for causes outside Landlord\'s control.',
+    htmlContent: `<h3>Utility Interruption &mdash; Rent Abatement</h3>
+<p>Notwithstanding any other provision of this Lease, in the event that any utility service (including without limitation electricity, gas, water, sewer, heating, ventilation, or air conditioning) serving the Premises is interrupted, discontinued, or rendered inadequate for Tenant&rsquo;s Permitted Use for more than <strong>{{lease.utilityInterruptionAbatementDays}}</strong> consecutive calendar days (the &ldquo;Abatement Threshold&rdquo;), and such interruption:</p>
+<ol>
+  <li>was not caused by the negligence, willful act, or omission of Tenant, its agents, employees, contractors, or invitees;</li>
+  <li>is not the result of Tenant&rsquo;s failure to pay utility charges for which Tenant is responsible; <strong>and</strong></li>
+  <li>renders all or a material portion of the Premises untenantable for the conduct of Tenant&rsquo;s Permitted Use &mdash;</li>
+</ol>
+<p>then all Base Rent and additional rent payable under this Lease shall fully abate beginning on the first day after the Abatement Threshold has been exceeded and continuing until such utility service is substantially restored to the Premises. Rent abatement under this Section applies regardless of whether the cause of the interruption is within Landlord&rsquo;s control, including without limitation interruptions caused by acts of God, natural disasters, utility provider outages, or governmental action, except where such interruption is caused by Tenant as set forth above.</p>
+<p>Tenant shall provide Landlord with prompt written notice of any utility interruption that Tenant believes may trigger the abatement provisions of this Section. Landlord shall use commercially reasonable efforts to restore such utility service as promptly as practicable following receipt of notice.</p>
+<p>The rent abatement rights provided in this Section shall constitute Tenant&rsquo;s sole and exclusive remedy for utility interruptions, and shall not be construed as a constructive eviction, termination, or other breach by Landlord unless the utility interruption continues for more than ninety (90) consecutive days, in which case either Party may terminate this Lease upon written notice to the other Party.</p>`,
+    isRequired: false,
+    conditions: [
+      { field: 'commercial.operations.utilityInterruptionAbatementDays', operator: 'gt', value: 0 },
+      { field: 'commercial.operations.utilityAbatementScope', operator: 'equals', value: 'broad' },
+    ],
+    placeholders: ['lease.utilityInterruptionAbatementDays'],
+    sortOrder: 505,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
 ];

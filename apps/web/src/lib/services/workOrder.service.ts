@@ -55,6 +55,9 @@ export async function listWorkOrders(
   if (options?.propertyId) {
     query = query.where('propertyId', '==', options.propertyId);
   }
+  if (options?.unitId) {
+    query = query.where('unitId', '==', options.unitId);
+  }
   if (options?.status) {
     const statuses = Array.isArray(options.status) ? options.status : [options.status];
     if (statuses.length === 1) {
@@ -86,6 +89,7 @@ export async function listWorkOrders(
       status: data.status,
       assignedEmployeeIds: data.assignedEmployeeIds || [],
       scheduledDate: data.scheduledDate,
+      completedDate: data.completedDate || undefined,
       createdAt: data.createdAt,
     } as WorkOrderSummary;
   });

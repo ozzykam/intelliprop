@@ -92,7 +92,7 @@ export type CommercialSpaceType =
   | 'office'
   | 'retail'
   | 'industrial'
-  | 'mixed'
+  | 'warehouse'
   | 'restaurant'
   | 'medical';
 
@@ -115,6 +115,9 @@ export interface LeaseBuilderDraft {
 
   // Landlord signer (selected LLC member who signs on behalf of the LLC)
   signerUserId?: string;
+
+  // Tenant signer (the individual who signs on behalf of the tenant entity)
+  tenantSigner?: { name: string; title?: string };
 
   // Step 2: Property & Location Profile
   propertyProfile?: PropertyProfile;
@@ -169,10 +172,12 @@ export interface PropertyProfile {
   stPaulRentStabilization?: 'subject' | 'exempt' | 'unsure';
 
   // Commercial-specific
-  commercialSpaceType?: CommercialSpaceType;
+  commercialSpaceTypes?: CommercialSpaceType[];
   zoningConfirmed?: boolean;
   liquorLicenseRequired?: boolean;
   outdoorPatioUse?: boolean;
+  buildingTotalSqft?: number;       // Total building rentable sq ft (for Pro Rata Share)
+  landlordAddress?: string;          // Landlord principal office address (LLC has no address field)
 }
 
 // ============================================================================
@@ -306,11 +311,19 @@ export interface CommercialTerms {
 export interface CommercialLeaseStructure {
   leaseType: 'nnn' | 'gross' | 'modified_gross';
   startDate: string; // ISO date
-  endDate?: string; // fixed-term
+  termMonths?: number; // duration in months (fixed-term only; end date is computed)
+  endDate?: string; // ISO date (computed from startDate + termMonths)
   noticeToTerminateDays?: number; // month-to-month
   renewalOptions: number; // 0 = none
   renewalTermLength?: string; // e.g. "5 years"
   renewalNoticePeriodDays?: number;
+}
+
+export interface CommercialConvenienceFee {
+  method: LeasePaymentMethod;
+  feeType: 'flat' | 'percentage';
+  flatAmount?: number;  // cents
+  percentage?: number;  // e.g. 3 = 3%
 }
 
 export interface CommercialFinancialTerms {
@@ -324,8 +337,16 @@ export interface CommercialFinancialTerms {
   escalationStepSchedule?: RentStep[];
   // Late fee / default interest
   gracePeriodDays?: number;
-  lateFeeAmount?: number; // cents
+  lateFeeType?: 'flat' | 'percentage';
+  lateFeeAmount?: number; // cents (flat)
+  lateFeePercentage?: number; // e.g. 5 = 5%
   defaultInterestRate?: number; // percentage per annum
+  // Free rent / rent concession period
+  freeRentMonths?: number; // 0–24
+  // Payment methods
+  paymentMethods?: LeasePaymentMethod[];
+  returnedPaymentFee?: number; // cents
+  convenienceFees?: CommercialConvenienceFee[];
   // CAM / Additional rent (NNN and Modified Gross only)
   camEnabled: boolean;
   camProRataShare?: number; // percentage (e.g. 12.5)
@@ -386,11 +407,33 @@ export interface CommercialOperationsTerms {
   insuranceBusinessInterruption: boolean;
   insuranceWorkersComp: boolean;
   insuranceLandlordAdditionalInsured: boolean;
+  // Utility interruption abatement trigger
+  utilityInterruptionAbatementDays?: number; // 1–14; absent = no abatement clause
+  utilityAbatementScope?: 'narrow' | 'moderate' | 'broad'; // required when days is set
   // Environmental (always true, cannot remove)
   environmentalComplianceIncluded: boolean;
   // ADA
   adaResponsibility: 'landlord' | 'tenant' | 'shared';
   adaSharedDescription?: string;
+}
+
+export interface GuarantorEntry {
+  firstName: string;
+  middleInitial?: string;
+  lastName: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+  address?: {
+    street1: string;
+    street2?: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  dateOfBirth?: string; // ISO date string YYYY-MM-DD
+  idType?: 'passport' | 'drivers_license' | 'state_id' | 'other';
+  idNumber?: string;
 }
 
 export interface CommercialRiskTerms {
@@ -414,6 +457,8 @@ export interface CommercialRiskTerms {
   personalGuaranteeRequired: boolean;
   personalGuaranteeType?: 'continuing' | 'limited' | 'good_guy';
   personalGuaranteeCap?: number; // cents (for limited)
+  includePrimaryContactAsGuarantor?: boolean;
+  guarantors?: GuarantorEntry[];  // additional guarantors only (not primary contact)
   // Indemnification
   indemnificationMutual: boolean;
   // Casualty & condemnation
@@ -465,7 +510,9 @@ export interface ClauseCondition {
     | 'gte'
     | 'lte'
     | 'exists'
-    | 'truthy';
+    | 'truthy'
+    | 'contains'
+    | 'contains_any';
   value: unknown;
 }
 

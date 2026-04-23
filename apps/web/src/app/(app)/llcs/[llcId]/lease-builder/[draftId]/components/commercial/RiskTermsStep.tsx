@@ -1,6 +1,7 @@
 'use client';
 
-import type { LeaseBuilderDraft, CommercialRiskTerms } from '@shared/types/leaseBuilder';
+import { useState, useEffect } from 'react';
+import type { LeaseBuilderDraft, CommercialRiskTerms, GuarantorEntry } from '@shared/types/leaseBuilder';
 
 interface StepProps {
   draft: LeaseBuilderDraft & { id: string };
@@ -11,7 +12,7 @@ interface StepProps {
 
 const inputClass = 'w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring';
 
-export default function RiskTermsStep({ draft, updateDraft }: StepProps) {
+export default function RiskTermsStep({ draft, updateDraft, llcId }: StepProps) {
   const risk = draft.commercial?.risk ?? {
     monetaryDefaultCureDays: 10,
     nonMonetaryDefaultCureDays: 30,
@@ -30,6 +31,24 @@ export default function RiskTermsStep({ draft, updateDraft }: StepProps) {
     casualtyTerminationRight: 'both' as const,
   };
 
+  const [primaryContact, setPrimaryContact] = useState<{
+    name: string; title?: string; phone?: string; email?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const tenantId = draft.tenantIds?.[0];
+    if (!tenantId) return;
+    fetch(`/api/llcs/${llcId}/tenants/${tenantId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.data?.type === 'business' && data.data?.primaryContact?.name) {
+          setPrimaryContact(data.data.primaryContact);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [llcId, draft.tenantIds?.[0]]);
+
   function update<K extends keyof CommercialRiskTerms>(field: K, value: CommercialRiskTerms[K]) {
     updateDraft({
       commercial: {
@@ -37,6 +56,30 @@ export default function RiskTermsStep({ draft, updateDraft }: StepProps) {
         risk: { ...risk, [field]: value },
       },
     } as Partial<LeaseBuilderDraft>);
+  }
+
+  function addGuarantor() {
+    const current = risk.guarantors ?? [];
+    update('guarantors', [...current, { firstName: '', lastName: '' }]);
+  }
+
+  function removeGuarantor(index: number) {
+    const current = risk.guarantors ?? [];
+    update('guarantors', current.filter((_, i) => i !== index));
+  }
+
+  function updateGuarantor(index: number, patch: Partial<GuarantorEntry>) {
+    const current = risk.guarantors ?? [];
+    const updated = current.map((g, i) => i === index ? { ...g, ...patch } : g);
+    update('guarantors', updated);
+  }
+
+  function updateGuarantorAddress(index: number, patch: Partial<NonNullable<GuarantorEntry['address']>>) {
+    const current = risk.guarantors ?? [];
+    const g = current[index];
+    if (!g) return;
+    const updatedAddress = { street1: '', city: '', state: '', zipCode: '', ...g.address, ...patch };
+    updateGuarantor(index, { address: updatedAddress });
   }
 
   return (
@@ -230,6 +273,212 @@ export default function RiskTermsStep({ draft, updateDraft }: StepProps) {
                 />
               </div>
             )}
+
+            {/* Primary Contact checkbox */}
+            {primaryContact && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!risk.includePrimaryContactAsGuarantor}
+                  onChange={(e) => update('includePrimaryContactAsGuarantor', e.target.checked)}
+                  className="w-4 h-4 rounded border-input"
+                />
+                <span className="text-sm">
+                  Include <strong>{primaryContact.name}</strong>
+                  {primaryContact.title && ` (${primaryContact.title})`} as guarantor
+                </span>
+              </label>
+            )}
+
+            {/* Additional guarantors */}
+            <div className="space-y-4">
+              <label className="block text-sm font-medium">Additional Guarantors</label>
+
+              {(risk.guarantors ?? []).map((g, i) => (
+                <div key={i} className="border rounded-md p-4 space-y-3 relative">
+                  <button
+                    type="button"
+                    onClick={() => removeGuarantor(i)}
+                    className="absolute top-2 right-2 text-xs text-destructive underline"
+                  >
+                    Remove
+                  </button>
+
+                  {/* Name row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        value={g.firstName}
+                        onChange={(e) => updateGuarantor(i, { firstName: e.target.value })}
+                        className={inputClass}
+                        placeholder="First"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">M.I.</label>
+                      <input
+                        type="text"
+                        value={g.middleInitial ?? ''}
+                        onChange={(e) => updateGuarantor(i, { middleInitial: e.target.value })}
+                        className={inputClass}
+                        placeholder="M"
+                        maxLength={5}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        value={g.lastName}
+                        onChange={(e) => updateGuarantor(i, { lastName: e.target.value })}
+                        className={inputClass}
+                        placeholder="Last"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={g.title ?? ''}
+                      onChange={(e) => updateGuarantor(i, { title: e.target.value })}
+                      className={inputClass}
+                      placeholder="e.g. President, CEO"
+                    />
+                  </div>
+
+                  {/* Phone / Email */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={g.phone ?? ''}
+                        onChange={(e) => updateGuarantor(i, { phone: e.target.value })}
+                        className={inputClass}
+                        placeholder="(612) 555-0100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={g.email ?? ''}
+                        onChange={(e) => updateGuarantor(i, { email: e.target.value })}
+                        className={inputClass}
+                        placeholder="name@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Street Address</label>
+                      <input
+                        type="text"
+                        value={g.address?.street1 ?? ''}
+                        onChange={(e) => updateGuarantorAddress(i, { street1: e.target.value })}
+                        className={inputClass}
+                        placeholder="123 Main St"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Suite / Apt</label>
+                      <input
+                        type="text"
+                        value={g.address?.street2 ?? ''}
+                        onChange={(e) => updateGuarantorAddress(i, { street2: e.target.value })}
+                        className={inputClass}
+                        placeholder="Apt 2B (optional)"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">City</label>
+                        <input
+                          type="text"
+                          value={g.address?.city ?? ''}
+                          onChange={(e) => updateGuarantorAddress(i, { city: e.target.value })}
+                          className={inputClass}
+                          placeholder="Minneapolis"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">State</label>
+                        <input
+                          type="text"
+                          value={g.address?.state ?? ''}
+                          onChange={(e) => updateGuarantorAddress(i, { state: e.target.value })}
+                          className={inputClass}
+                          placeholder="MN"
+                          maxLength={2}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">ZIP</label>
+                        <input
+                          type="text"
+                          value={g.address?.zipCode ?? ''}
+                          onChange={(e) => updateGuarantorAddress(i, { zipCode: e.target.value })}
+                          className={inputClass}
+                          placeholder="55401"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Identity */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={g.dateOfBirth ?? ''}
+                        onChange={(e) => updateGuarantor(i, { dateOfBirth: e.target.value || undefined })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">ID Type</label>
+                      <select
+                        value={g.idType ?? ''}
+                        onChange={(e) => updateGuarantor(i, { idType: (e.target.value || undefined) as GuarantorEntry['idType'] })}
+                        className={inputClass}
+                      >
+                        <option value="">Select...</option>
+                        <option value="passport">Passport</option>
+                        <option value="drivers_license">Driver&apos;s License</option>
+                        <option value="state_id">State ID</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">ID Number</label>
+                      <input
+                        type="text"
+                        value={g.idNumber ?? ''}
+                        onChange={(e) => updateGuarantor(i, { idNumber: e.target.value || undefined })}
+                        className={inputClass}
+                        placeholder="ID number"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addGuarantor}
+                className="text-sm text-primary underline"
+              >
+                + Add Guarantor
+              </button>
+            </div>
           </div>
         )}
       </div>

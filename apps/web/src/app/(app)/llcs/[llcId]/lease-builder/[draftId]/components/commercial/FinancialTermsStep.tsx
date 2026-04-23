@@ -4,6 +4,8 @@ import { useState } from 'react';
 import type {
   LeaseBuilderDraft,
   CommercialFinancialTerms,
+  CommercialConvenienceFee,
+  LeasePaymentMethod,
   RentStep,
 } from '@shared/types/leaseBuilder';
 
@@ -13,6 +15,15 @@ interface StepProps {
   updateDraft: (updates: Partial<LeaseBuilderDraft>) => void;
   saveDraft: (updates: Partial<LeaseBuilderDraft>) => Promise<boolean>;
 }
+
+const PAYMENT_METHODS: { value: LeasePaymentMethod; label: string }[] = [
+  { value: 'online_portal', label: 'Online Portal' },
+  { value: 'ach', label: 'ACH Transfer' },
+  { value: 'check', label: 'Check' },
+  { value: 'money_order', label: 'Money Order' },
+  { value: 'cashiers_check', label: "Cashier's Check" },
+  { value: 'cash', label: 'Cash' },
+];
 
 const ESCALATION_TYPES: { value: CommercialFinancialTerms['escalationType']; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -61,7 +72,7 @@ function DollarInput({
 
 function centsToDisplayStr(cents: number | undefined): string {
   if (cents === undefined || cents === 0) return '';
-  return (cents / 100).toFixed(2);
+  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function displayToCents(value: string): number {
@@ -128,9 +139,36 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
   const lateFee = useDollarInput(financial.lateFeeAmount, (c) =>
     updateFinancial({ lateFeeAmount: c })
   );
+  const returnedPaymentFeeInput = useDollarInput(financial.returnedPaymentFee, (c) =>
+    updateFinancial({ returnedPaymentFee: c })
+  );
   const escalationAmt = useDollarInput(financial.escalationFixedAmount, (c) =>
     updateFinancial({ escalationFixedAmount: c })
   );
+
+  // Payment methods helpers
+  function togglePaymentMethod(method: LeasePaymentMethod) {
+    const current = financial.paymentMethods ?? [];
+    const updated = current.includes(method)
+      ? current.filter((m) => m !== method)
+      : [...current, method];
+    updateFinancial({ paymentMethods: updated.length > 0 ? updated : undefined });
+  }
+
+  function updateConvenienceFee(method: LeasePaymentMethod, updates: Partial<CommercialConvenienceFee> | null) {
+    const current = financial.convenienceFees ?? [];
+    if (updates === null) {
+      const filtered = current.filter((f) => f.method !== method);
+      updateFinancial({ convenienceFees: filtered.length > 0 ? filtered : undefined });
+      return;
+    }
+    const existing = current.find((f) => f.method === method);
+    if (existing) {
+      updateFinancial({ convenienceFees: current.map((f) => f.method === method ? { ...f, ...updates } : f) });
+    } else {
+      updateFinancial({ convenienceFees: [...current, { method, feeType: 'flat', ...updates }] });
+    }
+  }
 
   // Step schedule management
   function addStep() {
@@ -317,10 +355,93 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
         )}
       </div>
 
+      {/* Free Rent Period */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-medium">Free Rent / Rent Concession</h2>
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Free Rent Period (months)
+          </label>
+          <input
+            type="number"
+            value={financial.freeRentMonths ?? ''}
+            onChange={(e) =>
+              updateFinancial({
+                freeRentMonths: e.target.value
+                  ? Math.max(0, Math.min(24, parseInt(e.target.value, 10)))
+                  : undefined,
+              })
+            }
+            placeholder="0"
+            min={0}
+            max={24}
+            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Number of months at the start of the lease with no base rent obligation (0–24). Leave blank or 0 for none.
+          </p>
+        </div>
+      </div>
+
       {/* Late Fee & Default Interest */}
       <div className="space-y-4">
         <h2 className="text-lg font-medium">Late Fee & Default Interest</h2>
         <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Late Fee</label>
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => updateFinancial({ lateFeeType: 'flat' })}
+                className={`flex-1 px-3 py-1.5 text-sm border rounded-md transition-colors ${
+                  (financial.lateFeeType ?? 'flat') === 'flat'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-input hover:bg-secondary'
+                }`}
+              >
+                Flat ($)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateFinancial({ lateFeeType: 'percentage', lateFeePercentage: financial.lateFeePercentage ?? 5 })}
+                className={`flex-1 px-3 py-1.5 text-sm border rounded-md transition-colors ${
+                  financial.lateFeeType === 'percentage'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-input hover:bg-secondary'
+                }`}
+              >
+                Percentage (%)
+              </button>
+            </div>
+            {(financial.lateFeeType ?? 'flat') === 'flat' ? (
+              <input
+                type="text"
+                value={lateFee.value}
+                onChange={(e) => lateFee.handleChange(e.target.value)}
+                onBlur={lateFee.handleBlur}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            ) : (
+              <div className="relative">
+                <input
+                  type="number"
+                  value={financial.lateFeePercentage || ''}
+                  onChange={(e) =>
+                    updateFinancial({
+                      lateFeePercentage: e.target.value ? parseFloat(e.target.value) : undefined,
+                    })
+                  }
+                  placeholder="e.g. 5"
+                  step="0.1"
+                  min={0}
+                  max={100}
+                  className="w-full px-3 py-2 pr-8 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+              </div>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-medium mb-2">
               Grace Period (days)
@@ -338,19 +459,6 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
               placeholder="e.g. 5"
               min={0}
               max={30}
-              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Late Fee Amount ($)
-            </label>
-            <input
-              type="text"
-              value={lateFee.value}
-              onChange={(e) => lateFee.handleChange(e.target.value)}
-              onBlur={lateFee.handleBlur}
-              placeholder="0.00"
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -374,6 +482,106 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Payment Terms */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-medium">Payment Terms</h2>
+
+        {/* Accepted payment methods */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Accepted Payment Methods</label>
+          <p className="text-xs text-muted-foreground">Leave blank to use default language (check, ACH, wire transfer).</p>
+          <div className="grid grid-cols-2 gap-2">
+            {PAYMENT_METHODS.map((m) => (
+              <label key={m.value} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={(financial.paymentMethods ?? []).includes(m.value)}
+                  onChange={() => togglePaymentMethod(m.value)}
+                  className="w-4 h-4 rounded border-input"
+                />
+                <span className="text-sm">{m.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Returned payment fee */}
+        <div>
+          <label className="block text-sm font-medium mb-2">Returned Payment Fee ($)</label>
+          <input
+            type="text"
+            value={returnedPaymentFeeInput.value}
+            onChange={(e) => returnedPaymentFeeInput.handleChange(e.target.value)}
+            onBlur={returnedPaymentFeeInput.handleBlur}
+            placeholder="0.00"
+            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        {/* Convenience fees — shown only when methods are selected */}
+        {(financial.paymentMethods?.length ?? 0) > 0 && (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">Convenience Fees (optional)</label>
+            <p className="text-xs text-muted-foreground">Set a fee per payment method. Methods with no fee will not appear in the lease.</p>
+            {(financial.paymentMethods ?? []).map((method) => {
+              const fee = (financial.convenienceFees ?? []).find((f) => f.method === method);
+              const methodLabel = PAYMENT_METHODS.find((m) => m.value === method)?.label ?? method;
+              return (
+                <div key={method} className="flex items-center gap-3 p-3 border border-input rounded-md">
+                  <span className="text-sm w-32 shrink-0">{methodLabel}</span>
+                  <div className="flex gap-1">
+                    {(['none', 'flat', 'percentage'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          if (t === 'none') updateConvenienceFee(method, null);
+                          else updateConvenienceFee(method, { feeType: t });
+                        }}
+                        className={`px-2 py-1 text-xs border rounded transition-colors ${
+                          (fee?.feeType === t || (!fee && t === 'none'))
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-input hover:bg-secondary'
+                        }`}
+                      >
+                        {t === 'none' ? 'No fee' : t === 'flat' ? 'Flat $' : '%'}
+                      </button>
+                    ))}
+                  </div>
+                  {fee?.feeType === 'flat' && (
+                    <DollarInput
+                      cents={fee.flatAmount}
+                      onChange={(c) => updateConvenienceFee(method, { flatAmount: c })}
+                      placeholder="0.00"
+                      className="w-28 px-2 py-1 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  )}
+                  {fee?.feeType === 'percentage' && (
+                    <div className="relative w-28">
+                      <input
+                        type="number"
+                        value={fee.percentage || ''}
+                        onChange={(e) =>
+                          updateConvenienceFee(method, {
+                            percentage: e.target.value ? parseFloat(e.target.value) : undefined,
+                          })
+                        }
+                        placeholder="e.g. 3"
+                        step="0.1"
+                        min={0}
+                        max={100}
+                        className="w-full px-2 py-1 pr-6 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* CAM / Additional Rent */}

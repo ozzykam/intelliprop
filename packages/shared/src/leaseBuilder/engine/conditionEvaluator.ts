@@ -65,6 +65,13 @@ export function evaluateCondition(draft: LeaseBuilderDraft, condition: ClauseCon
     case 'truthy':
       return !!fieldValue;
 
+    case 'contains':
+      return Array.isArray(fieldValue) && (fieldValue as unknown[]).includes(condition.value);
+
+    case 'contains_any':
+      if (!Array.isArray(condition.value) || !Array.isArray(fieldValue)) return false;
+      return (condition.value as unknown[]).some((v) => (fieldValue as unknown[]).includes(v));
+
     default:
       return false;
   }

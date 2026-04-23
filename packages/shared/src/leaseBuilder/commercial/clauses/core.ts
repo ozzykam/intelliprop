@@ -129,6 +129,69 @@ export const commercialCoreClauses: ClauseDefinition[] = [
   },
 
   // ──────────────────────────────────────────────────────────────────────────
+  // QUIET ENJOYMENT
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-quiet-enjoyment',
+    leaseClass: 'commercial',
+    category: 'core',
+    title: 'Quiet Enjoyment',
+    description:
+      "Landlord's covenant that Tenant shall peaceably enjoy the Premises without interference, conditioned on Tenant's non-default.",
+    htmlContent: `<h3>Quiet Enjoyment</h3>
+<p>Landlord covenants and agrees that, so long as Tenant is not in default under the terms and conditions of this Lease beyond any applicable notice and cure period, Tenant shall peaceably and quietly have, hold, and enjoy the Premises for the Term of this Lease, free from interference, ejection, or disturbance by Landlord or any party claiming by, through, or under Landlord.</p>
+<p>This covenant of quiet enjoyment is conditioned upon Tenant&rsquo;s full and timely performance of all of Tenant&rsquo;s obligations under this Lease. Nothing in this Section shall limit or affect any rights or remedies of Landlord expressly set forth in this Lease, including without limitation Landlord&rsquo;s rights of entry as provided herein.</p>`,
+    isRequired: true,
+    placeholders: [],
+    sortOrder: 145,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // FAILURE TO GIVE POSSESSION
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-failure-to-give-possession',
+    leaseClass: 'commercial',
+    category: 'core',
+    title: 'Failure to Give Possession',
+    description:
+      "Tenant's sole remedy if Landlord cannot deliver possession on the Commencement Date is a delayed term commencement; no damages are available.",
+    htmlContent: `<h3>Failure to Give Possession</h3>
+<p>If Landlord is unable to deliver possession of the Premises to Tenant on the Commencement Date for any reason, including without limitation the failure of a prior tenant or occupant to vacate the Premises, any construction or renovation delays, or any force majeure event, Landlord shall not be liable to Tenant for any resulting damages, losses, or expenses of any nature, and this Lease shall not be void or voidable on account of such delay.</p>
+<p>In the event of such delay, the Commencement Date shall be postponed to the date on which Landlord actually delivers possession of the Premises to Tenant in the condition required by this Lease, and the Expiration Date shall be extended by the same number of days as such postponement, so that the full Term of this Lease is preserved. Rent shall not commence until Landlord delivers possession of the Premises to Tenant.</p>
+<p>Tenant waives any right to rescind this Lease or to claim damages against Landlord arising solely from Landlord&rsquo;s failure to deliver possession of the Premises on the originally stated Commencement Date, provided that Landlord acts in good faith and with reasonable diligence to deliver possession as promptly as practicable. If Landlord has not delivered possession of the Premises within one hundred twenty (120) days after the originally scheduled Commencement Date, Tenant shall have the right to terminate this Lease upon written notice to Landlord, and neither Party shall have any further obligations hereunder except those that expressly survive termination.</p>`,
+    isRequired: true,
+    placeholders: [],
+    sortOrder: 148,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // FORCE MAJEURE
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-force-majeure',
+    leaseClass: 'commercial',
+    category: 'core',
+    title: 'Force Majeure',
+    description:
+      'Excuses non-monetary obligations of either party delayed by events beyond their control; explicitly carves out Tenant\'s rent obligations from force majeure relief.',
+    htmlContent: `<h3>Force Majeure</h3>
+<p>Except as expressly provided below, if either Party is delayed, interrupted, or prevented from performing any obligation under this Lease (other than the payment of Rent or any monetary obligation) due to causes beyond such Party&rsquo;s reasonable control, including without limitation: acts of God; fire, flood, earthquake, tornado, or other natural disaster; war, terrorism, invasion, civil disturbance, or riot; strikes, lockouts, or other labor disputes; governmental action, regulation, restriction, or order; pandemic, epidemic, or public health emergency declared by any governmental authority; shortages of materials, labor, or energy; utility failures or interruptions; or any other cause beyond the reasonable control of the affected Party (collectively, &ldquo;Force Majeure Events&rdquo;), then such obligation shall be suspended for the duration of such delay or prevention, and the time for performance shall be extended accordingly.</p>
+<p>The Party invoking this Section shall provide written notice to the other Party as soon as reasonably practicable after the occurrence of a Force Majeure Event, specifying the nature, expected duration, and effect of such event. The affected Party shall use commercially reasonable efforts to resume performance as soon as practicable after the cessation or mitigation of the Force Majeure Event.</p>
+<p><strong>Exclusion of Rent Obligations.</strong> Notwithstanding anything in this Section to the contrary, Force Majeure Events shall not excuse, defer, or reduce Tenant&rsquo;s obligation to pay Base Rent, additional rent, or any other monetary obligation due under this Lease. Tenant&rsquo;s obligation to pay Rent is an absolute, independent covenant that is not subject to offset, abatement, or suspension on account of any Force Majeure Event.</p>
+<p><strong>Landlord&rsquo;s Obligations.</strong> Landlord shall also be entitled to the benefit of the Force Majeure provisions of this Section with respect to Landlord&rsquo;s non-monetary obligations under this Lease, including without limitation obligations to complete construction, make repairs, or provide services, subject to Landlord&rsquo;s obligation to act with commercially reasonable diligence.</p>`,
+    isRequired: true,
+    placeholders: [],
+    sortOrder: 170,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-21',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
   // GOVERNING LAW / ENTIRE AGREEMENT / SEVERABILITY
   // ──────────────────────────────────────────────────────────────────────────
   {
@@ -148,79 +211,7 @@ export const commercialCoreClauses: ClauseDefinition[] = [
 <p><strong>Counterparts.</strong> This Lease may be executed in one or more counterparts, each of which shall be deemed an original and all of which together shall constitute one and the same instrument. Electronic signatures shall be deemed original signatures for all purposes.</p>`,
     isRequired: true,
     placeholders: [],
-    sortOrder: 190,
-    version: '1.0.0',
-    lastReviewedDate: '2026-02-11',
-  },
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // SIGNATURE BLOCK
-  // ──────────────────────────────────────────────────────────────────────────
-  {
-    id: 'comm-core-signatures',
-    leaseClass: 'commercial',
-    category: 'core',
-    title: 'Signature Block',
-    description:
-      'The signature block where authorized representatives of both landlord and tenant entities sign and date the lease, with printed names and titles.',
-    htmlContent: `<h3>Signatures</h3>
-<p>IN WITNESS WHEREOF, the Parties have executed this Lease as of the date last written below, each by a duly authorized representative.</p>
-<br/>
-<p style="text-align: left; margin-bottom: 0; margin-top: 15;"><strong>LANDLORD</strong></p>
-<p style="text-align: left; margin-top: 0; text-transform: uppercase;">{{landlord.name}}</p>
-<table style="margin-top: 0; margin-bottom: 0; width: 60%">
-  <tr>
-    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">By:</td>
-    <td style="vertical-align: top; padding: 0; width: 15%;">
-      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt;">&nbsp;</div>
-      <div>{{landlord.signerName}}</div>
-      <div>{{landlord.signerTitle}}</div>
-    </td>
-    <td style="width: 2%; padding: 0;"></td>
-    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">Date:</td>
-    <td style="vertical-align: top; padding: 0; width: 10%;">
-      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt; width: 100%;">&nbsp;</div>
-      <div>&nbsp;</div>
-      <div>&nbsp;</div>
-    </td>
-  </tr>
-</table>
-
-<br/>
-
-<p style="text-align: left; margin-bottom: 0; margin-top: 15;"><strong>TENANT</strong></p>
-<p style="text-align: left; margin-top: 0; text-transform: uppercase;">{{tenant.name}}</p>
-<table style="margin-top: 0; margin-bottom: 0; width: 60%">
-  <tr>
-    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">By:</td>
-    <td style="vertical-align: top; padding: 0; width: 15%;">
-      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt;">&nbsp;</div>
-      <div>{{tenant.signerName}}</div>
-      <div>{{tenant.signerTitle}}</div>
-    </td>
-    <td style="width: 2%; padding: 0;"></td>
-    <td style="white-space: nowrap; vertical-align: top; padding: 0 4pt 0 0; width: 1%;">Date:</td>
-    <td style="vertical-align: top; padding: 0; width: 10%;">
-      <div style="border-bottom: 1px solid #000; min-height: 16pt; margin-bottom: 3pt; width: 100%;">&nbsp;</div>
-      <div>&nbsp;</div>
-      <div>&nbsp;</div>
-    </td>
-  </tr>
-</table>`,
-    isRequired: true,
-    placeholders: [
-      'landlord.name',
-      'landlord.stateOfFormation',
-      'landlord.entityType',
-      'landlord.signerName',
-      'landlord.signerTitle',
-      'tenant.name',
-      'tenant.stateOfFormation',
-      'tenant.entityType',
-      'tenant.signerName',
-      'tenant.signerTitle',
-    ],
-    sortOrder: 195,
+    sortOrder: 1900,
     version: '1.0.0',
     lastReviewedDate: '2026-02-11',
   },

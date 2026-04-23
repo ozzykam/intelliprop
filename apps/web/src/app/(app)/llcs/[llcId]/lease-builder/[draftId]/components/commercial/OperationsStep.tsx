@@ -1,6 +1,54 @@
 'use client';
 
+import { useState } from 'react';
 import type { LeaseBuilderDraft, CommercialMaintenanceItem, CommercialOperationsTerms } from '@shared/types/leaseBuilder';
+
+/** Formatted integer input — no leading zeros, comma-separated on blur */
+function useIntegerInput(
+  value: number | undefined,
+  onChange: (n: number) => void
+) {
+  const [raw, setRaw] = useState<string>(() =>
+    value ? value.toLocaleString('en-US') : ''
+  );
+
+  function handleChange(str: string) {
+    const digits = str.replace(/[^0-9]/g, '');
+    setRaw(digits);
+    onChange(digits ? parseInt(digits, 10) : 0);
+  }
+
+  function handleBlur() {
+    const n = parseInt(raw.replace(/,/g, ''), 10);
+    setRaw(isNaN(n) || n === 0 ? '' : n.toLocaleString('en-US'));
+  }
+
+  return { value: raw, handleChange, handleBlur };
+}
+
+type UtilityAbatementScope = NonNullable<CommercialOperationsTerms['utilityAbatementScope']>;
+
+const ABATEMENT_SCOPES: {
+  value: UtilityAbatementScope;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: 'narrow',
+    label: 'Narrow — Landlord fault only',
+    description: "Abatement only when the interruption was directly caused by Landlord's gross negligence or willful misconduct. Acts of God, utility provider outages, and all force majeure events are excluded.",
+  },
+  {
+    value: 'moderate',
+    label: 'Moderate — Landlord control (recommended)',
+    description: "Abatement when the interruption was within Landlord's reasonable control to prevent or cure (e.g., maintenance failure, contractor damage). Explicitly excludes acts of God, utility provider outages, government action, and other force majeure events.",
+  },
+  {
+    value: 'broad',
+    label: 'Broad — Any cause except Tenant',
+    description: "Abatement for any qualifying interruption not caused by Tenant, regardless of whether the cause (act of God, utility outage, etc.) was within Landlord's control.",
+  },
+];
 
 interface StepProps {
   draft: LeaseBuilderDraft & { id: string };
@@ -46,6 +94,8 @@ export default function OperationsStep({ draft, updateDraft }: StepProps) {
       },
     } as Partial<LeaseBuilderDraft>);
   }
+
+  const glInput = useIntegerInput(ops.insuranceGLAmount, (n) => update('insuranceGLAmount', n));
 
   function toggleMaintenance(who: 'landlordMaintains' | 'tenantMaintains', item: CommercialMaintenanceItem) {
     const current = (ops[who] ?? []) as CommercialMaintenanceItem[];
@@ -138,11 +188,12 @@ export default function OperationsStep({ draft, updateDraft }: StepProps) {
           <div className="flex items-center gap-2">
             <span className="text-sm">$</span>
             <input
-              type="number"
-              value={ops.insuranceGLAmount ?? ''}
-              onChange={(e) => update('insuranceGLAmount', Number(e.target.value))}
+              type="text"
+              value={glInput.value}
+              onChange={(e) => glInput.handleChange(e.target.value)}
+              onBlur={glInput.handleBlur}
               className={inputClass}
-              placeholder="1000000"
+              placeholder="1,000,000"
             />
           </div>
           {(ops.insuranceGLAmount ?? 0) < 1000000 && (ops.insuranceGLAmount ?? 0) > 0 && (
@@ -167,6 +218,78 @@ export default function OperationsStep({ draft, updateDraft }: StepProps) {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* Utility Interruption Abatement */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium">Utility Interruption Abatement</h3>
+        <p className="text-xs text-muted-foreground">
+          Optional clause that abates rent when a utility service fails for too long. Leave the threshold blank to omit this clause entirely.
+        </p>
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Abatement Threshold (consecutive calendar days)
+          </label>
+          <input
+            type="number"
+            value={ops.utilityInterruptionAbatementDays ?? ''}
+            onChange={(e) => {
+              const days = e.target.value
+                ? Math.max(1, Math.min(14, parseInt(e.target.value, 10)))
+                : undefined;
+              updateDraft({
+                commercial: {
+                  ...draft.commercial!,
+                  operations: {
+                    ...ops,
+                    utilityInterruptionAbatementDays: days as number | undefined,
+                    // Default scope to moderate when enabling for the first time
+                    utilityAbatementScope: days
+                      ? (ops.utilityAbatementScope ?? 'moderate')
+                      : undefined,
+                  },
+                },
+              } as Partial<LeaseBuilderDraft>);
+            }}
+            placeholder="e.g. 3"
+            min={1}
+            max={14}
+            className={inputClass}
+          />
+        </div>
+
+        {ops.utilityInterruptionAbatementDays != null && ops.utilityInterruptionAbatementDays > 0 && (
+          <div className="space-y-3 pl-1">
+            <label className="block text-sm font-medium">
+              Qualifying causes for abatement
+            </label>
+            <div className="space-y-3">
+              {ABATEMENT_SCOPES.map((scope) => (
+                <label
+                  key={scope.value}
+                  className={`flex gap-3 p-3 border rounded-md cursor-pointer transition-colors ${
+                    (ops.utilityAbatementScope ?? 'moderate') === scope.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-input hover:bg-secondary/30'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="utilityAbatementScope"
+                    value={scope.value}
+                    checked={(ops.utilityAbatementScope ?? 'moderate') === scope.value}
+                    onChange={() => update('utilityAbatementScope', scope.value)}
+                    className="mt-0.5 accent-primary shrink-0"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">{scope.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{scope.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Environmental */}

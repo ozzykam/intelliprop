@@ -67,12 +67,17 @@ export type Tenant = IndividualTenant | BusinessTenant;
 
 export type { EmergencyContact };
 
+export type GovernmentIdType = 'passport' | 'drivers_license' | 'state_id' | 'other';
+
 export interface PrimaryContact {
   name: string;
   title?: string;
   email?: string;
   phone?: string;
   address?: Address;
+  dateOfBirth?: string; // ISO date string YYYY-MM-DD
+  idType?: GovernmentIdType;
+  idNumber?: string;
 }
 
 /**

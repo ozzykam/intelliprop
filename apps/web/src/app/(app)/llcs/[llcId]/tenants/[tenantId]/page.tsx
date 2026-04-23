@@ -66,6 +66,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [pcCity, setPcCity] = useState('');
   const [pcState, setPcState] = useState('');
   const [pcZip, setPcZip] = useState('');
+  const [pcDateOfBirth, setPcDateOfBirth] = useState('');
+  const [pcIdType, setPcIdType] = useState('');
+  const [pcIdNumber, setPcIdNumber] = useState('');
   // Registration address
   const [regStreet, setRegStreet] = useState('');
   const [regCity, setRegCity] = useState('');
@@ -119,6 +122,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
             setPcCity(t.primaryContact?.address?.city || '');
             setPcState(t.primaryContact?.address?.state || '');
             setPcZip(t.primaryContact?.address?.zipCode || '');
+            setPcDateOfBirth(t.primaryContact?.dateOfBirth || '');
+            setPcIdType(t.primaryContact?.idType || '');
+            setPcIdNumber(t.primaryContact?.idNumber || '');
             setRegStreet(t.registrationAddress?.street1 || '');
             setRegCity(t.registrationAddress?.city || '');
             setRegState(t.registrationAddress?.state || '');
@@ -176,6 +182,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
             email: pcEmail || undefined,
             phone: pcPhone || undefined,
             address: pcStreet ? { street1: pcStreet, city: pcCity, state: pcState.toUpperCase(), zipCode: pcZip } : undefined,
+            dateOfBirth: pcDateOfBirth || undefined,
+            idType: pcIdType || undefined,
+            idNumber: pcIdNumber || undefined,
           },
           registrationAddress: regStreet ? { street1: regStreet, city: regCity, state: regState.toUpperCase(), zipCode: regZip } : undefined,
           email,
@@ -488,6 +497,45 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
                     value={pcPhone}
                     onChange={(e) => setPcPhone(e.target.value)}
                     className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="pcDateOfBirth" className="block text-sm font-medium mb-2">Date of Birth</label>
+                  <input
+                    id="pcDateOfBirth"
+                    type="date"
+                    value={pcDateOfBirth}
+                    onChange={(e) => setPcDateOfBirth(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pcIdType" className="block text-sm font-medium mb-2">ID Type</label>
+                  <select
+                    id="pcIdType"
+                    value={pcIdType}
+                    onChange={(e) => setPcIdType(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Select...</option>
+                    <option value="passport">Passport</option>
+                    <option value="drivers_license">Driver&apos;s License</option>
+                    <option value="state_id">State ID</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="pcIdNumber" className="block text-sm font-medium mb-2">ID Number</label>
+                  <input
+                    id="pcIdNumber"
+                    type="text"
+                    value={pcIdNumber}
+                    onChange={(e) => setPcIdNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="ID number"
                   />
                 </div>
               </div>

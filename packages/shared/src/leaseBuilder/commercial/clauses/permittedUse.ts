@@ -42,6 +42,27 @@ export const commercialPermittedUseClauses: ClauseDefinition[] = [
   },
 
   // ──────────────────────────────────────────────────────────────────────────
+  // OPERATIONAL USE OBLIGATIONS
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'comm-operational-use-obligations',
+    leaseClass: 'commercial',
+    category: 'use_and_exclusivity',
+    title: 'Operational Use Obligations',
+    description:
+      'Requires Tenant to obtain and maintain all necessary permits and licenses, maintain fire suppression systems, and keep the Premises free from pests and vermin.',
+    htmlContent: `<h3>Operational Use Obligations</h3>
+<p><strong>Permits and Licenses.</strong> Tenant shall, at Tenant&rsquo;s sole cost and expense, obtain, maintain, and keep current all federal, state, and local permits, licenses, certificates, and governmental approvals required for Tenant&rsquo;s Permitted Use and the conduct of Tenant&rsquo;s business at the Premises, including without limitation business licenses, health permits, liquor licenses, fire inspection certificates, and any other approvals required by applicable law or regulation. Tenant shall promptly provide Landlord with copies of all such permits and licenses upon request, and shall immediately notify Landlord if any required permit or license is revoked, suspended, or not renewed. Failure to maintain any required permit or license shall constitute a material default under this Lease.</p>
+<p><strong>Fire Safety.</strong> Tenant shall, at Tenant&rsquo;s sole cost and expense, maintain all fire suppression systems, fire extinguishers, fire alarms, emergency lighting, and other fire safety equipment serving or located within the Premises in proper working order and in compliance with all applicable fire codes, building codes, and the requirements of Landlord&rsquo;s insurance carriers. Tenant shall not block, obstruct, tamper with, or disable any such fire safety equipment. Tenant shall conduct all required fire safety inspections and drills and shall cooperate fully with any fire safety inspection conducted by any governmental authority or Landlord. Tenant shall promptly notify Landlord of any malfunction or deficiency in any fire safety system or equipment.</p>
+<p><strong>Pest Control.</strong> Tenant shall, at Tenant&rsquo;s sole cost and expense, keep the Premises free from insects, rodents, vermin, and other pests. If an infestation of pests or vermin occurs within the Premises, Tenant shall promptly contract with a licensed pest control company to exterminate such pests and shall complete all extermination treatments as recommended by such company. If Tenant suspects or discovers an infestation that may originate in or affect the Building&rsquo;s common areas or other tenant spaces, Tenant shall promptly notify Landlord in writing. Tenant shall not permit conditions within the Premises that attract or harbor pests, including without limitation the improper storage of food, refuse, or organic waste materials.</p>`,
+    isRequired: true,
+    placeholders: [],
+    sortOrder: 356,
+    version: '1.0.0',
+    lastReviewedDate: '2026-04-22',
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
   // EXCLUSIVE USE RIGHTS
   // ──────────────────────────────────────────────────────────────────────────
   {
