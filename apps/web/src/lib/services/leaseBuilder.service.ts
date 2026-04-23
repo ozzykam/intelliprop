@@ -1190,38 +1190,56 @@ function buildKeyTermsSummary(context: Record<string, string>): string {
 </table>`;
 }
 
+
 function buildTableOfContents(clausesIncluded: string[]): string {
   const includedSet = new Set(clausesIncluded);
   const registryFiltered = commercialClauseRegistry
     .filter((c) => includedSet.has(c.id))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const items: string[] = ['PARTIES', 'PREMISES'];
+  // Template hardcodes PARTIES and PREMISES above the clause block;
+  // skip any registry entries with those titles to prevent duplicate rows.
+  const skipTitles = new Set(['parties', 'premises']);
+  const registryIds = new Set(commercialClauseRegistry.map((c) => c.id));
+
+  // Each entry carries a visible label and the element id used for lookup.
+  // Hardcoded template h3s use fixed ids; clause h3s use "toc-{clauseId}"
+  // (injected by the assembler so the client can use getElementById, which
+  // is immune to any text-normalisation edge cases).
+  const entries: Array<{ label: string; id: string }> = [
+    { label: 'PARTIES',  id: 'toc-parties'  },
+    { label: 'PREMISES', id: 'toc-premises' },
+  ];
+
   for (const clause of registryFiltered) {
-    items.push(clause.title);
+    if (skipTitles.has(clause.title.toLowerCase())) continue;
+    entries.push({ label: clause.title.toUpperCase(), id: `toc-${clause.id}` });
   }
 
-  // Handle clause IDs in clausesIncluded that have no registry entry (custom/overlay clauses)
-  const registryIds = new Set(commercialClauseRegistry.map((c) => c.id));
+  // Overlay/custom clauses not in the registry
   for (const id of clausesIncluded) {
     if (!registryIds.has(id)) {
-      items.push('[Custom Provision]');
+      entries.push({ label: 'CUSTOM PROVISION', id: `toc-${id}` });
     }
   }
 
-  const numberedItems = items
-    .map((title, i) => `<li>${i + 1}. ${title}</li>`)
-    .join('\n    ');
+  entries.push({ label: 'NOTICES',   id: 'toc-notices'   });
+  entries.push({ label: 'EXECUTION', id: 'toc-execution' });
 
-  return `<div class="toc-section">
+  const tdStyle = 'padding:6pt 0 0;border-bottom:0.75pt dashed #aaa;';
+  const rows = entries.map((e, i) =>
+    `\n      <tr>` +
+    `\n        <td style="${tdStyle}">${i + 1}. ${e.label}</td>` +
+    `\n        <td class="toc-pg" data-section-id="${e.id}" style="${tdStyle}text-align:right;width:2.5em;padding-left:4pt;white-space:nowrap;">—</td>` +
+    `\n      </tr>`
+  ).join('');
+
+  return `<div class="toc-section" id="lease-toc">
   <h3>TABLE OF CONTENTS</h3>
-  <ol class="toc-list" style="list-style:none; padding:0;">
-    ${numberedItems}
-  </ol>
-  <ul class="toc-list" style="list-style:none; padding-left:2em; margin-top:2pt;">
-    <li>NOTICES</li>
-    <li>EXECUTION</li>
-  </ul>
+  <table style="width:100%;border-collapse:collapse;font-size:10pt;">
+    <tbody>${rows}
+    </tbody>
+  </table>
 </div>`;
 }
 

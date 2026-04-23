@@ -316,7 +316,12 @@ export function assembleLease(draft: LeaseBuilderDraft, context: Record<string, 
   const clauseIds = renderedClauses.map((c) => c.id);
 
   // Core lease document
-  const coreClauseHtml = renderedClauses.map((c) => c.htmlContent).join('\n\n');
+  // Inject id="toc-{clauseId}" on the first <h3> of each clause so the
+  // client-side ToC script can locate headings via getElementById instead of
+  // fragile text normalisation.
+  const coreClauseHtml = renderedClauses
+    .map((c) => c.htmlContent.replace(/<h3([ \t>])/, `<h3 id="toc-${c.id}"$1`))
+    .join('\n\n');
   documents.push({
     type: 'core_lease',
     title: draft.leaseClass === 'residential'

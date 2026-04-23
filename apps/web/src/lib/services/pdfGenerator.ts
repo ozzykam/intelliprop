@@ -21,7 +21,7 @@ export function buildPrintableHtml(documents: LeasePackageDocument[]): string {
   <style>
     @page {
       size: letter;
-      margin: 1in;
+      margin: 0.75in;
       /* Suppress browser-generated headers and footers (URL, date, title) */
       @top-left { content: none; }
       @top-center { content: none; }
@@ -29,6 +29,9 @@ export function buildPrintableHtml(documents: LeasePackageDocument[]): string {
       @bottom-left { content: none; }
       @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; font-family: 'Times New Roman', Times, serif; color: #666; }
       @bottom-right { content: none; }
+    }
+    @media screen {
+      body { max-width: 672px; }
     }
     body {
       font-family: 'Times New Roman', Times, serif;
@@ -94,6 +97,44 @@ export function buildPrintableHtml(documents: LeasePackageDocument[]): string {
       ${doc.htmlContent}
     </div>
   `).join('\n')}
+
+<script>
+(function () {
+  // Chrome + letter + 0.75-inch margins
+  // Usable height = (11 - 2 × 0.75) × 96 = 912 CSS px per page
+  // Usable width  = (8.5 - 2 × 0.75) × 96 = 672 CSS px
+  var PAGE_H = 912;
+  var BODY_W = 672;
+
+  window.addEventListener('load', function () {
+    // Pin body to exact print width — forces layout reflow so text wraps
+    // at the same column breaks as the physical printed page.
+    document.body.style.width = BODY_W + 'px';
+    document.body.style.margin = '0 auto';
+    document.body.style.boxSizing = 'border-box';
+
+    var toc = document.getElementById('lease-toc');
+    if (!toc) return;
+
+    // Anchor measurements to the first .document-section (the core lease).
+    var section = document.querySelector('.document-section') || document.body;
+    var sectionTop = section.getBoundingClientRect().top + window.scrollY;
+
+    // Each ToC cell carries data-section-id matching the id injected on the
+    // corresponding <h3> by the assembler (e.g. "toc-comm-core-term").
+    // getElementById is immune to all text-normalisation edge cases.
+    var cells = toc.querySelectorAll('[data-section-id]');
+    for (var j = 0; j < cells.length; j++) {
+      var cell = cells[j];
+      var id = cell.getAttribute('data-section-id');
+      var heading = id ? document.getElementById(id) : null;
+      if (!heading) continue;
+      var relTop = heading.getBoundingClientRect().top + window.scrollY - sectionTop;
+      cell.textContent = String(Math.floor(relTop / PAGE_H) + 1);
+    }
+  });
+}());
+</script>
 </body>
 </html>`;
 }

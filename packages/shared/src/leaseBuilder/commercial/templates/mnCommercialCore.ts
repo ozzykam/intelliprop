@@ -240,11 +240,11 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 
 {{keyTermsSummary}}
 
-<h3>PARTIES</h3>
+<h3 id="toc-parties">PARTIES</h3>
 
 {{partiesBlock}}
 
-<h3>PREMISES</h3>
+<h3 id="toc-premises">PREMISES</h3>
 
 <p>Landlord hereby leases to Tenant, and Tenant hereby leases from Landlord, approximately {{premises.sqft}} sq.&nbsp;ft. of {{propertyProfile.commercialSpaceTypes}} space located at {{property.address}}, Suite {{unit.number}} (the &ldquo;Premises&rdquo;), together with the right to use, in common with other tenants and their invitees, the common areas of the building including lobbies, corridors, restrooms, elevators, stairways, and parking areas, subject to the rules and regulations established by Landlord from time to time.</p>
 
@@ -254,13 +254,12 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
 {{clauseContent}}
 <!-- END CLAUSE CONTENT -->
 
-<h3>NOTICES</h3>
+<h3 id="toc-notices">NOTICES</h3>
 
 <p>All notices required or permitted under this Lease shall be in writing and shall be deemed delivered when: (a) personally delivered; (b) sent by certified mail, return receipt requested, to the address of the respective party set forth above or such other address as may be designated in writing; or (c) sent by nationally recognized overnight courier to such address. Notice shall be deemed received on the date of personal delivery, three (3) business days after mailing, or one (1) business day after deposit with an overnight courier.</p>
 
-<!-- Force execution block to its own page -->
-<div class="page-break no-break">
-  <h3>EXECUTION</h3>
+<div class="no-break">
+  <h3 id="toc-execution">EXECUTION</h3>
 
   <p style="text-align: left;">IN WITNESS WHEREOF, the parties have executed this Commercial Lease Agreement as of the date first written above.</p>
 
