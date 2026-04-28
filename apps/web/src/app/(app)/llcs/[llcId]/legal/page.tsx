@@ -64,12 +64,13 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const CASE_TYPE_LABELS: Record<string, string> = {
-  eviction: 'Eviction',
-  collections: 'Collections',
-  property_damage: 'Property Damage',
-  contract_dispute: 'Contract Dispute',
-  personal_injury: 'Personal Injury',
   code_violation: 'Code Violation',
+  collections: 'Collections',
+  contract_dispute: 'Contract Dispute',
+  conciliation: 'Conciliation',
+  eviction: 'Eviction',
+  personal_injury: 'Personal Injury',
+  property_damage: 'Property Damage',
   other: 'Other',
 };
 

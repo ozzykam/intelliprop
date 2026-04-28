@@ -109,12 +109,13 @@ export interface Case {
 }
 
 export type CaseType =
-  | 'eviction'
-  | 'collections'
-  | 'property_damage'
-  | 'contract_dispute'
-  | 'personal_injury'
   | 'code_violation'
+  | 'collections'
+  | 'conciliation'
+  | 'contract_dispute'
+  | 'eviction'
+  | 'personal_injury'
+  | 'property_damage'
   | 'other';
 
 /**

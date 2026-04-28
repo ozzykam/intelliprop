@@ -62,12 +62,13 @@ const PRIORITY_STYLES: Record<string, string> = {
 };
 
 const CASE_TYPE_LABELS: Record<string, string> = {
-  eviction: 'Eviction',
-  collections: 'Collections',
-  property_damage: 'Property Damage',
-  contract_dispute: 'Contract Dispute',
-  personal_injury: 'Personal Injury',
   code_violation: 'Code Violation',
+  collections: 'Collections',
+  contract_dispute: 'Contract Dispute',
+  conciliation: 'Conciliation',
+  eviction: 'Eviction',
+  personal_injury: 'Personal Injury',
+  property_damage: 'Property Damage',
   other: 'Other',
 };
 
@@ -95,12 +96,13 @@ const CASE_STATUSES = [
 
 const CASE_TYPES = [
   { value: '', label: 'All Types' },
-  { value: 'eviction', label: 'Eviction' },
-  { value: 'collections', label: 'Collections' },
-  { value: 'property_damage', label: 'Property Damage' },
-  { value: 'contract_dispute', label: 'Contract Dispute' },
-  { value: 'personal_injury', label: 'Personal Injury' },
   { value: 'code_violation', label: 'Code Violation' },
+  { value: 'collections', label: 'Collections' },
+  { value: 'conciliation', label: 'Conciliation' },
+  { value: 'contract_dispute', label: 'Contract Dispute' },
+  { value: 'eviction', label: 'Eviction' },
+  { value: 'personal_injury', label: 'Personal Injury' },
+  { value: 'property_damage', label: 'Property Damage' },
   { value: 'other', label: 'Other' },
 ];
 
