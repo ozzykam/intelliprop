@@ -60,12 +60,13 @@ interface OpposingPartyEntry {
 }
 
 const CASE_TYPES = [
-  { value: 'eviction', label: 'Eviction' },
-  { value: 'collections', label: 'Collections' },
-  { value: 'property_damage', label: 'Property Damage' },
-  { value: 'contract_dispute', label: 'Contract Dispute' },
-  { value: 'personal_injury', label: 'Personal Injury' },
   { value: 'code_violation', label: 'Code Violation' },
+  { value: 'collections', label: 'Collections' },
+  { value: 'conciliation', label: 'Conciliation' },
+  { value: 'contract_dispute', label: 'Contract Dispute' },
+  { value: 'eviction', label: 'Eviction' },
+  { value: 'personal_injury', label: 'Personal Injury' },
+  { value: 'property_damage', label: 'Property Damage' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -100,7 +101,7 @@ export default function NewCasePage({ params }: NewCasePageProps) {
   const [court, setCourt] = useState('');
   const [jurisdiction, setJurisdiction] = useState('');
   const [docketNumber, setDocketNumber] = useState('');
-  const [caseType, setCaseType] = useState('eviction');
+  const [caseType, setCaseType] = useState('other');
 
   // Plaintiff
   const [plaintiffType, setPlaintiffType] = useState<'individual' | 'llc'>('individual');
