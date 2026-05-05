@@ -41,7 +41,9 @@ export default function NewUserPage() {
   const [businessType, setBusinessType] = useState('llc');
   const [einLast4, setEinLast4] = useState('');
   const [stateOfIncorporation, setStateOfIncorporation] = useState('');
-  const [contactName, setContactName] = useState('');
+  const [contactFirstName, setContactFirstName] = useState('');
+  const [contactMiddleName, setContactMiddleName] = useState('');
+  const [contactLastName, setContactLastName] = useState('');
   const [contactTitle, setContactTitle] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -215,7 +217,9 @@ export default function NewUserPage() {
             einLast4: einLast4 || undefined,
             stateOfIncorporation: stateOfIncorporation || undefined,
             primaryContact: {
-              name: contactName,
+              firstName: contactFirstName,
+              middleName: contactMiddleName || undefined,
+              lastName: contactLastName,
               title: contactTitle || undefined,
               email: contactEmail || undefined,
               phone: contactPhone || undefined,
@@ -248,9 +252,9 @@ export default function NewUserPage() {
       // Step 2: Create staff activation if checked
       if (isStaff) {
         // Use tenant name info if available, otherwise staff-specific fields
-        const fn = isTenant ? firstName || contactName.split(' ')[0] || '' : staffFirstName;
-        const mi = isTenant ? middleInitial : staffMiddleInitial;
-        const ln = isTenant ? lastName || contactName.split(' ').slice(1).join(' ') || '' : staffLastName;
+        const fn = isTenant ? firstName || contactFirstName || '' : staffFirstName;
+        const mi = isTenant ? middleInitial || contactMiddleName.slice(0, 1) : staffMiddleInitial;
+        const ln = isTenant ? lastName || contactLastName || '' : staffLastName;
         const dob = isTenant ? dateOfBirth : staffDateOfBirth;
         const s4 = isTenant ? ssn4 : staffSsn4;
 
@@ -470,11 +474,21 @@ export default function NewUserPage() {
                 </div>
 
                 <h3 className="font-medium pt-2">Primary Contact *</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="contactName" className="block text-sm font-medium mb-2">Name *</label>
-                    <input id="contactName" type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} required className={inputClass} />
+                <div className="grid grid-cols-6 gap-4">
+                  <div className="col-span-2">
+                    <label htmlFor="contactFirstName" className="block text-sm font-medium mb-2">First Name *</label>
+                    <input id="contactFirstName" type="text" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} required className={inputClass} />
                   </div>
+                  <div className="col-span-1">
+                    <label htmlFor="contactMiddleName" className="block text-sm font-medium mb-2">Middle</label>
+                    <input id="contactMiddleName" type="text" value={contactMiddleName} onChange={(e) => setContactMiddleName(e.target.value)} className={inputClass} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="contactLastName" className="block text-sm font-medium mb-2">Last Name *</label>
+                    <input id="contactLastName" type="text" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} required className={inputClass} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="contactTitle" className="block text-sm font-medium mb-2">Title</label>
                     <input id="contactTitle" type="text" value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} className={inputClass} />

@@ -30,7 +30,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
   const [businessType, setBusinessType] = useState('llc');
   const [einLast4, setEinLast4] = useState('');
   const [stateOfIncorporation, setStateOfIncorporation] = useState('');
-  const [contactName, setContactName] = useState('');
+  const [contactFirstName, setContactFirstName] = useState('');
+  const [contactMiddleName, setContactMiddleName] = useState('');
+  const [contactLastName, setContactLastName] = useState('');
   const [contactTitle, setContactTitle] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -87,7 +89,16 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
             setEinLast4(t.einLast4 || '');
             setStateOfIncorporation(t.stateOfIncorporation || '');
             if (t.primaryContact) {
-              setContactName(t.primaryContact.name || '');
+              if (t.primaryContact.firstName) {
+                setContactFirstName(t.primaryContact.firstName || '');
+                setContactMiddleName(t.primaryContact.middleName || '');
+                setContactLastName(t.primaryContact.lastName || '');
+              } else {
+                const parts = (t.primaryContact.name || '').trim().split(/\s+/);
+                setContactFirstName(parts[0] || '');
+                setContactLastName(parts.length > 1 ? parts[parts.length - 1] : '');
+                setContactMiddleName(parts.length > 2 ? parts.slice(1, -1).join(' ') : '');
+              }
               setContactTitle(t.primaryContact.title || '');
               setContactEmail(t.primaryContact.email || '');
               setContactPhone(t.primaryContact.phone || '');
@@ -148,7 +159,9 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
         einLast4: einLast4 || undefined,
         stateOfIncorporation: stateOfIncorporation || undefined,
         primaryContact: {
-          name: contactName,
+          firstName: contactFirstName,
+          middleName: contactMiddleName || undefined,
+          lastName: contactLastName,
           title: contactTitle || undefined,
           email: contactEmail || undefined,
           phone: contactPhone || undefined,
@@ -433,32 +446,57 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
             </div>
 
             <h3 className="font-medium pt-4">Primary Contact</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="contactName" className="block text-sm font-medium mb-2">
-                  Name *
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-2">
+                <label htmlFor="contactFirstName" className="block text-sm font-medium mb-2">
+                  First Name *
                 </label>
                 <input
-                  id="contactName"
+                  id="contactFirstName"
                   type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
+                  value={contactFirstName}
+                  onChange={(e) => setContactFirstName(e.target.value)}
                   required
                   className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <div>
-                <label htmlFor="contactTitle" className="block text-sm font-medium mb-2">
-                  Title
+              <div className="col-span-1">
+                <label htmlFor="contactMiddleName" className="block text-sm font-medium mb-2">
+                  Middle
                 </label>
                 <input
-                  id="contactTitle"
+                  id="contactMiddleName"
                   type="text"
-                  value={contactTitle}
-                  onChange={(e) => setContactTitle(e.target.value)}
+                  value={contactMiddleName}
+                  onChange={(e) => setContactMiddleName(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
+              <div className="col-span-3">
+                <label htmlFor="contactLastName" className="block text-sm font-medium mb-2">
+                  Last Name *
+                </label>
+                <input
+                  id="contactLastName"
+                  type="text"
+                  value={contactLastName}
+                  onChange={(e) => setContactLastName(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="contactTitle" className="block text-sm font-medium mb-2">
+                Title
+              </label>
+              <input
+                id="contactTitle"
+                type="text"
+                value={contactTitle}
+                onChange={(e) => setContactTitle(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

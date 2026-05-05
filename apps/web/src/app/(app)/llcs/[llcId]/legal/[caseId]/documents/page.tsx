@@ -75,11 +75,19 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
       if (caseData.ok) {
         const c = caseData.data;
-        const opposing = Array.isArray(c.opposingParty)
-          ? c.opposingParty[0]
-          : c.opposingParty;
-        const partyName = opposing?.tenantName || opposing?.name || 'Unknown';
-        setCaseName(c.docketNumber || partyName);
+        const plaintiffName = c.plaintiff?.type === 'llc' ? c.plaintiff.llcName : c.plaintiff?.name || '';
+        const opposingParts = Array.isArray(c.opposingParty)
+          ? c.opposingParty.map((op: { name?: string; tenantName?: string }) => op.name || op.tenantName).filter(Boolean)
+          : [c.opposingParty?.name || c.opposingParty?.tenantName].filter(Boolean);
+        const opposingNames = opposingParts.length === 0
+          ? 'Unknown Opposing Party'
+          : opposingParts.length === 1
+            ? opposingParts[0]
+            : opposingParts.length === 2
+              ? `${opposingParts[0]} & ${opposingParts[1]}`
+              : `${opposingParts.slice(0, -1).join(', ')}, & ${opposingParts[opposingParts.length - 1]}`;
+        const caseStyle = plaintiffName ? `${plaintiffName} v. ${opposingNames}` : opposingNames;
+        setCaseName(c.docketNumber ? `${c.docketNumber} — ${caseStyle}` : caseStyle);
       }
     } catch {
       setError('Failed to load documents');
