@@ -12,7 +12,10 @@
       "Bash(pdftotext:*)",
       "Bash(find C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs\\\\[llcId]\\\\lease-builder\\\\[draftId]:*)",
       "Bash(find C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Skill(claude-api)",
+      "Bash(npm install:*)",
+      "Bash(pnpm:*)"
     ]
   }
 }

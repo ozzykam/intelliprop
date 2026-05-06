@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   aocStep1Schema,
@@ -13,6 +13,53 @@ import {
   User,
 } from '@shared/types';
 import { generateAocDocument } from '@shared/assignmentOfClaim/generator';
+
+interface DocumentAnalysis {
+  fileName: string;
+  documentType:
+    | 'lease'
+    | 'tenant_ledger'
+    | 'correspondence'
+    | 'eviction_notice'
+    | 'invoice'
+    | 'insurance'
+    | 'other';
+  summary: string;
+  parties: { name: string; role: string }[];
+  keyAmounts: { description: string; amount: string }[];
+  keyDates: { description: string; date: string }[];
+  suggestedFields: {
+    tenantName?: string;
+    propertyAddress?: string;
+    claimType?: 'rent_debt' | 'insurance_claim' | 'general_monetary';
+    claimValueDollars?: string;
+  };
+}
+
+interface AnalysisResult {
+  claimDescription: string;
+  documents: DocumentAnalysis[];
+}
+
+const DOC_TYPE_LABELS: Record<DocumentAnalysis['documentType'], string> = {
+  lease: 'Lease',
+  tenant_ledger: 'Tenant Ledger',
+  correspondence: 'Correspondence',
+  eviction_notice: 'Eviction Notice',
+  invoice: 'Invoice',
+  insurance: 'Insurance',
+  other: 'Other',
+};
+
+const DOC_TYPE_COLORS: Record<DocumentAnalysis['documentType'], string> = {
+  lease: 'bg-blue-100 text-blue-800',
+  tenant_ledger: 'bg-purple-100 text-purple-800',
+  correspondence: 'bg-yellow-100 text-yellow-800',
+  eviction_notice: 'bg-red-100 text-red-800',
+  invoice: 'bg-orange-100 text-orange-800',
+  insurance: 'bg-green-100 text-green-800',
+  other: 'bg-secondary text-muted-foreground',
+};
 
 interface NewAssignmentPageProps {
   params: Promise<{ llcId: string }>;
@@ -56,6 +103,12 @@ type WizardState = {
   specialConditions: string;
   requiresNotarization: boolean;
   exhibits: AocExhibitKey[];
+  assignorSignDigitally: boolean;
+  assignorSignatoryName: string;
+  assignorTitle: string;
+  assigneeSignDigitally: boolean;
+  assigneeSignatoryName: string;
+  assigneeTitle: string;
 };
 
 const INITIAL: WizardState = {
@@ -91,6 +144,12 @@ const INITIAL: WizardState = {
   specialConditions: '',
   requiresNotarization: false,
   exhibits: [],
+  assignorSignDigitally: false,
+  assignorSignatoryName: '',
+  assignorTitle: '',
+  assigneeSignDigitally: false,
+  assigneeSignatoryName: '',
+  assigneeTitle: '',
 };
 
 function dollarsToCents(val: string): number {
@@ -163,6 +222,10 @@ function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
     specialConditions: s.specialConditions || undefined,
     requiresNotarization: s.requiresNotarization || undefined,
     exhibits: s.exhibits.length > 0 ? s.exhibits : undefined,
+    assignorSignatoryName: s.assignorSignDigitally && s.assignorSignatoryName ? s.assignorSignatoryName : undefined,
+    assignorTitle: s.assignorSignDigitally && s.assignorTitle ? s.assignorTitle : undefined,
+    assigneeSignatoryName: s.assigneeSignDigitally && s.assigneeSignatoryName ? s.assigneeSignatoryName : undefined,
+    assigneeTitle: s.assigneeSignDigitally && s.assigneeTitle ? s.assigneeTitle : undefined,
     status: 'draft',
     createdByUserId: '',
     createdAt: { seconds: 0, nanoseconds: 0 },
@@ -177,6 +240,14 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [savedAssignees, setSavedAssignees] = useState<User[]>([]);
 
+  // AI Document Analysis
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisFiles, setAnalysisFiles] = useState<File[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetch('/api/assignees')
       .then(r => r.json())
@@ -185,6 +256,33 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
   }, []);
 
   const set = (patch: Partial<WizardState>) => setState(prev => ({ ...prev, ...patch }));
+
+  const handleAnalyze = async () => {
+    if (!analysisFiles.length) return;
+    setAnalyzing(true);
+    setAnalysisError('');
+    setAnalysisResults(null);
+    try {
+      const formData = new FormData();
+      for (const file of analysisFiles) {
+        formData.append('files', file);
+      }
+      const res = await fetch(`/api/llcs/${llcId}/aoc/analyze-documents`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setAnalysisError(data.error?.message || 'Analysis failed');
+      } else {
+        setAnalysisResults(data.data as AnalysisResult);
+      }
+    } catch {
+      setAnalysisError('Unexpected error. Please try again.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const validateStep = (step: 1 | 2 | 3): boolean => {
     setFieldError('');
@@ -278,6 +376,10 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
         specialConditions: state.specialConditions || undefined,
         requiresNotarization: state.requiresNotarization || undefined,
         exhibits: state.exhibits.length > 0 ? state.exhibits : undefined,
+        assignorSignatoryName: state.assignorSignDigitally && state.assignorSignatoryName ? state.assignorSignatoryName : undefined,
+        assignorTitle: state.assignorSignDigitally && state.assignorTitle ? state.assignorTitle : undefined,
+        assigneeSignatoryName: state.assigneeSignDigitally && state.assigneeSignatoryName ? state.assigneeSignatoryName : undefined,
+        assigneeTitle: state.assigneeSignDigitally && state.assigneeTitle ? state.assigneeTitle : undefined,
       };
 
       const res = await fetch(`/api/llcs/${llcId}/aoc`, {
@@ -314,6 +416,189 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
 
   return (
     <div className="max-w-2xl">
+      {/* AI Document Analysis Panel */}
+      <div className="mb-6 border rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAnalysisOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-secondary/30 hover:bg-secondary/50 transition-colors text-sm font-medium"
+        >
+          <span className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+              <path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12 2.1 9.1"/>
+            </svg>
+            AI Document Analysis
+          </span>
+          <span className="text-muted-foreground">{analysisOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {analysisOpen && (
+          <div className="p-4 space-y-4">
+            {/* Drop zone */}
+            <div
+              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-secondary/20 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                const dropped = Array.from(e.dataTransfer.files);
+                setAnalysisFiles(prev => {
+                  const combined = [...prev, ...dropped];
+                  return combined.slice(0, 5);
+                });
+              }}
+            >
+              <p className="text-sm font-medium">Drop files here or click to upload</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Supports PDF, images, and text files (up to 5 files, 10 MB each)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.txt"
+                className="hidden"
+                onChange={e => {
+                  const picked = Array.from(e.target.files ?? []);
+                  setAnalysisFiles(prev => {
+                    const combined = [...prev, ...picked];
+                    return combined.slice(0, 5);
+                  });
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+              />
+            </div>
+
+            {/* File chips */}
+            {analysisFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {analysisFiles.map((f, i) => (
+                  <span key={i} className="flex items-center gap-1 text-xs bg-secondary px-2 py-1 rounded-full">
+                    {f.name}
+                    <button
+                      type="button"
+                      onClick={() => setAnalysisFiles(prev => prev.filter((_, j) => j !== i))}
+                      className="ml-1 text-muted-foreground hover:text-destructive"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Analyze button */}
+            <button
+              type="button"
+              onClick={() => void handleAnalyze()}
+              disabled={analyzing || !analysisFiles.length}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {analyzing ? 'Analyzing...' : 'Analyze Documents'}
+            </button>
+
+            {/* Error */}
+            {analysisError && (
+              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">{analysisError}</div>
+            )}
+
+            {/* Results */}
+            {analysisResults && (
+              <div className="space-y-4 pt-2 border-t">
+                {/* Primary output — Claim Description */}
+                <div className="border border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">Suggested Claim Description</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        set({ claimDescription: analysisResults.claimDescription });
+                        setAnalysisOpen(false);
+                      }}
+                      className="shrink-0 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:opacity-90"
+                    >
+                      Use this description
+                    </button>
+                  </div>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                    {analysisResults.claimDescription}
+                  </p>
+                </div>
+
+                {/* Per-document detail */}
+                {analysisResults.documents.length > 0 && (
+                  <details className="group">
+                    <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                      Document detail ({analysisResults.documents.length} file{analysisResults.documents.length !== 1 ? 's' : ''})
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {analysisResults.documents.map((doc, i) => (
+                        <div key={i} className="border rounded-lg p-3 space-y-2 text-sm">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium truncate max-w-[200px]">{doc.fileName}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DOC_TYPE_COLORS[doc.documentType] ?? 'bg-secondary text-muted-foreground'}`}>
+                              {DOC_TYPE_LABELS[doc.documentType] ?? doc.documentType}
+                            </span>
+                          </div>
+
+                          <p className="text-muted-foreground text-xs leading-relaxed">{doc.summary}</p>
+
+                          {doc.parties.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {doc.parties.map((p, j) => (
+                                <span key={j} className="text-xs border rounded px-2 py-0.5">
+                                  <span className="font-medium">{p.name}</span>
+                                  <span className="text-muted-foreground ml-1">({p.role})</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {doc.keyAmounts.length > 0 && (
+                            <table className="w-full text-xs">
+                              <tbody>
+                                {doc.keyAmounts.map((a, j) => (
+                                  <tr key={j} className="border-b last:border-b-0">
+                                    <td className="py-1 text-muted-foreground pr-4">{a.description}</td>
+                                    <td className="py-1 font-medium text-right">{a.amount}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+
+                          {doc.keyDates.length > 0 && (
+                            <table className="w-full text-xs">
+                              <tbody>
+                                {doc.keyDates.map((d, j) => (
+                                  <tr key={j} className="border-b last:border-b-0">
+                                    <td className="py-1 text-muted-foreground pr-4">{d.description}</td>
+                                    <td className="py-1 font-medium text-right">{d.date}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+
+                          {Object.values(doc.suggestedFields).some(Boolean) && (
+                            <div className="bg-blue-50 border border-blue-100 rounded-md p-2 text-xs text-blue-700 space-y-0.5">
+                              {doc.suggestedFields.tenantName && <div>Tenant: <span className="font-medium">{doc.suggestedFields.tenantName}</span></div>}
+                              {doc.suggestedFields.propertyAddress && <div>Property: <span className="font-medium">{doc.suggestedFields.propertyAddress}</span></div>}
+                              {doc.suggestedFields.claimType && <div>Claim type: <span className="font-medium">{ASSIGNMENT_CLAIM_TYPE_LABELS[doc.suggestedFields.claimType]}</span></div>}
+                              {doc.suggestedFields.claimValueDollars && <div>Claim value: <span className="font-medium">${doc.suggestedFields.claimValueDollars}</span></div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1">New Assignment of Claim</h1>
         <div className="flex gap-2 flex-wrap">
@@ -545,14 +830,19 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Claim Description <span className="text-destructive">*</span>
-            </label>
+            <div className="flex items-baseline justify-between mb-1">
+              <label className="block text-sm font-medium">
+                Claim Description <span className="text-destructive">*</span>
+              </label>
+              <span className={`text-xs ${state.claimDescription.length > 9000 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {state.claimDescription.length.toLocaleString()} / 10,000
+              </span>
+            </div>
             <textarea
               value={state.claimDescription}
               onChange={e => set({ claimDescription: e.target.value })}
-              rows={4}
-              className="w-full border rounded-md px-3 py-1.5 text-sm"
+              rows={12}
+              className="w-full border rounded-md px-3 py-2 text-sm leading-relaxed font-[inherit] resize-y"
               placeholder="Describe the claim in detail (minimum 10 characters)"
             />
           </div>
@@ -804,6 +1094,89 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
               </div>
             </div>
           </label>
+
+          <div className="space-y-3 border rounded-lg p-3">
+            <p className="text-sm font-medium">Electronic Signatures</p>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Applies <span className="font-mono">/s/ Name</span> to signature lines. Authorized under the Minnesota Uniform Electronic Transactions Act, Minn. Stat. § 325L.
+            </p>
+
+            {/* Assignor */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={state.assignorSignDigitally}
+                  onChange={e => set({ assignorSignDigitally: e.target.checked })}
+                />
+                <span className="text-sm font-medium">Sign as Assignor</span>
+              </label>
+              {state.assignorSignDigitally && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={state.assignorSignatoryName}
+                      onChange={e => set({ assignorSignatoryName: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="Full name of the person signing on behalf of the LLC"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Title / Role (optional)</label>
+                    <input
+                      type="text"
+                      value={state.assignorTitle}
+                      onChange={e => set({ assignorTitle: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="e.g. Member, Manager, President"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Assignee */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={state.assigneeSignDigitally}
+                  onChange={e => set({ assigneeSignDigitally: e.target.checked })}
+                />
+                <span className="text-sm font-medium">Sign as Assignee</span>
+              </label>
+              {state.assigneeSignDigitally && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={state.assigneeSignatoryName}
+                      onChange={e => set({ assigneeSignatoryName: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder={state.assigneeName || 'Full name of the person signing'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Title / Role (optional)</label>
+                    <input
+                      type="text"
+                      value={state.assigneeTitle}
+                      onChange={e => set({ assigneeTitle: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="e.g. Member, Manager, CEO"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

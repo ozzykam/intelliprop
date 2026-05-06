@@ -144,6 +144,10 @@ export interface AssignmentOfClaim {
   specialConditions?: string;
   requiresNotarization?: boolean;
   exhibits?: AocExhibitKey[];
+  assignorSignatoryName?: string;
+  assignorTitle?: string;
+  assigneeSignatoryName?: string;
+  assigneeTitle?: string;
 
   // Generated document
   documentHtml?: string;
@@ -179,6 +183,10 @@ export interface CreateAssignmentInput {
   specialConditions?: string;
   requiresNotarization?: boolean;
   exhibits?: AocExhibitKey[];
+  assignorSignatoryName?: string;
+  assignorTitle?: string;
+  assigneeSignatoryName?: string;
+  assigneeTitle?: string;
 }
 
 export type UpdateAssignmentInput = Partial<CreateAssignmentInput> & {

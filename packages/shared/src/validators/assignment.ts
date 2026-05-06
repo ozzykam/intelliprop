@@ -13,7 +13,7 @@ export const aocAssigneeSchema = z.object({
 
 export const aocStep1Schema = z.object({
   claimType: z.enum(['rent_debt', 'insurance_claim', 'general_monetary']),
-  claimDescription: z.string().min(10).max(2000),
+  claimDescription: z.string().min(10).max(10000),
   claimValueCents: z.number().int().min(0).optional(),
   tenantId: z.string().optional(),
   tenantName: z.string().max(200).optional(),
@@ -36,6 +36,10 @@ export const aocStep3Schema = z.object({
   specialConditions: z.string().max(5000).optional(),
   requiresNotarization: z.boolean().optional(),
   exhibits: z.array(z.enum(AOC_EXHIBIT_KEYS)).optional(),
+  assignorSignatoryName: z.string().max(200).optional(),
+  assignorTitle: z.string().max(200).optional(),
+  assigneeSignatoryName: z.string().max(200).optional(),
+  assigneeTitle: z.string().max(200).optional(),
 });
 
 export const createAssignmentSchema = aocStep1Schema.merge(aocStep2Schema).merge(aocStep3Schema);

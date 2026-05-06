@@ -52,6 +52,12 @@ type WizardState = {
   specialConditions: string;
   requiresNotarization: boolean;
   exhibits: AocExhibitKey[];
+  assignorSignDigitally: boolean;
+  assignorSignatoryName: string;
+  assignorTitle: string;
+  assigneeSignDigitally: boolean;
+  assigneeSignatoryName: string;
+  assigneeTitle: string;
 };
 
 function dollarsToCents(val: string): number {
@@ -129,6 +135,12 @@ function fromAssignment(a: AssignmentOfClaim): WizardState {
     specialConditions: a.specialConditions ?? '',
     requiresNotarization: a.requiresNotarization ?? false,
     exhibits: a.exhibits ?? [],
+    assignorSignDigitally: !!a.assignorSignatoryName,
+    assignorSignatoryName: a.assignorSignatoryName ?? '',
+    assignorTitle: a.assignorTitle ?? '',
+    assigneeSignDigitally: !!a.assigneeSignatoryName,
+    assigneeSignatoryName: a.assigneeSignatoryName ?? '',
+    assigneeTitle: a.assigneeTitle ?? '',
   };
 }
 
@@ -159,6 +171,10 @@ function buildPreview(s: WizardState, base: AssignmentOfClaim): AssignmentOfClai
     specialConditions: s.specialConditions || undefined,
     requiresNotarization: s.requiresNotarization || undefined,
     exhibits: s.exhibits.length > 0 ? s.exhibits : undefined,
+    assignorSignatoryName: s.assignorSignDigitally && s.assignorSignatoryName ? s.assignorSignatoryName : undefined,
+    assignorTitle: s.assignorSignDigitally && s.assignorTitle ? s.assignorTitle : undefined,
+    assigneeSignatoryName: s.assigneeSignDigitally && s.assigneeSignatoryName ? s.assigneeSignatoryName : undefined,
+    assigneeTitle: s.assigneeSignDigitally && s.assigneeTitle ? s.assigneeTitle : undefined,
   };
 }
 
@@ -290,6 +306,10 @@ export default function EditAssignmentPage({ params }: EditAssignmentPageProps) 
         specialConditions: state.specialConditions || undefined,
         requiresNotarization: state.requiresNotarization || undefined,
         exhibits: state.exhibits.length > 0 ? state.exhibits : undefined,
+        assignorSignatoryName: state.assignorSignDigitally && state.assignorSignatoryName ? state.assignorSignatoryName : undefined,
+        assignorTitle: state.assignorSignDigitally && state.assignorTitle ? state.assignorTitle : undefined,
+        assigneeSignatoryName: state.assigneeSignDigitally && state.assigneeSignatoryName ? state.assigneeSignatoryName : undefined,
+        assigneeTitle: state.assigneeSignDigitally && state.assigneeTitle ? state.assigneeTitle : undefined,
       };
 
       const res = await fetch(`/api/llcs/${llcId}/aoc/${assignmentId}`, {
@@ -565,14 +585,19 @@ export default function EditAssignmentPage({ params }: EditAssignmentPageProps) 
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Claim Description <span className="text-destructive">*</span>
-            </label>
+            <div className="flex items-baseline justify-between mb-1">
+              <label className="block text-sm font-medium">
+                Claim Description <span className="text-destructive">*</span>
+              </label>
+              <span className={`text-xs ${state.claimDescription.length > 9000 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {state.claimDescription.length.toLocaleString()} / 10,000
+              </span>
+            </div>
             <textarea
               value={state.claimDescription}
               onChange={e => set({ claimDescription: e.target.value })}
-              rows={4}
-              className="w-full border rounded-md px-3 py-1.5 text-sm"
+              rows={12}
+              className="w-full border rounded-md px-3 py-2 text-sm leading-relaxed font-[inherit] resize-y"
               placeholder="Describe the claim in detail (minimum 10 characters)"
             />
           </div>
@@ -824,6 +849,89 @@ export default function EditAssignmentPage({ params }: EditAssignmentPageProps) 
               </div>
             </div>
           </label>
+
+          <div className="space-y-3 border rounded-lg p-3">
+            <p className="text-sm font-medium">Electronic Signatures</p>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Applies <span className="font-mono">/s/ Name</span> to signature lines. Authorized under the Minnesota Uniform Electronic Transactions Act, Minn. Stat. § 325L.
+            </p>
+
+            {/* Assignor */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={state.assignorSignDigitally}
+                  onChange={e => set({ assignorSignDigitally: e.target.checked })}
+                />
+                <span className="text-sm font-medium">Sign as Assignor</span>
+              </label>
+              {state.assignorSignDigitally && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={state.assignorSignatoryName}
+                      onChange={e => set({ assignorSignatoryName: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="Full name of the person signing on behalf of the LLC"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Title / Role (optional)</label>
+                    <input
+                      type="text"
+                      value={state.assignorTitle}
+                      onChange={e => set({ assignorTitle: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="e.g. Member, Manager, President"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Assignee */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={state.assigneeSignDigitally}
+                  onChange={e => set({ assigneeSignDigitally: e.target.checked })}
+                />
+                <span className="text-sm font-medium">Sign as Assignee</span>
+              </label>
+              {state.assigneeSignDigitally && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={state.assigneeSignatoryName}
+                      onChange={e => set({ assigneeSignatoryName: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder={state.assigneeName || 'Full name of the person signing'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Title / Role (optional)</label>
+                    <input
+                      type="text"
+                      value={state.assigneeTitle}
+                      onChange={e => set({ assigneeTitle: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="e.g. Member, Manager, CEO"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

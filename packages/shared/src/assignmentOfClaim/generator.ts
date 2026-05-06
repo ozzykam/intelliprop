@@ -9,6 +9,13 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+function descriptionToHtml(text: string): string {
+  return text
+    .split(/\n\n+/)
+    .map(para => `<p style="margin:0 0 0.75em 0">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
 function formatCents(cents: number): string {
   const dollars = (cents / 100).toFixed(2);
   return `$${Number(dollars).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
@@ -46,7 +53,7 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
   if (data.claimType === 'rent_debt') {
     claimDescriptionSection = `
       <p>The Claim consists of unpaid rent and/or tenant debt owed${data.tenantName ? ` by <strong>${data.tenantName}</strong>` : ''}${data.propertyAddress ? ` in connection with the property located at <strong>${data.propertyAddress}</strong>` : ''}, as more fully described below:</p>
-      <blockquote>${data.claimDescription}</blockquote>
+      <blockquote>${descriptionToHtml(data.claimDescription)}</blockquote>
       ${data.claimValueCents !== undefined ? `<p>The estimated value of the Claim is <strong>${formatCents(data.claimValueCents)}</strong>.</p>` : ''}
       <p><strong>Security Deposit:</strong> The security deposit, if any, held by Assignor in connection with the above tenancy is NOT transferred by this Assignment. Assignor retains all obligations under Minn. Stat. § 504B.178 with respect to the security deposit.</p>
       <p><strong>Eviction Rights:</strong> This Assignment transfers the right to collect the monetary Claim only. The right to bring an unlawful detainer (eviction) action under Minn. Stat. § 504B.281 et seq. remains with Assignor as the named landlord under the lease and is NOT transferred by this Assignment. Any eviction proceeding must be brought by Assignor or require a lease amendment naming Assignee as landlord of record.</p>
@@ -54,13 +61,13 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
   } else if (data.claimType === 'insurance_claim') {
     claimDescriptionSection = `
       <p>The Claim arises from an insurance claim${data.insurer ? ` with <strong>${data.insurer}</strong>` : ''}${data.insuranceClaimNumber ? `, Claim No. <strong>${data.insuranceClaimNumber}</strong>` : ''}, as more fully described below:</p>
-      <blockquote>${data.claimDescription}</blockquote>
+      <blockquote>${descriptionToHtml(data.claimDescription)}</blockquote>
       ${data.claimValueCents !== undefined ? `<p>The estimated value of the Claim is <strong>${formatCents(data.claimValueCents)}</strong>.</p>` : ''}
     `;
   } else {
     claimDescriptionSection = `
       <p>The Claim is a general monetary claim described as follows:</p>
-      <blockquote>${data.claimDescription}</blockquote>
+      <blockquote>${descriptionToHtml(data.claimDescription)}</blockquote>
       ${data.claimValueCents !== undefined ? `<p>The estimated value of the Claim is <strong>${formatCents(data.claimValueCents)}</strong>.</p>` : ''}
     `;
   }
@@ -270,22 +277,42 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
         <td>
           <p><strong>ASSIGNOR:</strong></p>
           <p>${data.llcName}</p>
-          <div class="signature-line"></div>
+          ${data.assignorSignatoryName
+            ? `<p style="font-style:italic;margin-bottom:0;margin-top:0.5in">/s/ ${data.assignorSignatoryName}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Signature (Electronic)</p>
+          <p style="margin-bottom:0;">${data.assignorSignatoryName}${data.assignorTitle ? `, ${data.assignorTitle}` : ''}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Printed Name &amp; Title</p>
+          <p style="margin-bottom:0">${effectiveDateFormatted}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Date</p>`
+            : `<div class="signature-line"></div>
           <p>Signature</p>
           <div class="signature-line"></div>
           <p>Printed Name &amp; Title</p>
           <div class="signature-line"></div>
-          <p>Date</p>
+          <p>Date</p>`}
         </td>
         <td>
           <p><strong>ASSIGNEE:</strong></p>
           <p>${data.assignee.name}</p>
-          <div class="signature-line"></div>
+          ${data.assigneeSignatoryName
+            ? `<p style="font-style:italic;margin-bottom:0;margin-top:0.5in">/s/ ${data.assigneeSignatoryName}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Signature (Electronic)</p>
+          <p style="margin-bottom:0;">${data.assigneeSignatoryName}${data.assigneeTitle ? `, ${data.assigneeTitle}` : ''}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Printed Name${data.assignee.entityType === 'company' ? ' &amp; Title' : ''}</p>
+          <p style="margin-bottom:0">${effectiveDateFormatted}</p>
+          <div class="signature-line" style="margin-top:0"></div>
+          <p>Date</p>`
+            : `<div class="signature-line"></div>
           <p>Signature</p>
           <div class="signature-line"></div>
           <p>Printed Name${data.assignee.entityType === 'company' ? ' &amp; Title' : ''}</p>
           <div class="signature-line"></div>
-          <p>Date</p>
+          <p>Date</p>`}
         </td>
       </tr>
     </table>
