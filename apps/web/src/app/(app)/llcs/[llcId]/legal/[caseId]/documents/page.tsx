@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { use } from 'react';
 
@@ -59,6 +59,14 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
   const [showUpload, setShowUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editType, setEditType] = useState('filing');
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
+
   const fetchDocuments = useCallback(async () => {
     try {
       const [docsRes, caseRes] = await Promise.all([
@@ -76,16 +84,17 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
       if (caseData.ok) {
         const c = caseData.data;
         const plaintiffName = c.plaintiff?.type === 'llc' ? c.plaintiff.llcName : c.plaintiff?.name || '';
-        const opposingParts = Array.isArray(c.opposingParty)
+        const opposingParts = (Array.isArray(c.opposingParty)
           ? c.opposingParty.map((op: { name?: string; tenantName?: string }) => op.name || op.tenantName).filter(Boolean)
-          : [c.opposingParty?.name || c.opposingParty?.tenantName].filter(Boolean);
-        const opposingNames = opposingParts.length === 0
-          ? 'Unknown Opposing Party'
-          : opposingParts.length === 1
-            ? opposingParts[0]
-            : opposingParts.length === 2
-              ? `${opposingParts[0]} & ${opposingParts[1]}`
-              : `${opposingParts.slice(0, -1).join(', ')}, & ${opposingParts[opposingParts.length - 1]}`;
+          : [c.opposingParty?.name || c.opposingParty?.tenantName].filter(Boolean)) as string[];
+        const opposingNames =
+          opposingParts.length === 0
+            ? 'Unknown Opposing Party'
+            : opposingParts.length === 1
+              ? (opposingParts[0] ?? 'Unknown Opposing Party')
+              : opposingParts.length === 2
+                ? `${opposingParts[0] ?? ''} & ${opposingParts[1] ?? ''}`
+                : `${opposingParts.slice(0, -1).join(', ')}, & ${opposingParts.at(-1) ?? ''}`;
         const caseStyle = plaintiffName ? `${plaintiffName} v. ${opposingNames}` : opposingNames;
         setCaseName(c.docketNumber ? `${c.docketNumber} — ${caseStyle}` : caseStyle);
       }
@@ -111,7 +120,6 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
     setUploadError('');
 
     try {
-      // 1. Get signed upload URL
       const urlRes = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents/upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,7 +135,6 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
       const { uploadUrl, storagePath } = urlData.data as { uploadUrl: string; storagePath: string };
 
-      // 2. Upload file directly to Storage via signed URL
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': file.type },
@@ -140,7 +147,6 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
         return;
       }
 
-      // 3. Create document metadata
       const metaRes = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +184,6 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
     try {
       const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents/${documentId}`);
       const data = await res.json();
-
       if (data.ok) {
         window.open(data.data.downloadUrl, '_blank');
       } else {
@@ -186,6 +191,45 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
       }
     } catch {
       alert('Failed to download');
+    }
+  };
+
+  const startEdit = (doc: DocumentItem) => {
+    setEditingId(doc.id);
+    setEditTitle(doc.title);
+    setEditDescription(doc.description ?? '');
+    setEditType(doc.type);
+    setEditError('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) {
+      setEditError('Title is required.');
+      return;
+    }
+    setSaving(true);
+    setEditError('');
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim() || undefined,
+          type: editType,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDocuments((prev) => prev.map((d) => (d.id === editingId ? { ...d, ...data.data } : d)));
+        setEditingId(null);
+      } else {
+        setEditError(data.error?.message || 'Failed to save changes');
+      }
+    } catch {
+      setEditError('Failed to save changes');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -197,9 +241,9 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
         method: 'DELETE',
       });
       const data = await res.json();
-
       if (data.ok) {
         setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+        if (editingId === documentId) setEditingId(null);
       } else {
         alert(data.error?.message || 'Failed to delete document');
       }
@@ -229,8 +273,10 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Documents</h1>
-        <button onClick={() => setShowUpload(!showUpload)}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm">
+        <button
+          onClick={() => { setShowUpload(!showUpload); setUploadError(''); }}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
+        >
           {showUpload ? 'Cancel' : '+ Upload'}
         </button>
       </div>
@@ -296,38 +342,105 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
             </thead>
             <tbody className="divide-y">
               {documents.map((doc) => (
-                <tr key={doc.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{doc.title}</div>
-                    {doc.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{doc.description}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                      {DOC_TYPE_LABELS[doc.type] || doc.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{doc.fileName}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{formatBytes(doc.sizeBytes)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(doc.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDownload(doc.id)}
-                      className="text-muted-foreground hover:text-foreground mr-3"
-                      title="Download">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                    <button onClick={() => handleDelete(doc.id, doc.title)}
-                      className="text-muted-foreground hover:text-destructive"
-                      title="Delete">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={doc.id}>
+                  <tr className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{doc.title}</div>
+                      {doc.description && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{doc.description}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                        {DOC_TYPE_LABELS[doc.type] || doc.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{doc.fileName}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{formatBytes(doc.sizeBytes)}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(doc.createdAt)}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => editingId === doc.id ? setEditingId(null) : startEdit(doc)}
+                        className="text-muted-foreground hover:text-foreground mr-3 text-xs"
+                      >
+                        {editingId === doc.id ? 'Close' : 'Edit'}
+                      </button>
+                      <button onClick={() => handleDownload(doc.id)}
+                        className="text-muted-foreground hover:text-foreground mr-3"
+                        title="Download">
+                        <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleDelete(doc.id, doc.title)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Delete">
+                        <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                  {editingId === doc.id && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-4 bg-secondary/20">
+                        <div className="space-y-3 max-w-2xl">
+                          {editError && (
+                            <div className="p-2 bg-destructive/10 text-destructive rounded text-sm">{editError}</div>
+                          )}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Title *</label>
+                              <input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                                autoFocus
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Type</label>
+                              <select
+                                value={editType}
+                                onChange={(e) => setEditType(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                              >
+                                {Object.entries(DOC_TYPE_LABELS).map(([val, label]) => (
+                                  <option key={val} value={val}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea
+                              value={editDescription}
+                              onChange={(e) => setEditDescription(e.target.value)}
+                              rows={2}
+                              className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                              placeholder="Optional description"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              disabled={saving}
+                              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 disabled:opacity-50"
+                            >
+                              {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="px-4 py-2 border rounded-md text-sm hover:bg-secondary"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -170,6 +170,12 @@ export const createDocumentSchema = z.object({
   sizeBytes: z.number().positive(),
 });
 
+export const updateDocumentSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  type: documentTypeSchema.optional(),
+});
+
 // Court Date schemas
 export const courtDateTypeSchema = z.enum([
   'hearing',

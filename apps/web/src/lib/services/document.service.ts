@@ -123,6 +123,67 @@ export async function listDocuments(llcId: string, caseId: string): Promise<Docu
 }
 
 /**
+ * Update editable metadata fields on a document (title, description, type).
+ */
+export async function updateDocument(
+  llcId: string,
+  caseId: string,
+  documentId: string,
+  input: { title?: string; description?: string; type?: DocumentType },
+  actorUserId: string
+): Promise<DocumentRecord> {
+  const docRef = adminDb
+    .collection('llcs')
+    .doc(llcId)
+    .collection('cases')
+    .doc(caseId)
+    .collection('documents')
+    .doc(documentId);
+
+  const docSnap = await docRef.get();
+  if (!docSnap.exists) {
+    throw new Error('NOT_FOUND: Document not found');
+  }
+
+  const updateData: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  if (input.title !== undefined) updateData.title = input.title;
+  if (input.description !== undefined) updateData.description = input.description || null;
+  if (input.type !== undefined) updateData.type = input.type;
+
+  const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
+  const batch = adminDb.batch();
+
+  batch.update(docRef, updateData);
+  batch.set(auditRef, {
+    actorUserId,
+    action: 'update',
+    entityType: 'case_document',
+    entityId: documentId,
+    entityPath: `llcs/${llcId}/cases/${caseId}/documents/${documentId}`,
+    changes: { before: { title: docSnap.data()?.title }, after: updateData },
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  const d = (await docRef.get()).data()!;
+  return {
+    id: documentId,
+    caseId,
+    llcId,
+    title: d.title,
+    description: d.description || undefined,
+    type: d.type as DocumentType,
+    fileName: d.fileName,
+    storagePath: d.storagePath,
+    contentType: d.contentType,
+    sizeBytes: d.sizeBytes,
+    uploadedByUserId: d.uploadedByUserId,
+    createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+  };
+}
+
+/**
  * Delete a document record and its storage file.
  */
 export async function deleteDocument(
