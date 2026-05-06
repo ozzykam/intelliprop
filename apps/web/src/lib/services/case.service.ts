@@ -45,6 +45,7 @@ export interface UpdateCaseInput {
   opposingCounsel?: OpposingCounsel[];
   ourCounsel?: OurCounsel[];
   caseManagers?: string[];
+  damagesSoughtCents?: number;
   filingDate?: string;
   nextHearingDate?: string;
   resolution?: CaseResolution | null;
@@ -77,6 +78,7 @@ export interface CaseRecord {
   opposingCounsel?: OpposingCounsel[];
   ourCounsel?: OurCounsel[];
   caseManagers: string[];
+  damagesSoughtCents?: number;
   filingDate?: string;
   nextHearingDate?: string;
   nextCourtDate?: NextCourtDate;
@@ -225,6 +227,7 @@ export async function listCases(llcId: string): Promise<CaseRecord[]> {
         opposingCounsel: d.opposingCounsel || undefined,
         ourCounsel: d.ourCounsel || undefined,
         caseManagers: d.caseManagers || [],
+        damagesSoughtCents: typeof d.damagesSoughtCents === 'number' ? d.damagesSoughtCents : undefined,
         filingDate: d.filingDate || undefined,
         nextHearingDate: d.nextHearingDate || undefined,
         nextCourtDate,
@@ -272,6 +275,7 @@ export async function getCase(llcId: string, caseId: string): Promise<CaseRecord
     opposingCounsel: d.opposingCounsel || undefined,
     ourCounsel: d.ourCounsel || undefined,
     caseManagers: d.caseManagers || [],
+    damagesSoughtCents: typeof d.damagesSoughtCents === 'number' ? d.damagesSoughtCents : undefined,
     filingDate: d.filingDate || undefined,
     nextHearingDate: d.nextHearingDate || undefined,
     resolution: d.resolution || undefined,
@@ -317,6 +321,7 @@ export async function updateCase(
   if (input.opposingCounsel !== undefined) updateData.opposingCounsel = input.opposingCounsel;
   if (input.ourCounsel !== undefined) updateData.ourCounsel = input.ourCounsel;
   if (input.caseManagers !== undefined) updateData.caseManagers = input.caseManagers;
+  if (input.damagesSoughtCents !== undefined) updateData.damagesSoughtCents = input.damagesSoughtCents;
   if (input.filingDate !== undefined) updateData.filingDate = input.filingDate;
   if (input.nextHearingDate !== undefined) updateData.nextHearingDate = input.nextHearingDate;
   if (input.resolution !== undefined) updateData.resolution = input.resolution;

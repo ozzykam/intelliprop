@@ -115,6 +115,7 @@ export const createCaseSchema = z.object({
   opposingCounsel: z.array(opposingCounselSchema).optional(),
   ourCounsel: z.array(ourCounselSchema).optional(),
   caseManagers: z.array(z.string()).default([]),
+  damagesSoughtCents: z.number().int().min(0).optional(),
   filingDate: z.string().datetime().optional(),
   nextHearingDate: z.string().datetime().optional(),
   resolution: caseResolutionSchemaForCase.optional().nullable(),
@@ -244,8 +245,10 @@ export const caseResolutionSchema = z.object({
 
 export const activityTypeSchema = z.enum([
   'internal_note', 'phone_call', 'voicemail',
-  'email_sent', 'email_received', 'research_update',
-  'action_taken', 'strategy_discussion', 'other',
+  'email_sent', 'email_received',
+  'mail_sent', 'mail_received',
+  'court_filing', 'document_served', 'motion_filed', 'legal_demand', 'order_received',
+  'research_update', 'action_taken', 'strategy_discussion', 'other',
 ]);
 
 export const activityVisibilitySchema = z.enum(['internal', 'shared']);
@@ -267,3 +270,26 @@ export const updateActivitySchema = z.object({
   relatedDocumentId: z.string().nullable().optional(),
   visibility: activityVisibilitySchema.optional(),
 });
+
+// --- Legal Fee schemas ---
+
+export const legalFeeTypeSchema = z.enum([
+  'attorney_fees', 'filing_fees', 'court_costs',
+  'process_server', 'expert_witness', 'deposition',
+  'mediation', 'other',
+]);
+
+export const legalFeeStatusSchema = z.enum(['pending', 'paid', 'waived', 'disputed']);
+
+export const createLegalFeeSchema = z.object({
+  feeType: legalFeeTypeSchema,
+  description: z.string().min(1).max(500),
+  amountCents: z.number().int().min(0),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  status: legalFeeStatusSchema.default('pending'),
+  invoiceNumber: z.string().max(100).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const updateLegalFeeSchema = createLegalFeeSchema.partial();

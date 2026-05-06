@@ -99,6 +99,7 @@ export interface Case {
   opposingCounsel?: OpposingCounsel[];
   ourCounsel?: OurCounsel[];
   caseManagers: string[]; // user IDs who can edit/archive this case
+  damagesSoughtCents?: number; // amount plaintiff is suing for, in cents
   filingDate?: string; // ISO date
   nextHearingDate?: string; // ISO date (auto-computed from courtDates)
   resolution?: CaseResolution; // how the case was resolved
@@ -226,6 +227,13 @@ export type ActivityType =
   | 'voicemail'
   | 'email_sent'
   | 'email_received'
+  | 'mail_sent'
+  | 'mail_received'
+  | 'court_filing'
+  | 'document_served'
+  | 'motion_filed'
+  | 'legal_demand'
+  | 'order_received'
   | 'research_update'
   | 'action_taken'
   | 'strategy_discussion'
@@ -251,6 +259,37 @@ export interface CaseActivity {
   visibility: ActivityVisibility;
   createdByUserId: string;
   editHistory?: ActivityEdit[];
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+// --- Legal Fees ---
+
+export type LegalFeeType =
+  | 'attorney_fees'
+  | 'filing_fees'
+  | 'court_costs'
+  | 'process_server'
+  | 'expert_witness'
+  | 'deposition'
+  | 'mediation'
+  | 'other';
+
+export type LegalFeeStatus = 'pending' | 'paid' | 'waived' | 'disputed';
+
+export interface LegalFee {
+  id: string;
+  caseId: string;
+  llcId: string;
+  feeType: LegalFeeType;
+  description: string;
+  amountCents: number;
+  date: string;           // ISO date — when fee was incurred
+  paidDate?: string;      // ISO date
+  status: LegalFeeStatus;
+  invoiceNumber?: string;
+  notes?: string;
+  createdByUserId: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
 }

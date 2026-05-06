@@ -42,6 +42,7 @@ interface AdminCaseView {
   taskCount: number;
   openTaskCount: number;
   documentCount: number;
+  damagesSoughtCents?: number;
   resolution?: { type: string; date: string; amount?: number };
   createdAt: string;
 }
@@ -249,6 +250,7 @@ export async function GET(request: NextRequest) {
         taskCount,
         openTaskCount,
         documentCount,
+        damagesSoughtCents: typeof caseData.damagesSoughtCents === 'number' ? caseData.damagesSoughtCents : undefined,
         resolution,
         createdAt,
       });

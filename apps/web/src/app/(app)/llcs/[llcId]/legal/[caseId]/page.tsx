@@ -51,6 +51,7 @@ interface CaseData {
   opposingCounsel?: CounselData[] | CounselData;
   ourCounsel?: CounselData[] | CounselData | string;
   caseManagers: string[];
+  damagesSoughtCents?: number;
   filingDate?: string;
   nextHearingDate?: string;
   resolution?: CaseResolution;
@@ -93,6 +94,15 @@ interface Document {
   storagePath?: string;
 }
 
+interface FeeRecord {
+  id: string;
+  feeType: string;
+  description: string;
+  amountCents: number;
+  date: string;
+  status: string;
+}
+
 interface ActivityRecord {
   id: string;
   caseId: string;
@@ -125,6 +135,13 @@ const ACTIVITY_TYPES: Record<string, string> = {
   voicemail: 'Voicemail',
   email_sent: 'Email Sent',
   email_received: 'Email Received',
+  mail_sent: 'Mail Sent',
+  mail_received: 'Mail Received',
+  court_filing: 'Court Filing',
+  document_served: 'Document Served',
+  motion_filed: 'Motion Filed',
+  legal_demand: 'Legal Demand',
+  order_received: 'Court Order Received',
   research_update: 'Research Update',
   action_taken: 'Action Taken',
   strategy_discussion: 'Strategy Discussion',
@@ -137,6 +154,13 @@ const ACTIVITY_TYPE_COLORS: Record<string, string> = {
   voicemail: 'bg-indigo-100 text-indigo-700',
   email_sent: 'bg-green-100 text-green-700',
   email_received: 'bg-teal-100 text-teal-700',
+  mail_sent: 'bg-sky-100 text-sky-700',
+  mail_received: 'bg-cyan-100 text-cyan-700',
+  court_filing: 'bg-rose-100 text-rose-700',
+  document_served: 'bg-amber-100 text-amber-700',
+  motion_filed: 'bg-red-100 text-red-700',
+  legal_demand: 'bg-fuchsia-100 text-fuchsia-700',
+  order_received: 'bg-violet-100 text-violet-700',
   research_update: 'bg-purple-100 text-purple-700',
   action_taken: 'bg-orange-100 text-orange-700',
   strategy_discussion: 'bg-yellow-100 text-yellow-700',
@@ -319,9 +343,15 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [courtDates, setCourtDates] = useState<CourtDate[]>([]);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Damages sought inline edit state
+  const [editingDamages, setEditingDamages] = useState(false);
+  const [damagesInput, setDamagesInput] = useState('');
+  const [savingDamages, setSavingDamages] = useState(false);
 
   // Court date form state
   const [showCourtDateForm, setShowCourtDateForm] = useState(false);
@@ -492,20 +522,22 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [caseRes, tasksRes, docsRes, courtDatesRes, membersRes] = await Promise.all([
+      const [caseRes, tasksRes, docsRes, courtDatesRes, membersRes, feesRes] = await Promise.all([
         fetch(`/api/llcs/${llcId}/cases/${caseId}`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/tasks`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/documents`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/court-dates`),
         fetch(`/api/llcs/${llcId}/members`),
+        fetch(`/api/llcs/${llcId}/cases/${caseId}/fees`),
       ]);
 
-      const [caseJson, tasksJson, docsJson, courtDatesJson, membersJson] = await Promise.all([
+      const [caseJson, tasksJson, docsJson, courtDatesJson, membersJson, feesJson] = await Promise.all([
         caseRes.json(),
         tasksRes.json(),
         docsRes.json(),
         courtDatesRes.json(),
         membersRes.json(),
+        feesRes.json(),
       ]);
 
       if (caseJson.ok) setCaseData(caseJson.data);
@@ -515,6 +547,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
       if (docsJson.ok) setDocuments(docsJson.data);
       if (courtDatesJson.ok) setCourtDates(courtDatesJson.data);
       if (membersJson.ok) setMembers(membersJson.data);
+      if (feesJson.ok) setFees(feesJson.data);
     } catch {
       setError('Failed to load case data');
     } finally {
@@ -525,6 +558,30 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleSaveDamages = async () => {
+    const cents = Math.round(parseFloat(damagesInput.replace(/,/g, '')) * 100);
+    if (isNaN(cents) || cents < 0) return;
+    setSavingDamages(true);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ damagesSoughtCents: cents }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCaseData((prev) => prev ? { ...prev, damagesSoughtCents: cents } : prev);
+        setEditingDamages(false);
+      } else {
+        alert(data.error?.message || 'Failed to save');
+      }
+    } catch {
+      alert('Failed to save');
+    } finally {
+      setSavingDamages(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this case? This cannot be undone.')) return;
@@ -880,6 +937,59 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             </div>
           )}
+
+          {/* Damages Sought */}
+          <div className="border rounded-lg p-5">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Damages Sought</h2>
+              {!editingDamages && (
+                <button
+                  onClick={() => {
+                    setDamagesInput(caseData.damagesSoughtCents != null ? (caseData.damagesSoughtCents / 100).toFixed(2) : '');
+                    setEditingDamages(true);
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {caseData.damagesSoughtCents != null ? 'Edit' : 'Set amount'}
+                </button>
+              )}
+            </div>
+            {editingDamages ? (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-muted-foreground text-sm">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={damagesInput}
+                  onChange={(e) => setDamagesInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDamages(); if (e.key === 'Escape') setEditingDamages(false); }}
+                  autoFocus
+                  className="w-44 px-3 py-1.5 border rounded-md bg-background text-sm"
+                  placeholder="0.00"
+                />
+                <button
+                  onClick={handleSaveDamages}
+                  disabled={savingDamages}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingDamages ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => setEditingDamages(false)}
+                  className="px-3 py-1.5 border rounded-md text-xs hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold mt-1">
+                {caseData.damagesSoughtCents != null
+                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(caseData.damagesSoughtCents / 100)
+                  : <span className="text-muted-foreground text-base font-normal">Not set</span>}
+              </p>
+            )}
+          </div>
 
           {/* Case Information */}
           <div className="border rounded-lg p-5">
@@ -1698,6 +1808,15 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 Add Documents
               </Link>
               <Link
+                href={`/llcs/${llcId}/legal/${caseId}/fees`}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm border rounded-md hover:bg-secondary transition-colors text-left"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Legal Fees
+              </Link>
+              <Link
                 href={`/llcs/${llcId}/legal/${caseId}/edit`}
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm border rounded-md hover:bg-secondary transition-colors"
               >
@@ -1760,6 +1879,43 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Legal Fees */}
+          <div className="border rounded-lg p-5">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-semibold">Legal Fees</h2>
+              <span className="text-lg font-semibold tabular-nums">
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                  fees.reduce((sum, f) => sum + f.amountCents, 0) / 100
+                )}
+              </span>
+            </div>
+            {fees.length === 0 ? (
+              <p className="text-sm text-muted-foreground mt-3">No fees recorded.</p>
+            ) : (
+              <>
+                <div className="mt-3 space-y-2">
+                  {fees.slice(0, 5).map((fee) => (
+                    <div key={fee.id} className="flex items-center justify-between text-sm">
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate block text-foreground">{fee.description}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(fee.date)}</span>
+                      </div>
+                      <span className="ml-3 tabular-nums font-medium shrink-0">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(fee.amountCents / 100)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href={`/llcs/${llcId}/legal/${caseId}/fees`}
+                  className="mt-4 block text-center text-xs text-primary hover:underline"
+                >
+                  {fees.length > 5 ? `View all ${fees.length} fees` : 'View fees'}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

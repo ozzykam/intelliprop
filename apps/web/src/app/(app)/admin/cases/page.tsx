@@ -23,6 +23,7 @@ interface AdminCase {
   taskCount: number;
   openTaskCount: number;
   documentCount: number;
+  damagesSoughtCents?: number;
   resolution?: { type: string; date: string; amount?: number };
   createdAt: string;
 }
@@ -112,6 +113,10 @@ function formatDate(iso: string | null | undefined): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
+function formatCurrency(cents: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
+}
+
 export default function AdminCasesPage() {
   const [cases, setCases] = useState<AdminCase[]>([]);
   const [activeTasks, setActiveTasks] = useState<AdminTask[]>([]);
@@ -187,6 +192,8 @@ export default function AdminCasesPage() {
   const totalCases = filteredCases.length;
   const openCases = filteredCases.filter(c => c.status === 'open').length;
   const casesWithHearings = filteredCases.filter(c => c.nextCourtDate).length;
+  const totalDamagesSoughtCents = filteredCases.reduce((sum, c) => sum + (c.damagesSoughtCents ?? 0), 0);
+  const totalDamagesAwardedCents = filteredCases.reduce((sum, c) => sum + (c.resolution?.amount ?? 0), 0);
   
   return (
     <div className="p-6">
@@ -214,6 +221,14 @@ export default function AdminCasesPage() {
         <div className="bg-secondary/30 rounded-lg p-4">
           <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Upcoming Hearings</div>
           <div className="text-2xl font-bold text-purple-600">{casesWithHearings}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Damages Sought</div>
+          <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalDamagesSoughtCents)}</div>
+        </div>
+        <div className="bg-secondary/30 rounded-lg p-4">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Damages Awarded</div>
+          <div className="text-2xl font-bold text-green-600">{formatCurrency(totalDamagesAwardedCents)}</div>
         </div>
       </div>
 
@@ -298,6 +313,7 @@ export default function AdminCasesPage() {
                         <th className="text-center px-4 py-3 font-medium">Status</th>
                         <th className="text-left px-4 py-3 font-medium">Next Hearing</th>
                         <th className="text-center px-4 py-3 font-medium">Tasks</th>
+                        <th className="text-right px-4 py-3 font-medium">Damages Sought</th>
                         <th className="text-left px-4 py-3 font-medium">Filed</th>
                       </tr>
                     </thead>
@@ -361,6 +377,9 @@ export default function AdminCasesPage() {
                             ) : (
                               '—'
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {c.damagesSoughtCents != null ? formatCurrency(c.damagesSoughtCents) : '—'}
                           </td>
                           <td className="px-4 py-3">
                             {formatDate(c.filingDate)}
