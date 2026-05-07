@@ -205,7 +205,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const response = await anthropic.messages.create({
       model: 'claude-opus-4-6',
       max_tokens: 4096,
-      thinking: { type: 'enabled', budget_tokens: 2048 },
+      thinking: { type: 'adaptive' },
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: contentBlocks as Parameters<typeof anthropic.messages.create>[0]['messages'][0]['content'] }],
     });

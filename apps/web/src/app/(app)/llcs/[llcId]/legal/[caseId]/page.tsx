@@ -89,6 +89,7 @@ interface Document {
   description?: string;
   type: string;
   fileName: string;
+  contentType?: string;
   sizeBytes: number;
   createdAt: string;
   storagePath?: string;
@@ -171,6 +172,7 @@ interface MemberOption {
   userId: string;
   email: string;
   displayName: string | null;
+  role: string;
 }
 
 const CASE_TYPE_LABELS: Record<string, string> = {
@@ -331,6 +333,12 @@ function normalizeOurCounsel(val: CounselData[] | CounselData | string | undefin
   return [val];
 }
 
+const UNSUPPORTED_CONTENT_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.ms-word',
+]);
+
 interface CaseDetailPageProps {
   params: Promise<{ llcId: string; caseId: string }>;
 }
@@ -396,6 +404,23 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [editingActivityDescription, setEditingActivityDescription] = useState('');
   const [updatingActivityId, setUpdatingActivityId] = useState<string | null>(null);
   const activitiesFetchedRef = useRef(false);
+
+  // Notice generator state
+  const [showNoticeGenerator, setShowNoticeGenerator] = useState(false);
+  const [noticeDefendantIndex, setNoticeDefendantIndex] = useState<number | ''>('');
+  const [noticeSelectedDocIds, setNoticeSelectedDocIds] = useState<string[]>([]);
+  const [noticeContactUserId, setNoticeContactUserId] = useState('');
+  const [generatingNotice, setGeneratingNotice] = useState(false);
+  const [noticeError, setNoticeError] = useState('');
+  const [generatedNoticeHtml, setGeneratedNoticeHtml] = useState('');
+  const [noticeForDefendant, setNoticeForDefendant] = useState('');
+  const [savingNotice, setSavingNotice] = useState(false);
+  const [noticeSaved, setNoticeSaved] = useState(false);
+  const [noticeLetterheadName, setNoticeLetterheadName] = useState('');
+  const [noticeLetterheadAddress, setNoticeLetterheadAddress] = useState('');
+  const [noticeLetterheadPhone, setNoticeLetterheadPhone] = useState('');
+  const [noticeLetterheadEmail, setNoticeLetterheadEmail] = useState('');
+  const noticeIframeRef = useRef<HTMLIFrameElement>(null);
 
   // Ref for court dates section
   const courtDatesSectionRef = useRef<HTMLDivElement>(null);
@@ -544,7 +569,10 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
       else setError(caseJson.error?.message || 'Failed to load case');
 
       if (tasksJson.ok) setTasks(tasksJson.data);
-      if (docsJson.ok) setDocuments(docsJson.data);
+      if (docsJson.ok) {
+        setDocuments(docsJson.data);
+        setNoticeSelectedDocIds((docsJson.data as Document[]).map(d => d.id));
+      }
       if (courtDatesJson.ok) setCourtDates(courtDatesJson.data);
       if (membersJson.ok) setMembers(membersJson.data);
       if (feesJson.ok) setFees(feesJson.data);
@@ -712,6 +740,79 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     }
   };
 
+  // Notice generator handlers
+  const handleGenerateNotice = async () => {
+    if (noticeDefendantIndex === '' || !noticeContactUserId || noticeSelectedDocIds.length === 0) return;
+
+    setGeneratingNotice(true);
+    setNoticeError('');
+    setGeneratedNoticeHtml('');
+    setNoticeSaved(false);
+
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/generate-defendant-notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          defendantIndex: noticeDefendantIndex,
+          selectedDocumentIds: noticeSelectedDocIds,
+          contactUserId: noticeContactUserId,
+          letterheadName: noticeLetterheadName.trim() || undefined,
+          letterheadAddress: noticeLetterheadAddress.trim() || undefined,
+          letterheadPhone: noticeLetterheadPhone.trim() || undefined,
+          letterheadEmail: noticeLetterheadEmail.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        const opposingParties = normalizeOpposingParty(caseData?.opposingParty);
+        const defendant = opposingParties[noticeDefendantIndex as number];
+        const name =
+          defendant?.type === 'tenant'
+            ? (defendant.tenantName ?? 'Defendant')
+            : (defendant?.name ?? 'Defendant');
+        setGeneratedNoticeHtml(data.data.html);
+        setNoticeForDefendant(name);
+      } else {
+        setNoticeError(data.error?.message || 'Failed to generate notice');
+      }
+    } catch {
+      setNoticeError('Failed to generate notice');
+    } finally {
+      setGeneratingNotice(false);
+    }
+  };
+
+  const handleSaveNotice = async () => {
+    if (!generatedNoticeHtml || !noticeForDefendant) return;
+
+    setSavingNotice(true);
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/generate-defendant-notice/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: generatedNoticeHtml, defendantName: noticeForDefendant }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setDocuments(prev => [data.data, ...prev]);
+        setNoticeSaved(true);
+      } else {
+        alert(data.error?.message || 'Failed to save notice');
+      }
+    } catch {
+      alert('Failed to save notice');
+    } finally {
+      setSavingNotice(false);
+    }
+  };
+
+  const handlePrintNotice = () => {
+    noticeIframeRef.current?.contentWindow?.print();
+  };
+
   // Court date handlers
   const resetCourtDateForm = () => {
     setCourtDateType('hearing');
@@ -875,6 +976,8 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
 
   const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
   const completedTasks = tasks.filter(t => t.status === 'completed');
+  const opposingParties = normalizeOpposingParty(caseData.opposingParty);
+  const noticeEligibleMembers = members.filter(m => m.role === 'admin' || m.role === 'manager');
 
   return (
     <div className="space-y-6">
@@ -1519,6 +1622,232 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
             )}
           </div>
+
+          {/* Generate Defendant Notice */}
+          {opposingParties.length > 0 && (
+            <div className="border rounded-lg p-5">
+              <button
+                onClick={() => setShowNoticeGenerator(v => !v)}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <h2 className="font-semibold flex items-center gap-2">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Generate Defendant Notice
+                </h2>
+                <svg
+                  className={`w-5 h-5 text-muted-foreground transition-transform ${showNoticeGenerator ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showNoticeGenerator && (
+                <div className="mt-4 space-y-4">
+                  {!generatedNoticeHtml ? (
+                    <>
+                      {/* Defendant selector */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Defendant</label>
+                        <select
+                          value={noticeDefendantIndex}
+                          onChange={e => setNoticeDefendantIndex(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                        >
+                          <option value="">Select defendant...</option>
+                          {opposingParties.map((op, idx) => {
+                            const name = op.type === 'tenant' ? op.tenantName : op.name;
+                            const role = op.type === 'tenant' ? 'tenant' : (op.entityType ?? 'other');
+                            return (
+                              <option key={idx} value={idx}>
+                                {name ?? 'Unknown'} ({role})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Contact rep selector */}
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Contact Representative</label>
+                        {noticeEligibleMembers.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No eligible contact representatives</p>
+                        ) : (
+                          <select
+                            value={noticeContactUserId}
+                            onChange={e => setNoticeContactUserId(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                          >
+                            <option value="">Select contact rep...</option>
+                            {noticeEligibleMembers.map(m => (
+                              <option key={m.userId} value={m.userId}>
+                                {m.displayName ?? m.email} ({m.role})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Document checkboxes */}
+                      <div>
+                        <label className="block text-xs font-medium mb-2">
+                          Documents to Include (max 5)
+                        </label>
+                        {documents.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {documents.map(doc => {
+                              const isUnsupported = doc.contentType ? UNSUPPORTED_CONTENT_TYPES.has(doc.contentType) : false;
+                              const isChecked = noticeSelectedDocIds.includes(doc.id);
+                              const atLimit = noticeSelectedDocIds.length >= 5 && !isChecked;
+                              return (
+                                <label
+                                  key={doc.id}
+                                  className={`flex items-center gap-2 text-sm ${isUnsupported ? 'opacity-40' : atLimit ? 'opacity-50' : ''}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked && !isUnsupported}
+                                    disabled={isUnsupported || (atLimit && !isChecked)}
+                                    onChange={e => {
+                                      if (isUnsupported) return;
+                                      setNoticeSelectedDocIds(prev =>
+                                        e.target.checked
+                                          ? [...prev, doc.id]
+                                          : prev.filter(id => id !== doc.id)
+                                      );
+                                    }}
+                                    className="rounded"
+                                  />
+                                  <span className="truncate">{doc.title}</span>
+                                  <span className="text-muted-foreground shrink-0">— {doc.type}</span>
+                                  {isUnsupported && (
+                                    <span className="text-xs text-muted-foreground shrink-0">(unsupported)</span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {documents.some(d => d.contentType && UNSUPPORTED_CONTENT_TYPES.has(d.contentType)) && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Note: Word documents are not supported by the AI reader.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Letterhead overrides */}
+                      <div>
+                        <label className="block text-xs font-medium mb-2">Letterhead (optional)</label>
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={noticeLetterheadName}
+                            onChange={e => setNoticeLetterheadName(e.target.value)}
+                            placeholder={
+                              caseData.plaintiff?.type === 'llc'
+                                ? (caseData.plaintiff.llcName ?? 'Name (auto)')
+                                : 'Name (auto)'
+                            }
+                            className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                          />
+                          <input
+                            type="text"
+                            value={noticeLetterheadAddress}
+                            onChange={e => setNoticeLetterheadAddress(e.target.value)}
+                            placeholder="Mailing address"
+                            className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={noticeLetterheadPhone}
+                              onChange={e => setNoticeLetterheadPhone(e.target.value)}
+                              placeholder="Phone"
+                              className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                            />
+                            <input
+                              type="text"
+                              value={noticeLetterheadEmail}
+                              onChange={e => setNoticeLetterheadEmail(e.target.value)}
+                              placeholder="Email"
+                              className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Generate button */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleGenerateNotice}
+                          disabled={
+                            generatingNotice ||
+                            noticeDefendantIndex === '' ||
+                            !noticeContactUserId ||
+                            noticeSelectedDocIds.length === 0
+                          }
+                          className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {generatingNotice ? 'Generating...' : 'Generate Notice'}
+                        </button>
+                        {noticeError && (
+                          <p className="text-sm text-destructive">{noticeError}</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Generated notice preview */}
+                      <div>
+                        <p className="text-sm font-medium mb-2">Notice for: {noticeForDefendant}</p>
+                        <iframe
+                          ref={noticeIframeRef}
+                          srcDoc={generatedNoticeHtml}
+                          className="w-full border rounded"
+                          style={{ height: '500px' }}
+                          title="Generated Defendant Notice"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          onClick={handlePrintNotice}
+                          className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
+                        >
+                          Print
+                        </button>
+                        <button
+                          onClick={handleSaveNotice}
+                          disabled={savingNotice || noticeSaved}
+                          className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {savingNotice ? 'Saving...' : 'Save as Document'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setGeneratedNoticeHtml('');
+                            setNoticeForDefendant('');
+                            setNoticeSaved(false);
+                          }}
+                          className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
+                        >
+                          Regenerate
+                        </button>
+                        {noticeSaved && (
+                          <span className="text-sm text-green-600 font-medium">✓ Saved</span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Documents Section */}
           <div className="border rounded-lg p-5">

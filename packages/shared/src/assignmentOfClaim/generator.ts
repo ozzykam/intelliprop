@@ -488,7 +488,9 @@ export function generateNoticeToObligor(data: AssignmentOfClaim): string {
       <p>Sincerely,</p>
 
       ${data.noticeSignatoryName
-        ? `<p style="font-style:italic;margin-bottom:0.02in">/s/ ${data.noticeSignatoryName}</p>`
+        ? `<p style="font-style:italic;margin-bottom:0.02in">/s/ ${data.noticeSignatoryName}</p>
+        <div class="sig-line" style="margin-top:0"></div>
+        <p>Signature (Electronic)</p>`
         : `<div class="sig-line"></div>`
       }
       <p style="margin-bottom:0.02in">${data.llcName}</p>
