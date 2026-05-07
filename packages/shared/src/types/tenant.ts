@@ -70,7 +70,12 @@ export type { EmergencyContact };
 export type GovernmentIdType = 'passport' | 'drivers_license' | 'state_id' | 'other';
 
 export interface PrimaryContact {
-  name: string;
+  // Current format
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  // Legacy format (kept for backward compatibility with existing Firestore docs)
+  name?: string;
   title?: string;
   email?: string;
   phone?: string;

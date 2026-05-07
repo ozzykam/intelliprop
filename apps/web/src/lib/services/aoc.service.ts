@@ -22,6 +22,8 @@ export async function createAoc(
   const llcData = llcDoc.data() ?? {};
   const llcName: string = llcData.legalName ?? llcData.name ?? llcId;
   const llcAddress: string | undefined = llcData.address ?? undefined;
+  const llcPhone: string | undefined = llcData.phone ?? llcData.phoneNumber ?? undefined;
+  const llcEmail: string | undefined = llcData.email ?? undefined;
 
   const aocRef = adminDb
     .collection('llcs')
@@ -35,6 +37,8 @@ export async function createAoc(
     llcId,
     llcName,
     ...(llcAddress && { llcAddress }),
+    ...(llcPhone && { llcPhone }),
+    ...(llcEmail && { llcEmail }),
     claimType: input.claimType,
     claimDescription: input.claimDescription,
     ...(input.claimValueCents !== undefined && { claimValueCents: input.claimValueCents }),

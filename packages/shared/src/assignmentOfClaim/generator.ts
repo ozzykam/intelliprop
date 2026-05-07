@@ -132,8 +132,7 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
       font-size: 12pt;
       line-height: 1.6;
       color: #000;
-      margin: 1in;
-      max-width: 8.5in;
+      margin: 0;
     }
     h1 {
       text-align: center;
@@ -184,7 +183,7 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
     }
     .notary-block { margin-top: 1em; }
     @media print {
-      body { margin: 1in; }
+      body { margin: 0; }
       .signature-block { page-break-inside: avoid; }
     }
   </style>
@@ -328,41 +327,28 @@ export function generateNoticeToObligor(data: AssignmentOfClaim): string {
   const effectiveDateFormatted = formatDate(data.effectiveDate);
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  // Obligor name by claim type
   let obligorName = 'Obligor';
-  if (data.claimType === 'rent_debt') {
-    obligorName = data.tenantName ?? 'Tenant/Obligor';
-  } else if (data.claimType === 'insurance_claim') {
-    obligorName = data.insurer ?? 'Insurer/Obligor';
-  }
+  if (data.claimType === 'rent_debt') obligorName = data.tenantName ?? 'Tenant/Obligor';
+  else if (data.claimType === 'insurance_claim') obligorName = data.insurer ?? 'Insurer/Obligor';
 
-  // Delivery address hint
   const deliveryAddress =
     data.claimType === 'rent_debt' && data.propertyAddress
       ? data.propertyAddress
       : '[OBLIGOR MAILING ADDRESS — TO BE COMPLETED BEFORE DELIVERY]';
 
-  // Claim description block
   const claimTypeLabel =
-    data.claimType === 'rent_debt'
-      ? 'Rent / Tenant Debt'
-      : data.claimType === 'insurance_claim'
-      ? 'Insurance Claim'
-      : 'General Monetary Claim';
+    data.claimType === 'rent_debt' ? 'Rent / Tenant Debt'
+    : data.claimType === 'insurance_claim' ? 'Insurance Claim'
+    : 'General Monetary Claim';
 
-  const claimValueLine =
-    data.claimValueCents !== undefined
-      ? `Claim Amount: ${formatCents(data.claimValueCents)}\n`
-      : '';
+  const contactLine = [data.llcPhone, data.llcEmail].filter(Boolean).join('&ensp;&bull;&ensp;');
 
-  const assigneeContactLines = [
+  const assigneeRows = [
     data.assignee.name,
     data.assignee.address,
-    data.assignee.phone ?? '',
-    data.assignee.email ?? '',
-  ]
-    .filter(Boolean)
-    .join('\n  ');
+    data.assignee.phone,
+    data.assignee.email,
+  ].filter(Boolean).map(v => `<tr><td>${v}</td></tr>`).join('');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -370,55 +356,150 @@ export function generateNoticeToObligor(data: AssignmentOfClaim): string {
   <meta charset="UTF-8" />
   <title>Notice of Assignment of Claim</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: monospace;
+      font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
       font-size: 11pt;
-      line-height: 1.6;
-      color: #000;
-      margin: 1in;
-      max-width: 7in;
-      white-space: pre-wrap;
+      line-height: 1.65;
+      color: #111;
+      margin: 0;
     }
-    .label { font-weight: bold; }
+    /* ── Letterhead ── */
+    .letterhead {
+      text-align: center;
+      padding: 0.35in 0 0.2in;
+    }
+    .letterhead-name {
+      font-size: 20pt;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #000;
+    }
+    .letterhead-address {
+      font-size: 10pt;
+      color: #444;
+      margin-top: 0.06in;
+    }
+    .letterhead-contact {
+      font-size: 10pt;
+      color: #444;
+      margin-top: 0.04in;
+    }
+    .letterhead-rule-thick {
+      border: none;
+      border-top: 3px solid #000;
+      margin: 0.18in 0 0;
+    }
+    .letterhead-rule-thin {
+      border: none;
+      border-top: 1px solid #000;
+      margin: 0.06in 0 0;
+    }
+    /* ── Body ── */
+    .body {
+      padding: 0.3in 0 0;
+    }
+    p { margin-bottom: 0.75em; }
+    .date { text-align: right; margin-bottom: 0.3in; }
+    .address-block { margin-bottom: 0.25in; }
+    .address-block p { margin-bottom: 0; }
+    .re-line { margin-bottom: 0.25in; }
+    .claim-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.15in 0 0.25in;
+      font-size: 10.5pt;
+    }
+    .claim-table td {
+      padding: 0.07in 0.12in;
+      border: 1px solid #ccc;
+      vertical-align: top;
+    }
+    .claim-table td:first-child {
+      font-weight: 600;
+      white-space: nowrap;
+      width: 1.4in;
+      background: #f5f5f5;
+    }
+    .assignee-table {
+      border-collapse: collapse;
+      margin: 0.1in 0 0.25in 0.2in;
+      font-size: 10.5pt;
+    }
+    .assignee-table td { padding: 0.02in 0; }
+    .warning-box {
+      border: 1.5px solid #000;
+      padding: 0.1in 0.15in;
+      margin: 0.2in 0;
+      font-weight: 600;
+    }
+    .sig-line {
+      border-top: 1px solid #000;
+      width: 2.5in;
+      margin-top: 0.5in;
+      margin-bottom: 0.06in;
+    }
     @media print {
-      body { margin: 1in; }
+      body { margin: 0; }
     }
   </style>
 </head>
-<body>${data.llcName}${data.llcAddress ? `\n${data.llcAddress}` : ''}
-${today}
+<body>
 
+  <div class="letterhead">
+    <div class="letterhead-name">${data.llcName}</div>
+    ${data.llcAddress ? `<div class="letterhead-address">${data.llcAddress}</div>` : ''}
+    ${contactLine ? `<div class="letterhead-contact">${contactLine}</div>` : ''}
+    <hr class="letterhead-rule-thick" />
+    <hr class="letterhead-rule-thin" />
+  </div>
 
-NOTICE OF ASSIGNMENT OF CLAIM
+  <div class="body">
+    <p class="date">${today}</p>
 
-To: ${obligorName}
-    ${deliveryAddress}
+    <div class="address-block">
+      <p>${obligorName}</p>
+      <p>${deliveryAddress}</p>
+    </div>
 
-Re: Assignment of ${claimTypeLabel} — Effective ${effectiveDateFormatted}
+    <p class="re-line"><strong>Re: Notice of Assignment of Claim — Effective ${effectiveDateFormatted}</strong></p>
 
-Dear ${obligorName}:
+    <p>Dear ${obligorName}:</p>
 
-Please take notice that ${data.llcName} ("Assignor") has assigned, transferred, and conveyed to ${data.assignee.name} ("Assignee") all of Assignor's right, title, and interest in and to the following claim (the "Claim"):
+    <p>Please take notice that <strong>${data.llcName}</strong> ("<strong>Assignor</strong>") has assigned, transferred, and conveyed to <strong>${data.assignee.name}</strong> ("<strong>Assignee</strong>") all of Assignor's right, title, and interest in and to the following claim (the "<strong>Claim</strong>"):</p>
 
-  Claim Type: ${claimTypeLabel}
-  Description: ${data.claimDescription}
-${claimValueLine}
-Effective as of ${effectiveDateFormatted}, all payments, communications, and correspondence relating to the Claim should be directed exclusively to Assignee at:
+    <table class="claim-table">
+      <tr><td>Claim Type</td><td>${claimTypeLabel}</td></tr>
+      ${data.claimValueCents !== undefined ? `<tr><td>Claim Amount</td><td style="font-weight: 600; color: #000; font-size: 1.15rem">${formatCents(data.claimValueCents)}</td></tr>` : ''}
+    </table>
 
-  ${assigneeContactLines}
+    <p style="margin-bottom:0.1in"><strong>Description of Claim:</strong></p>
+    <div style="margin-bottom:0.25in;padding-left:0.15in;border-left:3px solid #ccc;font-size:10.5pt">${descriptionToHtml(data.claimDescription)}</div>
 
-WARNING: Any payment made to ${data.llcName} after the date of this notice will not discharge your obligation with respect to the Claim. You must direct all payments to Assignee.
+    <div style="page-break-inside:avoid">
+      <p>Effective as of <strong>${effectiveDateFormatted}</strong>, all payments, communications, and correspondence relating to the Claim must be directed exclusively to Assignee at:</p>
 
-A copy of the Assignment of Claim is available upon request.
+      <table class="assignee-table">${assigneeRows}</table>
 
-Sincerely,
+      <div class="warning-box">WARNING: Any payment made to ${data.llcName} after the date of this notice will not discharge your obligation with respect to the Claim. You must direct all payments to Assignee at the address above.</div>
 
+      <p>A copy of the Assignment of Claim is available upon written request.</p>
 
-_______________________________
-${data.llcName}
-Authorized Representative
+      <p>Sincerely,</p>
 
-Date: _________________________
+      ${data.noticeSignatoryName
+        ? `<p style="font-style:italic;margin-bottom:0.02in">/s/ ${data.noticeSignatoryName}</p>`
+        : `<div class="sig-line"></div>`
+      }
+      <p style="margin-bottom:0.02in">${data.llcName}</p>
+      <p style="margin-bottom:0.02in">Authorized Representative</p>
+      <p>Date: ${data.noticeSignedDate
+        ? new Date(data.noticeSignedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : '_________________________'
+      }</p>
+    </div>
+  </div>
+
 </body>
 </html>`;
 }

@@ -24,18 +24,34 @@ interface TenantItem {
   // Commercial
   businessName?: string;
   businessType?: string;
-  primaryContact?: { name: string };
+  primaryContact?: {
+    name?: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    title?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 interface TenantsPageProps {
   params: Promise<{ llcId: string }>;
 }
 
+function getPrimaryContactName(contact: TenantItem['primaryContact']): string {
+  if (!contact) return '';
+  if (contact.firstName || contact.lastName) {
+    return [contact.firstName, contact.middleName, contact.lastName].filter(Boolean).join(' ');
+  }
+  return contact.name || '';
+}
+
 function getTenantDisplayName(tenant: TenantItem): string {
   if (tenant.type === 'business') {
     return tenant.businessName || 'Unnamed Business';
   }
-  return `${tenant.firstName} ${tenant.lastName}`;
+  return `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() || 'Unnamed Tenant';
 }
 
 function TenantsContent({ llcId }: { llcId: string }) {
@@ -227,7 +243,7 @@ function TenantsContent({ llcId }: { llcId: string }) {
                         <div className="font-medium">{displayName}</div>
                         {tenant.type === 'business' && tenant.primaryContact && (
                           <div className="text-muted-foreground text-xs">
-                            Contact: {tenant.primaryContact.name}
+                            Contact: {getPrimaryContactName(tenant.primaryContact)}
                           </div>
                         )}
                       </Link>

@@ -239,7 +239,7 @@ export default function EditTenantPage({ params }: EditTenantPageProps) {
       </div>
 
       <div className="flex-1 p-6 m-6 border rounded-lg">
-      <h1 className="text-2xl font-bold mb-6">Edit Tenants</h1>
+      <h1 className="text-2xl font-bold mb-6">Edit Tenant</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (

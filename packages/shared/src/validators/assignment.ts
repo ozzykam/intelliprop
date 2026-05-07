@@ -48,4 +48,6 @@ export const updateAssignmentSchema = createAssignmentSchema.partial().extend({
   status: z.enum(['draft', 'executed', 'active', 'collected', 'closed']).optional(),
   executedDate: isoDateSchema.optional(),
   documentHtml: z.string().optional(),
+  noticeSignatoryName: z.string().max(200).optional(),
+  noticeSignedDate: isoDateSchema.optional(),
 });

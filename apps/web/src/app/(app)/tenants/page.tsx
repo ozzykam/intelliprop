@@ -25,7 +25,23 @@ interface TenantItem {
   businessName?: string;
   businessType?: string;
   einLast4?: string;
-  primaryContact?: { name: string };
+  primaryContact?: {
+    name?: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    title?: string;
+    email?: string;
+    phone?: string;
+  };
+}
+
+function getPrimaryContactName(contact: TenantItem['primaryContact']): string {
+  if (!contact) return '';
+  if (contact.firstName || contact.lastName) {
+    return [contact.firstName, contact.middleName, contact.lastName].filter(Boolean).join(' ');
+  }
+  return contact.name || '';
 }
 
 function getTenantDisplayName(tenant: TenantItem): string {
@@ -102,11 +118,12 @@ export default function GlobalTenantsPage() {
     setInviteLoading(true);
 
     try {
+      const contactName = getPrimaryContactName(inviteTenant.primaryContact);
       const base = {
         role: 'tenant' as const,
-        firstName: inviteTenant.firstName || (inviteTenant.primaryContact?.name.split(' ')[0] ?? ''),
+        firstName: inviteTenant.firstName || contactName.split(' ')[0] || '',
         middleInitial: undefined,
-        lastName: inviteTenant.lastName || (inviteTenant.primaryContact?.name.split(' ').slice(1).join(' ') ?? ''),
+        lastName: inviteTenant.lastName || contactName.split(' ').slice(1).join(' ') || '',
         dateOfBirth: inviteDateOfBirth,
         tenantId: inviteTenant.id,
         llcIds: [],
@@ -263,7 +280,7 @@ export default function GlobalTenantsPage() {
                         <div className="font-medium">{displayName}</div>
                         {tenant.type === 'business' && tenant.primaryContact && (
                           <div className="text-muted-foreground text-xs">
-                            Contact: {tenant.primaryContact.name}
+                            Contact: {getPrimaryContactName(tenant.primaryContact)}
                           </div>
                         )}
                       </Link>

@@ -16,7 +16,11 @@ const addressSchema = z.object({
 });
 
 const primaryContactSchema = z.object({
-  name: z.string().min(1).max(200),
+  // Support both legacy { name } and current { firstName, lastName } formats
+  name: z.string().min(1).max(200).optional(),
+  firstName: z.string().min(1).max(100).optional(),
+  middleName: z.string().max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
   title: z.string().max(100).optional(),
   email: z.string().email().optional(),
   phone: z.string().max(20).optional(),

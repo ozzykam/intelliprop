@@ -57,6 +57,11 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
   const [deleting, setDeleting] = useState(false);
   const [showNotice, setShowNotice] = useState(false);
   const noticeRef = useRef<HTMLIFrameElement>(null);
+  const [noticeSignatoryName, setNoticeSignatoryName] = useState('');
+  const [noticeSignedDate, setNoticeSignedDate] = useState('');
+  const [noticeSigSaving, setNoticeSigSaving] = useState(false);
+  const [noticeSigError, setNoticeSigError] = useState('');
+  const [noticeHtml, setNoticeHtml] = useState('');
 
   const fetchAssignment = useCallback(async () => {
     try {
@@ -64,6 +69,9 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
       const data = await res.json();
       if (data.ok) {
         setAssignment(data.data);
+        setNoticeSignatoryName(data.data.noticeSignatoryName || '');
+        setNoticeSignedDate(data.data.noticeSignedDate || '');
+        setNoticeHtml(generateNoticeToObligor(data.data));
       } else {
         setError(data.error?.message || 'Failed to load assignment');
       }
@@ -158,6 +166,30 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
     } catch {
       alert('Failed to delete assignment');
       setDeleting(false);
+    }
+  };
+
+  const handleSaveNoticeSignature = async () => {
+    if (!assignment) return;
+    setNoticeSigSaving(true);
+    setNoticeSigError('');
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/aoc/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noticeSignatoryName, noticeSignedDate: noticeSignedDate || undefined }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAssignment(data.data);
+        setNoticeHtml(generateNoticeToObligor(data.data));
+      } else {
+        setNoticeSigError(data.error?.message || 'Failed to save signature');
+      }
+    } catch {
+      setNoticeSigError('Failed to save signature');
+    } finally {
+      setNoticeSigSaving(false);
     }
   };
 
@@ -386,6 +418,38 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
               {showNotice && (
                 <div className="mt-6">
                   <div className="text-sm font-medium mb-2">Notice to Obligor (Exhibit A)</div>
+                  <div className="p-3 border rounded-lg bg-secondary/10 mb-3 space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Digital Signature</div>
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Signatory Name</label>
+                        <input
+                          type="text"
+                          value={noticeSignatoryName}
+                          onChange={e => setNoticeSignatoryName(e.target.value)}
+                          placeholder="Full name"
+                          className="border rounded-md px-2 py-1.5 text-sm w-56"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Date Signed</label>
+                        <input
+                          type="date"
+                          value={noticeSignedDate}
+                          onChange={e => setNoticeSignedDate(e.target.value)}
+                          className="border rounded-md px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <button
+                        onClick={() => void handleSaveNoticeSignature()}
+                        disabled={noticeSigSaving}
+                        className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-60"
+                      >
+                        {noticeSigSaving ? 'Saving...' : 'Apply Signature'}
+                      </button>
+                      {noticeSigError && <span className="text-xs text-destructive">{noticeSigError}</span>}
+                    </div>
+                  </div>
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={() => noticeRef.current?.contentWindow?.print()}
@@ -396,7 +460,7 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
                   </div>
                   <iframe
                     ref={noticeRef}
-                    srcDoc={generateNoticeToObligor(assignment)}
+                    srcDoc={noticeHtml}
                     style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
                     title="Notice to Obligor"
                   />
@@ -424,6 +488,38 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
               {showNotice && (
                 <div className="mt-6 text-left">
                   <div className="text-sm font-medium mb-2">Notice to Obligor (Exhibit A)</div>
+                  <div className="p-3 border rounded-lg bg-secondary/10 mb-3 space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Digital Signature</div>
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Signatory Name</label>
+                        <input
+                          type="text"
+                          value={noticeSignatoryName}
+                          onChange={e => setNoticeSignatoryName(e.target.value)}
+                          placeholder="Full name"
+                          className="border rounded-md px-2 py-1.5 text-sm w-56"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Date Signed</label>
+                        <input
+                          type="date"
+                          value={noticeSignedDate}
+                          onChange={e => setNoticeSignedDate(e.target.value)}
+                          className="border rounded-md px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <button
+                        onClick={() => void handleSaveNoticeSignature()}
+                        disabled={noticeSigSaving}
+                        className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-60"
+                      >
+                        {noticeSigSaving ? 'Saving...' : 'Apply Signature'}
+                      </button>
+                      {noticeSigError && <span className="text-xs text-destructive">{noticeSigError}</span>}
+                    </div>
+                  </div>
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={() => noticeRef.current?.contentWindow?.print()}
@@ -434,7 +530,7 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
                   </div>
                   <iframe
                     ref={noticeRef}
-                    srcDoc={generateNoticeToObligor(assignment)}
+                    srcDoc={noticeHtml}
                     style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
                     title="Notice to Obligor"
                   />

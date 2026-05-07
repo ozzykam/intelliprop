@@ -116,6 +116,8 @@ export interface AssignmentOfClaim {
   llcId: string;
   llcName: string;
   llcAddress?: string;
+  llcPhone?: string;
+  llcEmail?: string;
 
   // Step 1 — Claim details
   claimType: AssignmentClaimType;
@@ -148,6 +150,10 @@ export interface AssignmentOfClaim {
   assignorTitle?: string;
   assigneeSignatoryName?: string;
   assigneeTitle?: string;
+
+  // Notice to Obligor signature
+  noticeSignatoryName?: string;
+  noticeSignedDate?: string;
 
   // Generated document
   documentHtml?: string;
@@ -187,6 +193,8 @@ export interface CreateAssignmentInput {
   assignorTitle?: string;
   assigneeSignatoryName?: string;
   assigneeTitle?: string;
+  noticeSignatoryName?: string;
+  noticeSignedDate?: string;
 }
 
 export type UpdateAssignmentInput = Partial<CreateAssignmentInput> & {

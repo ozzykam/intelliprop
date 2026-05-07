@@ -1,6 +1,6 @@
 import { adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { Tenant } from '@shared/types/tenant';
+import type { Tenant, PrimaryContact } from '@shared/types/tenant';
 
 export interface CreateIndividualTenantInput {
   type: 'individual';
@@ -26,12 +26,7 @@ export interface CreateBusinessTenantInput {
   businessType: string;
   einLast4?: string;
   stateOfIncorporation?: string;
-  primaryContact: {
-    name: string;
-    title?: string;
-    email?: string;
-    phone?: string;
-  };
+  primaryContact: PrimaryContact;
   email: string;
   phone?: string;
   notes?: string;
@@ -69,12 +64,7 @@ export interface UpdateTenantInput {
   businessType?: string;
   einLast4?: string;
   stateOfIncorporation?: string;
-  primaryContact?: {
-    name: string;
-    title?: string;
-    email?: string;
-    phone?: string;
-  };
+  primaryContact?: PrimaryContact;
 }
 
 export interface CreatedIndividualTenant {
@@ -102,7 +92,7 @@ export interface CreatedBusinessTenant {
   businessType: string;
   einLast4: string | null;
   stateOfIncorporation: string | null;
-  primaryContact: { name: string; title?: string; email?: string; phone?: string };
+  primaryContact: PrimaryContact;
 }
 
 export type CreatedTenant = CreatedIndividualTenant | CreatedBusinessTenant;

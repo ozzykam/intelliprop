@@ -97,8 +97,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           await createActivation({
             type: 'business',
             role: 'tenant',
-            firstName: tenant.primaryContact.name.split(' ')[0] || tenant.businessName,
-            lastName: tenant.primaryContact.name.split(' ').slice(1).join(' ') || '',
+            firstName: tenant.primaryContact.firstName ?? tenant.primaryContact.name?.split(' ')[0] ?? tenant.businessName,
+            lastName: tenant.primaryContact.lastName ?? tenant.primaryContact.name?.split(' ').slice(1).join(' ') ?? '',
             dateOfBirth: '1900-01-01', // Business entities use EIN/business name for verification
             einLast4: tenant.einLast4,
             businessName: tenant.businessName,
