@@ -11,8 +11,9 @@ import {
   AOC_EXHIBIT_DEFINITIONS,
   ASSIGNMENT_CLAIM_TYPE_LABELS,
   User,
+  OpposingPartyTenant,
 } from '@shared/types';
-import { generateAocDocument } from '@shared/assignmentOfClaim/generator';
+import { generateAocDocument, generateNoticeToObligor } from '@shared/assignmentOfClaim/generator';
 
 interface DocumentAnalysis {
   fileName: string;
@@ -61,27 +62,31 @@ const DOC_TYPE_COLORS: Record<DocumentAnalysis['documentType'], string> = {
   other: 'bg-secondary text-muted-foreground',
 };
 
+interface ObligorEntry {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  isPrimary: boolean;
+}
+
 interface NewAssignmentPageProps {
   params: Promise<{ llcId: string }>;
+  searchParams: Promise<{ caseId?: string }>;
 }
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
 type WizardState = {
   step: 1 | 2 | 3 | 4;
+  caseId: string;
+  caseLabel: string; // docketNumber or caseType for the banner
   // Step 1
   claimType: string;
   claimDescription: string;
   claimValueDollars: string;
-  tenantName: string;
-  tenantStreet: string;
-  tenantUnit: string;
-  tenantCity: string;
-  tenantState: string;
-  tenantZip: string;
-  tenantSameAsProperty: boolean;
-  tenantPhone: string;
-  tenantEmail: string;
+  obligors: ObligorEntry[];
   propertyStreet: string;
   propertyUnit: string;
   propertyCity: string;
@@ -109,22 +114,20 @@ type WizardState = {
   assigneeSignDigitally: boolean;
   assigneeSignatoryName: string;
   assigneeTitle: string;
+  // Step 4 notice
+  noticeSignatoryName: string;
+  noticeSignedDate: string;
+  noticeAddressIndices: number[];
 };
 
 const INITIAL: WizardState = {
   step: 1,
+  caseId: '',
+  caseLabel: '',
   claimType: 'rent_debt',
   claimDescription: '',
   claimValueDollars: '',
-  tenantName: '',
-  tenantStreet: '',
-  tenantUnit: '',
-  tenantCity: '',
-  tenantState: '',
-  tenantZip: '',
-  tenantSameAsProperty: false,
-  tenantPhone: '',
-  tenantEmail: '',
+  obligors: [],
   propertyStreet: '',
   propertyUnit: '',
   propertyCity: '',
@@ -150,6 +153,9 @@ const INITIAL: WizardState = {
   assigneeSignDigitally: false,
   assigneeSignatoryName: '',
   assigneeTitle: '',
+  noticeSignatoryName: '',
+  noticeSignedDate: '',
+  noticeAddressIndices: [],
 };
 
 function dollarsToCents(val: string): number {
@@ -163,20 +169,6 @@ function formatUserAddress(u: User): string {
   if (street2) parts.push(street2);
   const csz = [city, [state, zipCode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   if (csz) parts.push(csz);
-  return parts.join(', ');
-}
-
-function buildTenantAddress(s: WizardState): string | undefined {
-  if (s.tenantSameAsProperty) return buildPropertyAddress(s);
-  const street = s.tenantStreet.trim();
-  if (!street) return undefined;
-  const parts = [street];
-  if (s.tenantUnit.trim()) parts.push(s.tenantUnit.trim());
-  const cityStateZip = [
-    s.tenantCity.trim(),
-    [s.tenantState.trim().toUpperCase(), s.tenantZip.trim()].filter(Boolean).join(' '),
-  ].filter(Boolean).join(', ');
-  if (cityStateZip) parts.push(cityStateZip);
   return parts.join(', ');
 }
 
@@ -194,6 +186,7 @@ function buildPropertyAddress(s: WizardState): string | undefined {
 }
 
 function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
+  const primaryObligor = s.obligors.find(o => o.isPrimary) ?? s.obligors[0];
   return {
     id: 'preview',
     llcId: 'preview',
@@ -201,10 +194,15 @@ function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
     claimType: s.claimType as AssignmentOfClaim['claimType'],
     claimDescription: s.claimDescription,
     claimValueCents: s.claimValueDollars ? dollarsToCents(s.claimValueDollars) : undefined,
-    tenantName: s.tenantName || undefined,
-    tenantAddress: buildTenantAddress(s),
-    tenantPhone: s.tenantPhone || undefined,
-    tenantEmail: s.tenantEmail || undefined,
+    obligors: s.obligors.length > 0 ? s.obligors.map(o => ({
+      name: o.name,
+      address: o.address || undefined,
+      phone: o.phone || undefined,
+      email: o.email || undefined,
+      isPrimary: o.isPrimary,
+    })) : undefined,
+    tenantName: primaryObligor?.name || undefined,
+    tenantAddress: primaryObligor?.address || undefined,
     propertyAddress: buildPropertyAddress(s),
     insuranceClaimNumber: s.insuranceClaimNumber || undefined,
     insurer: s.insurer || undefined,
@@ -232,10 +230,12 @@ function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
   };
 }
 
-export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
+export default function NewAssignmentPage({ params, searchParams }: NewAssignmentPageProps) {
   const { llcId } = use(params);
+  const { caseId: caseIdParam } = use(searchParams);
   const router = useRouter();
   const [state, setState] = useState<WizardState>(INITIAL);
+  const [caseBannerDismissed, setCaseBannerDismissed] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [savedAssignees, setSavedAssignees] = useState<User[]>([]);
@@ -255,7 +255,84 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
       .catch(() => {});
   }, []);
 
+  // Pre-fill from case if caseId searchParam is present
+  useEffect(() => {
+    if (!caseIdParam) return;
+    fetch(`/api/llcs/${llcId}/cases/${caseIdParam}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) return;
+        const c = data.data;
+        const patch: Partial<WizardState> = {
+          caseId: caseIdParam,
+          caseLabel: c.docketNumber || c.caseType,
+        };
+        if (c.description) patch.claimDescription = c.description;
+        if (c.damagesSoughtCents != null) {
+          patch.claimValueDollars = (c.damagesSoughtCents / 100).toFixed(2);
+        }
+        // Infer claimType
+        if (['eviction', 'conciliation', 'collections'].includes(c.caseType)) {
+          patch.claimType = 'rent_debt';
+        } else {
+          patch.claimType = 'general_monetary';
+        }
+        // Pre-fill obligors from all tenant opposing parties
+        const parties = Array.isArray(c.opposingParty) ? c.opposingParty
+          : c.opposingParty ? [c.opposingParty] : [];
+        const tenantParties = parties.filter((op: { type: string }) => op.type === 'tenant');
+        if (tenantParties.length > 0) {
+          patch.obligors = tenantParties.map((op: OpposingPartyTenant, idx: number) => ({
+            id: `prefill-${idx}`,
+            name: op.tenantName ?? '',
+            address: op.propertyAddress ?? '',
+            phone: op.phone ?? '',
+            email: op.email ?? '',
+            isPrimary: idx === 0,
+          }));
+          const firstTenant = tenantParties[0] as OpposingPartyTenant;
+          if (firstTenant?.propertyAddress) patch.propertyStreet = firstTenant.propertyAddress;
+        }
+        set(patch);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseIdParam, llcId]);
+
   const set = (patch: Partial<WizardState>) => setState(prev => ({ ...prev, ...patch }));
+
+  const addObligor = () => {
+    setState(prev => {
+      const newEntry: ObligorEntry = {
+        id: Date.now().toString(),
+        name: '', address: '', phone: '', email: '',
+        isPrimary: prev.obligors.length === 0,
+      };
+      return { ...prev, obligors: [...prev.obligors, newEntry] };
+    });
+  };
+
+  const updateObligor = (id: string, patch: Partial<ObligorEntry>) => {
+    setState(prev => ({ ...prev, obligors: prev.obligors.map(o => o.id === id ? { ...o, ...patch } : o) }));
+  };
+
+  const removeObligor = (id: string) => {
+    setState(prev => {
+      const filtered = prev.obligors.filter(o => o.id !== id);
+      const hasNewPrimary = filtered.some(o => o.isPrimary);
+      const next = hasNewPrimary || filtered.length === 0
+        ? filtered
+        : filtered.map((o, i) => i === 0 ? { ...o, isPrimary: true } : o);
+      return { ...prev, obligors: next };
+    });
+  };
+
+  const setPrimary = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      obligors: prev.obligors.map(o => ({ ...o, isPrimary: o.id === id })),
+    }));
+  };
 
   const handleAnalyze = async () => {
     if (!analysisFiles.length) return;
@@ -291,10 +368,13 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
         claimType: state.claimType,
         claimDescription: state.claimDescription,
         claimValueCents: state.claimValueDollars ? dollarsToCents(state.claimValueDollars) : undefined,
-        tenantName: state.tenantName || undefined,
-        tenantAddress: buildTenantAddress(state),
-        tenantPhone: state.tenantPhone || undefined,
-        tenantEmail: state.tenantEmail || undefined,
+        obligors: state.obligors.map(o => ({
+          name: o.name,
+          address: o.address || undefined,
+          phone: o.phone || undefined,
+          email: o.email || undefined,
+          isPrimary: o.isPrimary,
+        })),
         propertyAddress: buildPropertyAddress(state),
         insuranceClaimNumber: state.insuranceClaimNumber || undefined,
         insurer: state.insurer || undefined,
@@ -339,7 +419,16 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
 
   const next = () => {
     if (!validateStep(state.step as 1 | 2 | 3)) return;
-    set({ step: (state.step + 1) as WizardState['step'] });
+    const newStep = (state.step + 1) as WizardState['step'];
+    if (newStep === 4) {
+      const indices = state.obligors
+        .map((o, i) => ({ o, i }))
+        .filter(({ o }) => o.address.trim() !== '')
+        .map(({ i }) => i);
+      set({ step: newStep, noticeAddressIndices: indices });
+    } else {
+      set({ step: newStep });
+    }
   };
 
   const back = () => {
@@ -351,14 +440,22 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
     setSubmitting(true);
     setFieldError('');
     try {
+      const primaryObligor = state.obligors.find(o => o.isPrimary) ?? state.obligors[0];
       const body = {
         claimType: state.claimType,
         claimDescription: state.claimDescription,
         claimValueCents: state.claimValueDollars ? dollarsToCents(state.claimValueDollars) : undefined,
-        tenantName: state.tenantName || undefined,
-        tenantAddress: buildTenantAddress(state),
-        tenantPhone: state.tenantPhone || undefined,
-        tenantEmail: state.tenantEmail || undefined,
+        obligors: state.obligors.length > 0 ? state.obligors.map(o => ({
+          name: o.name,
+          address: o.address || undefined,
+          phone: o.phone || undefined,
+          email: o.email || undefined,
+          isPrimary: o.isPrimary,
+        })) : undefined,
+        tenantName: primaryObligor?.name || undefined,
+        tenantAddress: primaryObligor?.address || undefined,
+        tenantPhone: primaryObligor?.phone || undefined,
+        tenantEmail: primaryObligor?.email || undefined,
         propertyAddress: buildPropertyAddress(state),
         insuranceClaimNumber: state.insuranceClaimNumber || undefined,
         insurer: state.insurer || undefined,
@@ -380,6 +477,9 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
         assignorTitle: state.assignorSignDigitally && state.assignorTitle ? state.assignorTitle : undefined,
         assigneeSignatoryName: state.assigneeSignDigitally && state.assigneeSignatoryName ? state.assigneeSignatoryName : undefined,
         assigneeTitle: state.assigneeSignDigitally && state.assigneeTitle ? state.assigneeTitle : undefined,
+        noticeSignatoryName: state.noticeSignatoryName || undefined,
+        noticeSignedDate: state.noticeSignedDate || undefined,
+        caseId: state.caseId || undefined,
       };
 
       const res = await fetch(`/api/llcs/${llcId}/aoc`, {
@@ -396,12 +496,16 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
 
       const saved: AssignmentOfClaim = data.data;
 
-      // Store generated document HTML
+      // Store generated document HTML and notice signatory info
       const docHtml = generateAocDocument(saved);
       await fetch(`/api/llcs/${llcId}/aoc/${saved.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentHtml: docHtml }),
+        body: JSON.stringify({
+          documentHtml: docHtml,
+          ...(state.noticeSignatoryName && { noticeSignatoryName: state.noticeSignatoryName }),
+          ...(state.noticeSignedDate && { noticeSignedDate: state.noticeSignedDate }),
+        }),
       });
 
       router.push(`/llcs/${llcId}/assignments/${saved.id}`);
@@ -416,6 +520,14 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
 
   return (
     <div className="max-w-2xl">
+      {/* Case pre-fill banner */}
+      {state.caseId && !caseBannerDismissed && (
+        <div className="mb-4 flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+          <span>Pre-filling from case: <strong>{state.caseLabel}</strong></span>
+          <button onClick={() => setCaseBannerDismissed(true)} className="ml-4 text-blue-600 hover:text-blue-800">✕</button>
+        </div>
+      )}
+
       {/* AI Document Analysis Panel */}
       <div className="mb-6 border rounded-lg overflow-hidden">
         <button
@@ -654,151 +766,157 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
           </div>
 
           {state.claimType === 'rent_debt' && (
-            <div className="space-y-3 p-3 bg-secondary/30 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium mb-1">Tenant Name</label>
-                <input
-                  type="text"
-                  value={state.tenantName}
-                  onChange={e => set({ tenantName: e.target.value })}
-                  className="w-full border rounded-md px-3 py-1.5 text-sm"
-                  placeholder="Tenant full name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Property Address</label>
-                <input
-                  type="text"
-                  value={state.propertyStreet}
-                  onChange={e => set({ propertyStreet: e.target.value })}
-                  className="w-full border rounded-md px-3 py-1.5 text-sm"
-                  placeholder="Street address (e.g. 1815 E Lake St)"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Suite / Unit (optional)</label>
-                <input
-                  type="text"
-                  value={state.propertyUnit}
-                  onChange={e => set({ propertyUnit: e.target.value })}
-                  className="w-full border rounded-md px-3 py-1.5 text-sm"
-                  placeholder="Suite 200, Unit 4B, etc."
-                />
-              </div>
-              <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
-                <div>
-                  <label className="block text-sm font-medium mb-1">City</label>
-                  <input
-                    type="text"
-                    value={state.propertyCity}
-                    onChange={e => set({ propertyCity: e.target.value })}
-                    className="w-full border rounded-md px-3 py-1.5 text-sm"
-                    placeholder="Minneapolis"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">State</label>
-                  <input
-                    type="text"
-                    value={state.propertyState}
-                    onChange={e => set({ propertyState: e.target.value.toUpperCase().slice(0, 2) })}
-                    className="w-full border rounded-md px-3 py-1.5 text-sm uppercase"
-                    placeholder="MN"
-                    maxLength={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">ZIP</label>
-                  <input
-                    type="text"
-                    value={state.propertyZip}
-                    onChange={e => set({ propertyZip: e.target.value.slice(0, 10) })}
-                    className="w-full border rounded-md px-3 py-1.5 text-sm"
-                    placeholder="55401"
-                    maxLength={10}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium">Tenant Mailing / Current Address</label>
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={state.tenantSameAsProperty}
-                      onChange={e => set({ tenantSameAsProperty: e.target.checked })}
-                    />
-                    Same as property address
-                  </label>
-                </div>
-                {state.tenantSameAsProperty ? (
-                  <div className="text-sm border rounded-md px-3 py-1.5 bg-secondary/30 text-muted-foreground min-h-[34px]">
-                    {buildPropertyAddress(state) ?? <span className="italic">Fill in property address above</span>}
+            <div className="space-y-4">
+              {/* Obligors */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Obligor(s)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Add all tenants and guarantors who owe this debt</p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={state.tenantStreet}
-                      onChange={e => set({ tenantStreet: e.target.value })}
-                      className="w-full border rounded-md px-3 py-1.5 text-sm"
-                      placeholder="Street address"
-                    />
-                    <input
-                      type="text"
-                      value={state.tenantUnit}
-                      onChange={e => set({ tenantUnit: e.target.value })}
-                      className="w-full border rounded-md px-3 py-1.5 text-sm"
-                      placeholder="Suite / Unit (optional)"
-                    />
-                    <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                  <button
+                    type="button"
+                    onClick={addObligor}
+                    className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:opacity-90"
+                  >
+                    + Add Obligor
+                  </button>
+                </div>
+
+                {state.obligors.length === 0 && (
+                  <p className="text-sm text-muted-foreground italic text-center py-4 border border-dashed rounded-md">
+                    No obligors added. Click &ldquo;+ Add Obligor&rdquo; to add a tenant or guarantor.
+                  </p>
+                )}
+
+                {state.obligors.map((obligor, idx) => (
+                  <div key={obligor.id} className="p-3 border rounded-lg space-y-2 bg-secondary/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Obligor {idx + 1}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                          <input
+                            type="radio"
+                            name="obligorPrimary"
+                            checked={obligor.isPrimary}
+                            onChange={() => setPrimary(obligor.id)}
+                          />
+                          Primary
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeObligor(obligor.id)}
+                          className="text-xs text-destructive hover:opacity-70"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">
+                        Name <span className="text-destructive">*</span>
+                      </label>
                       <input
                         type="text"
-                        value={state.tenantCity}
-                        onChange={e => set({ tenantCity: e.target.value })}
+                        value={obligor.name}
+                        onChange={e => updateObligor(obligor.id, { name: e.target.value })}
                         className="w-full border rounded-md px-3 py-1.5 text-sm"
-                        placeholder="City"
-                      />
-                      <input
-                        type="text"
-                        value={state.tenantState}
-                        onChange={e => set({ tenantState: e.target.value.toUpperCase().slice(0, 2) })}
-                        className="w-full border rounded-md px-3 py-1.5 text-sm uppercase"
-                        placeholder="MN"
-                        maxLength={2}
-                      />
-                      <input
-                        type="text"
-                        value={state.tenantZip}
-                        onChange={e => set({ tenantZip: e.target.value.slice(0, 10) })}
-                        className="w-full border rounded-md px-3 py-1.5 text-sm"
-                        placeholder="55401"
-                        maxLength={10}
+                        placeholder="Full name"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Mailing Address (optional)</label>
+                      <textarea
+                        value={obligor.address}
+                        onChange={e => updateObligor(obligor.id, { address: e.target.value })}
+                        rows={2}
+                        className="w-full border rounded-md px-3 py-1.5 text-sm"
+                        placeholder="Street, City, State ZIP"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Phone (optional)</label>
+                        <input
+                          type="tel"
+                          value={obligor.phone}
+                          onChange={e => updateObligor(obligor.id, { phone: e.target.value })}
+                          className="w-full border rounded-md px-3 py-1.5 text-sm"
+                          placeholder="(612) 555-0100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Email (optional)</label>
+                        <input
+                          type="email"
+                          value={obligor.email}
+                          onChange={e => updateObligor(obligor.id, { email: e.target.value })}
+                          className="w-full border rounded-md px-3 py-1.5 text-sm"
+                          placeholder="email@example.com"
+                        />
+                      </div>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              {/* Property Address */}
+              <div className="space-y-3 p-3 bg-secondary/30 rounded-lg">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tenant Phone</label>
+                  <label className="block text-sm font-medium mb-1">Property Address</label>
                   <input
-                    type="tel"
-                    value={state.tenantPhone}
-                    onChange={e => set({ tenantPhone: e.target.value })}
+                    type="text"
+                    value={state.propertyStreet}
+                    onChange={e => set({ propertyStreet: e.target.value })}
                     className="w-full border rounded-md px-3 py-1.5 text-sm"
-                    placeholder="(612) 555-0100"
+                    placeholder="Street address (e.g. 1815 E Lake St)"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tenant Email</label>
+                  <label className="block text-sm font-medium mb-1">Suite / Unit (optional)</label>
                   <input
-                    type="email"
-                    value={state.tenantEmail}
-                    onChange={e => set({ tenantEmail: e.target.value })}
+                    type="text"
+                    value={state.propertyUnit}
+                    onChange={e => set({ propertyUnit: e.target.value })}
                     className="w-full border rounded-md px-3 py-1.5 text-sm"
-                    placeholder="tenant@example.com"
+                    placeholder="Suite 200, Unit 4B, etc."
                   />
+                </div>
+                <div className="grid grid-cols-[1fr_4rem_6rem] gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">City</label>
+                    <input
+                      type="text"
+                      value={state.propertyCity}
+                      onChange={e => set({ propertyCity: e.target.value })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="Minneapolis"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">State</label>
+                    <input
+                      type="text"
+                      value={state.propertyState}
+                      onChange={e => set({ propertyState: e.target.value.toUpperCase().slice(0, 2) })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm uppercase"
+                      placeholder="MN"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">ZIP</label>
+                    <input
+                      type="text"
+                      value={state.propertyZip}
+                      onChange={e => set({ propertyZip: e.target.value.slice(0, 10) })}
+                      className="w-full border rounded-md px-3 py-1.5 text-sm"
+                      placeholder="55401"
+                      maxLength={10}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1204,17 +1322,16 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
                 <div className="font-medium">${parseFloat(state.claimValueDollars).toFixed(2)}</div>
               </div>
             )}
-            {state.claimType === 'rent_debt' && buildTenantAddress(state) && (
+            {state.claimType === 'rent_debt' && state.obligors.length > 0 && (
               <div className="col-span-2">
-                <div className="text-xs text-muted-foreground">Tenant Address</div>
-                <div className="font-medium">{buildTenantAddress(state)}</div>
-              </div>
-            )}
-            {state.claimType === 'rent_debt' && (state.tenantPhone || state.tenantEmail) && (
-              <div className="col-span-2">
-                <div className="text-xs text-muted-foreground">Tenant Contact</div>
-                <div className="font-medium">
-                  {[state.tenantPhone, state.tenantEmail].filter(Boolean).join(' · ')}
+                <div className="text-xs text-muted-foreground">Obligor(s)</div>
+                <div className="space-y-0.5 mt-0.5">
+                  {state.obligors.map(o => (
+                    <div key={o.id} className="text-sm font-medium">
+                      {o.name}{o.isPrimary ? ' (Primary)' : ''}
+                      {o.address && <span className="text-muted-foreground font-normal ml-2 text-xs">{o.address}</span>}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1247,6 +1364,97 @@ export default function NewAssignmentPage({ params }: NewAssignmentPageProps) {
               title="Assignment of Claim Preview"
             />
           </div>
+
+          {/* Notice to Obligor section */}
+          {state.claimType === 'rent_debt' && state.obligors.length > 0 && state.obligors.some(o => o.address.trim()) && (
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <p className="text-sm font-medium mb-0.5">Notice to Obligor</p>
+                <p className="text-xs text-muted-foreground">Select which obligors should receive printed notice letters.</p>
+              </div>
+
+              <div className="space-y-2">
+                {state.obligors.map((obligor, idx) => (
+                  <label
+                    key={obligor.id}
+                    className={`flex items-start gap-3 p-2 rounded-md border ${obligor.address.trim() ? 'cursor-pointer hover:bg-secondary/30' : 'opacity-50 cursor-not-allowed'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      disabled={!obligor.address.trim()}
+                      checked={state.noticeAddressIndices.includes(idx)}
+                      onChange={e => {
+                        const next = e.target.checked
+                          ? [...state.noticeAddressIndices, idx]
+                          : state.noticeAddressIndices.filter(i => i !== idx);
+                        set({ noticeAddressIndices: next });
+                      }}
+                    />
+                    <span className="text-sm leading-snug">
+                      <span className="font-medium">{obligor.name || '(unnamed)'}</span>
+                      {obligor.isPrimary && (
+                        <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Primary</span>
+                      )}
+                      {obligor.address ? (
+                        <span className="block text-xs text-muted-foreground mt-0.5">{obligor.address}</span>
+                      ) : (
+                        <span className="block text-xs text-muted-foreground italic mt-0.5">No address — cannot send notice</span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notice Signatory Name</label>
+                  <input
+                    type="text"
+                    value={state.noticeSignatoryName}
+                    onChange={e => set({ noticeSignatoryName: e.target.value })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                    placeholder="Name of person signing the notice"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Date Signed</label>
+                  <input
+                    type="date"
+                    value={state.noticeSignedDate}
+                    onChange={e => set({ noticeSignedDate: e.target.value })}
+                    className="w-full border rounded-md px-3 py-1.5 text-sm"
+                  />
+                </div>
+              </div>
+
+              {state.noticeAddressIndices.length > 0 && (
+                <div className="space-y-4">
+                  {state.noticeAddressIndices.map(idx => {
+                    const obligor = state.obligors[idx];
+                    if (!obligor) return null;
+                    const noticeData = {
+                      ...buildPreview(state),
+                      noticeSignatoryName: state.noticeSignatoryName || undefined,
+                      noticeSignedDate: state.noticeSignedDate || undefined,
+                    };
+                    return (
+                      <div key={idx}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Notice — {obligor.name}
+                        </p>
+                        <iframe
+                          srcDoc={generateNoticeToObligor(noticeData, { name: obligor.name, address: obligor.address })}
+                          style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
+                          title={`Notice to ${obligor.name}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -323,18 +323,41 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
 </html>`;
 }
 
-export function generateNoticeToObligor(data: AssignmentOfClaim): string {
+export function generateNoticeToObligor(
+  data: AssignmentOfClaim,
+  targetObligor?: { name: string; address?: string }
+): string {
   const effectiveDateFormatted = formatDate(data.effectiveDate);
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  let obligorName = 'Obligor';
-  if (data.claimType === 'rent_debt') obligorName = data.tenantName ?? 'Tenant/Obligor';
-  else if (data.claimType === 'insurance_claim') obligorName = data.insurer ?? 'Insurer/Obligor';
+  // Salutation name
+  let obligorName: string;
+  if (targetObligor?.name) {
+    obligorName = targetObligor.name;
+  } else {
+    const primary = data.obligors?.find(o => o.isPrimary) ?? data.obligors?.[0];
+    if (primary) {
+      obligorName = primary.name;
+    } else if (data.claimType === 'rent_debt') {
+      obligorName = data.tenantName ?? 'Tenant/Obligor';
+    } else if (data.claimType === 'insurance_claim') {
+      obligorName = data.insurer ?? 'Insurer/Obligor';
+    } else {
+      obligorName = 'Obligor';
+    }
+  }
 
+  // Salutation line
+  const salutation = obligorName && obligorName !== 'Obligor'
+    ? `Dear ${obligorName}:`
+    : `To Whom It May Concern:`;
+
+  // Delivery address
   const deliveryAddress =
-    data.claimType === 'rent_debt' && data.propertyAddress
+    targetObligor?.address ??
+    (data.claimType === 'rent_debt' && data.propertyAddress
       ? data.propertyAddress
-      : '[OBLIGOR MAILING ADDRESS — TO BE COMPLETED BEFORE DELIVERY]';
+      : '[OBLIGOR MAILING ADDRESS — TO BE COMPLETED BEFORE DELIVERY]');
 
   const claimTypeLabel =
     data.claimType === 'rent_debt' ? 'Rent / Tenant Debt'
@@ -464,7 +487,7 @@ export function generateNoticeToObligor(data: AssignmentOfClaim): string {
 
     <p class="re-line"><strong>Re: Notice of Assignment of Claim — Effective ${effectiveDateFormatted}</strong></p>
 
-    <p>Dear ${obligorName}:</p>
+    <p>${salutation}</p>
 
     <p>Please take notice that <strong>${data.llcName}</strong> ("<strong>Assignor</strong>") has assigned, transferred, and conveyed to <strong>${data.assignee.name}</strong> ("<strong>Assignee</strong>") all of Assignor's right, title, and interest in and to the following claim (the "<strong>Claim</strong>"):</p>
 

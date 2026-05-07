@@ -3,6 +3,14 @@ import { AOC_EXHIBIT_KEYS } from '../types/assignment';
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
 
+export const obligorSchema = z.object({
+  name: z.string().min(1).max(200),
+  address: z.string().max(500).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  isPrimary: z.boolean().optional(),
+});
+
 export const aocAssigneeSchema = z.object({
   name: z.string().min(1).max(300),
   entityType: z.enum(['individual', 'company']),
@@ -24,6 +32,8 @@ export const aocStep1Schema = z.object({
   insuranceClaimId: z.string().optional(),
   insuranceClaimNumber: z.string().max(100).optional(),
   insurer: z.string().max(200).optional(),
+  caseId: z.string().optional(),
+  obligors: z.array(obligorSchema).optional(),
 });
 
 export const aocStep2Schema = z.object({ assignee: aocAssigneeSchema });

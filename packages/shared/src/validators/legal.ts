@@ -40,6 +40,13 @@ export const plaintiffSchema = z.discriminatedUnion('type', [
     llcId: z.string().min(1),
     llcName: z.string().min(1).max(200),
   }),
+  z.object({
+    type: z.literal('assignee'),
+    name: z.string().min(1).max(200),
+    assignorLlcId: z.string().optional(),
+    assignorLlcName: z.string().optional(),
+    aocId: z.string().optional(),
+  }),
 ]);
 
 export const opposingPartySchema = z.discriminatedUnion('type', [

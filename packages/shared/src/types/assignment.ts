@@ -111,6 +111,14 @@ export interface AocAssignee {
   email?: string;
 }
 
+export interface Obligor {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  isPrimary?: boolean;
+}
+
 export interface AssignmentOfClaim {
   id: string;
   llcId: string;
@@ -130,6 +138,7 @@ export interface AssignmentOfClaim {
   tenantPhone?: string;
   tenantEmail?: string;
   propertyAddress?: string;
+  obligors?: Obligor[];
   // insurance_claim optional links
   insuranceClaimId?: string;
   insuranceClaimNumber?: string;
@@ -155,6 +164,9 @@ export interface AssignmentOfClaim {
   noticeSignatoryName?: string;
   noticeSignedDate?: string;
 
+  // Link to legal case this AOC was created in context of
+  caseId?: string;
+
   // Generated document
   documentHtml?: string;
 
@@ -178,6 +190,7 @@ export interface CreateAssignmentInput {
   tenantPhone?: string;
   tenantEmail?: string;
   propertyAddress?: string;
+  obligors?: Obligor[];
   insuranceClaimId?: string;
   insuranceClaimNumber?: string;
   insurer?: string;
@@ -195,6 +208,7 @@ export interface CreateAssignmentInput {
   assigneeTitle?: string;
   noticeSignatoryName?: string;
   noticeSignedDate?: string;
+  caseId?: string;
 }
 
 export type UpdateAssignmentInput = Partial<CreateAssignmentInput> & {

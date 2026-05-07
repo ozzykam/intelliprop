@@ -63,6 +63,8 @@ export async function createAoc(
     ...(input.assignorTitle && { assignorTitle: input.assignorTitle }),
     ...(input.assigneeSignatoryName && { assigneeSignatoryName: input.assigneeSignatoryName }),
     ...(input.assigneeTitle && { assigneeTitle: input.assigneeTitle }),
+    ...(input.caseId && { caseId: input.caseId }),
+    ...(input.obligors && input.obligors.length > 0 && { obligors: input.obligors }),
     status: 'draft' as AocStatus,
     createdByUserId: actorUserId,
     createdAt: FieldValue.serverTimestamp(),
@@ -112,7 +114,7 @@ export async function getAoc(
  */
 export async function listAocs(
   llcId: string,
-  options?: { status?: string; claimType?: string }
+  options?: { status?: string; claimType?: string; caseId?: string }
 ): Promise<AssignmentOfClaim[]> {
   let query = adminDb
     .collection('llcs')
@@ -120,10 +122,12 @@ export async function listAocs(
     .collection('assignments')
     .orderBy('createdAt', 'desc') as FirebaseFirestore.Query;
 
-  if (options?.status) {
+  if (options?.caseId) {
+    query = query.where('caseId', '==', options.caseId);
+  } else if (options?.status) {
     query = query.where('status', '==', options.status);
   }
-  if (options?.claimType) {
+  if (!options?.caseId && options?.claimType) {
     query = query.where('claimType', '==', options.claimType);
   }
 

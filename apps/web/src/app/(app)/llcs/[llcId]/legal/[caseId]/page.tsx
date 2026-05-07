@@ -33,6 +33,14 @@ interface CounselData {
   address?: string;
 }
 
+interface LinkedAoc {
+  id: string;
+  assigneeName: string;
+  claimType: string;
+  effectiveDate: string;
+  status: string;
+}
+
 interface CaseData {
   id: string;
   court: string;
@@ -42,10 +50,13 @@ interface CaseData {
   status: string;
   visibility: string;
   plaintiff?: {
-    type: 'individual' | 'llc';
+    type: 'individual' | 'llc' | 'assignee';
     name?: string;
     llcId?: string;
     llcName?: string;
+    assignorLlcId?: string;
+    assignorLlcName?: string;
+    aocId?: string;
   };
   opposingParty?: OpposingPartyData[] | OpposingPartyData;
   opposingCounsel?: CounselData[] | CounselData;
@@ -405,6 +416,12 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [updatingActivityId, setUpdatingActivityId] = useState<string | null>(null);
   const activitiesFetchedRef = useRef(false);
 
+  // Linked assignments state
+  const [linkedAocsExpanded, setLinkedAocsExpanded] = useState(false);
+  const [linkedAocs, setLinkedAocs] = useState<LinkedAoc[]>([]);
+  const [loadingLinkedAocs, setLoadingLinkedAocs] = useState(false);
+  const linkedAocsFetchedRef = useRef(false);
+
   // Notice generator state
   const [showNoticeGenerator, setShowNoticeGenerator] = useState(false);
   const [noticeDefendantIndex, setNoticeDefendantIndex] = useState<number | ''>('');
@@ -464,6 +481,29 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
       fetchActivities();
     }
   }, [activityExpanded, fetchActivities]);
+
+  // Lazy-load linked AOCs when section is first expanded
+  useEffect(() => {
+    if (linkedAocsExpanded && !linkedAocsFetchedRef.current) {
+      linkedAocsFetchedRef.current = true;
+      setLoadingLinkedAocs(true);
+      fetch(`/api/llcs/${llcId}/aoc?caseId=${caseId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            setLinkedAocs(data.data.map((a: { id: string; assignee?: { name?: string }; claimType: string; effectiveDate: string; status: string }) => ({
+              id: a.id,
+              assigneeName: a.assignee?.name ?? '',
+              claimType: a.claimType,
+              effectiveDate: a.effectiveDate,
+              status: a.status,
+            })));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingLinkedAocs(false));
+    }
+  }, [linkedAocsExpanded, llcId, caseId]);
 
   const handleSaveActivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1142,7 +1182,26 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                     <p className="font-medium">
                       {caseData.plaintiff.type === 'llc' ? caseData.plaintiff.llcName : caseData.plaintiff.name}
                     </p>
-                    <p className="text-xs text-muted-foreground capitalize">{caseData.plaintiff.type}</p>
+                    {caseData.plaintiff.type === 'assignee' ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">assignee</p>
+                        {caseData.plaintiff.assignorLlcName && (
+                          <p className="text-xs text-muted-foreground">
+                            as Assignee of {caseData.plaintiff.assignorLlcName}
+                            {caseData.plaintiff.aocId && (
+                              <Link
+                                href={`/llcs/${llcId}/assignments/${caseData.plaintiff.aocId}`}
+                                className="ml-2 text-primary hover:underline"
+                              >
+                                View Assignment →
+                              </Link>
+                            )}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground capitalize">{caseData.plaintiff.type}</p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Not specified</p>
@@ -1618,6 +1677,71 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                       ))}
                     </div>
                   </details>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Linked Assignments */}
+          <div className="border rounded-lg p-5">
+            <button
+              onClick={() => setLinkedAocsExpanded(!linkedAocsExpanded)}
+              className="flex items-center justify-between w-full"
+            >
+              <h2 className="font-semibold flex items-center gap-2">
+                Linked Assignments
+                {linkedAocs.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-secondary rounded-full text-xs font-normal">
+                    {linkedAocs.length}
+                  </span>
+                )}
+              </h2>
+              <svg
+                className={`w-5 h-5 text-muted-foreground transition-transform ${linkedAocsExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {linkedAocsExpanded && (
+              <div className="mt-4">
+                {loadingLinkedAocs ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : linkedAocs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No linked assignments</p>
+                ) : (
+                  <div className="space-y-2">
+                    {linkedAocs.map(aoc => (
+                      <div key={aoc.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-md text-sm">
+                        <div>
+                          <p className="font-medium">{aoc.assigneeName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {aoc.claimType.replace(/_/g, ' ')} &bull; eff. {formatDate(aoc.effectiveDate)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            aoc.status === 'draft' ? 'bg-gray-100 text-gray-600' :
+                            aoc.status === 'executed' ? 'bg-blue-100 text-blue-800' :
+                            aoc.status === 'active' ? 'bg-green-100 text-green-800' :
+                            aoc.status === 'collected' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-400'
+                          }`}>
+                            {aoc.status}
+                          </span>
+                          <Link
+                            href={`/llcs/${llcId}/assignments/${aoc.id}`}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            View →
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -2153,6 +2277,15 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Edit Case
+              </Link>
+              <Link
+                href={`/llcs/${llcId}/assignments/new?caseId=${caseId}`}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm border rounded-md hover:bg-secondary transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Create Assignment from Case
               </Link>
             </div>
           </div>

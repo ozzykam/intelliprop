@@ -62,6 +62,7 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
   const [noticeSigSaving, setNoticeSigSaving] = useState(false);
   const [noticeSigError, setNoticeSigError] = useState('');
   const [noticeHtml, setNoticeHtml] = useState('');
+  const [relatedCase, setRelatedCase] = useState<{ id: string; docketNumber?: string; caseType: string } | null>(null);
 
   const fetchAssignment = useCallback(async () => {
     try {
@@ -72,6 +73,17 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
         setNoticeSignatoryName(data.data.noticeSignatoryName || '');
         setNoticeSignedDate(data.data.noticeSignedDate || '');
         setNoticeHtml(generateNoticeToObligor(data.data));
+        // Fetch related case if caseId is set
+        if (data.data.caseId) {
+          fetch(`/api/llcs/${llcId}/cases/${data.data.caseId}`)
+            .then(r => r.json())
+            .then(caseData => {
+              if (caseData.ok) {
+                setRelatedCase({ id: caseData.data.id, docketNumber: caseData.data.docketNumber, caseType: caseData.data.caseType });
+              }
+            })
+            .catch(() => {});
+        }
       } else {
         setError(data.error?.message || 'Failed to load assignment');
       }
@@ -280,6 +292,20 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Related Case */}
+          {relatedCase && (
+            <div className="p-4 border rounded-lg bg-secondary/20">
+              <h2 className="text-sm font-semibold mb-2">Related Case</h2>
+              <Link
+                href={`/llcs/${llcId}/legal/${relatedCase.id}`}
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                {relatedCase.docketNumber || relatedCase.caseType.replace(/_/g, ' ')}
+                <span className="text-muted-foreground">→</span>
+              </Link>
             </div>
           )}
 

@@ -29,8 +29,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') ?? undefined;
     const claimType = searchParams.get('claimType') ?? undefined;
+    const caseId = searchParams.get('caseId') ?? undefined;
 
-    const assignments = await listAocs(llcId, { status, claimType });
+    const assignments = await listAocs(llcId, { status, claimType, caseId });
     return NextResponse.json({ ok: true, data: assignments });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '';

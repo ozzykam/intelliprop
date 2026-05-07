@@ -15,7 +15,15 @@ export interface PlaintiffLlc {
   llcName: string;
 }
 
-export type Plaintiff = PlaintiffIndividual | PlaintiffLlc;
+export interface PlaintiffAssignee {
+  type: 'assignee';
+  name: string;            // individual suing pro se as assignee
+  assignorLlcId?: string;  // the LLC that made the assignment
+  assignorLlcName?: string;
+  aocId?: string;          // reference to the AOC document
+}
+
+export type Plaintiff = PlaintiffIndividual | PlaintiffLlc | PlaintiffAssignee;
 
 /**
  * Opposing party - who the case is against

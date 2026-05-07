@@ -6,10 +6,21 @@ import Link from 'next/link';
 import { use } from 'react';
 
 interface PlaintiffData {
-  type: 'individual' | 'llc';
+  type: 'individual' | 'llc' | 'assignee';
   name?: string;
   llcId?: string;
   llcName?: string;
+  assignorLlcId?: string;
+  assignorLlcName?: string;
+  aocId?: string;
+}
+
+interface AocOption {
+  id: string;
+  assigneeName: string;
+  claimType: string;
+  effectiveDate: string;
+  status: string;
 }
 
 interface OpposingPartyData {
@@ -212,9 +223,11 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
   const [status, setStatus] = useState('');
 
   // Plaintiff
-  const [plaintiffType, setPlaintiffType] = useState<'individual' | 'llc'>('individual');
+  const [plaintiffType, setPlaintiffType] = useState<'individual' | 'llc' | 'assignee'>('individual');
   const [plaintiffName, setPlaintiffName] = useState('');
   const [plaintiffLlcId, setPlaintiffLlcId] = useState('');
+  const [plaintiffAocId, setPlaintiffAocId] = useState('');
+  const [aocs, setAocs] = useState<AocOption[]>([]);
 
   // Opposing Parties (array)
   const [opposingParties, setOpposingParties] = useState<OpposingPartyEntry[]>([]);
@@ -256,8 +269,11 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
       setPlaintiffType(c.plaintiff.type);
       if (c.plaintiff.type === 'individual') {
         setPlaintiffName(c.plaintiff.name || '');
-      } else {
+      } else if (c.plaintiff.type === 'llc') {
         setPlaintiffLlcId(c.plaintiff.llcId || '');
+      } else if (c.plaintiff.type === 'assignee') {
+        setPlaintiffName(c.plaintiff.name || '');
+        setPlaintiffAocId(c.plaintiff.aocId || '');
       }
     }
 
@@ -361,11 +377,24 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
       fetch(`/api/llcs/${llcId}/tenants`).then((r) => r.json()),
       fetch(`/api/llcs/${llcId}/properties`).then((r) => r.json()),
       fetch(`/api/llcs/${llcId}/members`).then((r) => r.json()),
-    ]).then(([llcRes, tenantRes, propRes, memberRes]) => {
+      fetch(`/api/llcs/${llcId}/aoc?status=executed`).then((r) => r.json()),
+      fetch(`/api/llcs/${llcId}/aoc?status=active`).then((r) => r.json()),
+      fetch(`/api/llcs/${llcId}/aoc?status=draft`).then((r) => r.json()),
+    ]).then(([llcRes, tenantRes, propRes, memberRes, aocExecutedRes, aocActiveRes, aocDraftRes]) => {
       if (llcRes.ok) setLlcs(llcRes.data);
       if (tenantRes.ok) setTenants(tenantRes.data);
       if (propRes.ok) setProperties(propRes.data);
       if (memberRes.ok) setMembers(memberRes.data);
+      const allAocs: AocOption[] = [];
+      const pushAoc = (a: { id: string; assignee?: { name?: string }; claimType: string; effectiveDate: string; status: string }) => {
+        if (!allAocs.find((x: AocOption) => x.id === a.id)) {
+          allAocs.push({ id: a.id, assigneeName: a.assignee?.name ?? '', claimType: a.claimType, effectiveDate: a.effectiveDate, status: a.status });
+        }
+      };
+      if (aocExecutedRes.ok) aocExecutedRes.data.forEach(pushAoc);
+      if (aocActiveRes.ok) aocActiveRes.data.forEach(pushAoc);
+      if (aocDraftRes.ok) aocDraftRes.data.forEach(pushAoc);
+      setAocs(allAocs);
     });
   }, [llcId]);
 
@@ -410,6 +439,15 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
       if (selectedLlc) {
         return { type: 'llc', llcId: selectedLlc.id, llcName: selectedLlc.legalName };
       }
+    } else if (plaintiffType === 'assignee' && plaintiffName) {
+      const currentLlcName = llcs.find((l) => l.id === llcId)?.legalName;
+      return {
+        type: 'assignee',
+        name: plaintiffName,
+        assignorLlcId: llcId,
+        ...(currentLlcName && { assignorLlcName: currentLlcName }),
+        ...(plaintiffAocId && { aocId: plaintiffAocId }),
+      };
     }
     return undefined;
   };
@@ -679,6 +717,12 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
                 onChange={() => setPlaintiffType('llc')} />
               Business/LLC
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="plaintiffType" value="assignee"
+                checked={plaintiffType === 'assignee'}
+                onChange={() => setPlaintiffType('assignee')} />
+              Individual (Assignee)
+            </label>
           </div>
 
           {plaintiffType === 'individual' ? (
@@ -688,7 +732,7 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
                 placeholder="Plaintiff name"
                 className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
             </div>
-          ) : (
+          ) : plaintiffType === 'llc' ? (
             <div>
               <label htmlFor="plaintiffLlc" className="block text-sm font-medium mb-1">Select LLC</label>
               <select id="plaintiffLlc" value={plaintiffLlcId} onChange={(e) => setPlaintiffLlcId(e.target.value)}
@@ -698,6 +742,41 @@ export default function CaseEditPage({ params }: CaseEditPageProps) {
                   <option key={l.id} value={l.id}>{l.legalName}</option>
                 ))}
               </select>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="plaintiffAoc" className="block text-sm font-medium mb-1">Assignment of Claim (optional)</label>
+                <select id="plaintiffAoc" value={plaintiffAocId}
+                  onChange={(e) => {
+                    const aocId = e.target.value;
+                    setPlaintiffAocId(aocId);
+                    if (aocId) {
+                      const aoc = aocs.find(a => a.id === aocId);
+                      if (aoc) setPlaintiffName(aoc.assigneeName);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border rounded-md bg-background text-sm">
+                  <option value="">-- Select AOC (optional) --</option>
+                  {aocs.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.assigneeName} — {a.claimType.replace(/_/g, ' ')} — eff. {a.effectiveDate}{a.status === 'draft' ? ' (Draft)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {plaintiffAocId && aocs.find(a => a.id === plaintiffAocId)?.status === 'draft' && (
+                  <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                    This assignment has not yet been executed. Make sure it is signed and executed before filing.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="plaintiffAssigneeName" className="block text-sm font-medium mb-1">Assignee Name</label>
+                <input id="plaintiffAssigneeName" value={plaintiffName}
+                  onChange={(e) => setPlaintiffName(e.target.value)}
+                  placeholder="Name of individual suing as assignee"
+                  className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
+              </div>
             </div>
           )}
         </fieldset>
