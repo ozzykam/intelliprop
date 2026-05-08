@@ -155,6 +155,7 @@ export default function OwnerDashboard() {
                   </svg>
                 }
               />
+              <Link href="/financials" className="group">
               <StatsCard
                 label="Overdue Amount"
                 value={`$${(stats.totalOverdueAmount / 100).toLocaleString(undefined, {
@@ -168,6 +169,7 @@ export default function OwnerDashboard() {
                   </svg>
                 }
               />
+              </Link>
             </div>
           )}
 

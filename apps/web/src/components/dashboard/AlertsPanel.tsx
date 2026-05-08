@@ -87,9 +87,15 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
-  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
-  const warningCount = alerts.filter(a => a.severity === 'warning').length;
+  const visibleAlerts = alerts.filter(a => !hiddenIds.has(a.id));
+  const criticalCount = visibleAlerts.filter(a => a.severity === 'critical').length;
+  const warningCount = visibleAlerts.filter(a => a.severity === 'warning').length;
+
+  function hideAlert(id: string) {
+    setHiddenIds(prev => new Set(prev).add(id));
+  }
 
   useEffect(() => {
     async function fetchAlerts() {
@@ -197,7 +203,7 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
     );
   }
 
-  if (alerts.length === 0) {
+  if (visibleAlerts.length === 0) {
     return (
       <div>
         {header}
@@ -213,8 +219,8 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
     );
   }
 
-  const displayAlerts = alerts.slice(0, maxItems);
-  const remainingCount = alerts.length - maxItems;
+  const displayAlerts = visibleAlerts.slice(0, maxItems);
+  const remainingCount = visibleAlerts.length - maxItems;
 
   return (
     <div>
@@ -223,49 +229,59 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
         <div>
           <div className="space-y-2">
             {displayAlerts.map((alert) => (
-              <Link
+              <div
                 key={alert.id}
-                href={getAlertLink(alert)}
                 className={`
-                  flex items-start gap-3 p-3 rounded-lg border transition-colors
-                  hover:bg-secondary/50
+                  flex items-start gap-3 p-3 rounded-lg border
                   ${alert.severity === 'critical'
                     ? 'border-red-500/50 bg-red-50/50'
                     : 'border-yellow-500/50 bg-yellow-50/50'
                   }
                 `}
               >
-                <div className={`
-                  mt-0.5
-                  ${alert.severity === 'critical' ? 'text-red-600' : 'text-yellow-600'}
-                `}>
-                  {alertIcons[alert.type]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`
-                      text-sm font-medium
-                      ${alert.severity === 'critical' ? 'text-red-700' : 'text-yellow-700'}
-                    `}>
-                      {alert.title}
-                    </span>
-                    {!compact && (
-                      <span className="text-xs text-muted-foreground">
-                        {alert.llcName}
-                      </span>
-                    )}
+                <Link
+                  href={getAlertLink(alert)}
+                  className="flex items-start gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                >
+                  <div className={`
+                    mt-0.5 shrink-0
+                    ${alert.severity === 'critical' ? 'text-red-600' : 'text-yellow-600'}
+                  `}>
+                    {alertIcons[alert.type]}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {alert.description}
-                  </p>
-                </div>
-                {alert.dueDate && (
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(alert.dueDate.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
-                  </span>
-                )}
-              </Link>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`
+                        text-sm font-medium
+                        ${alert.severity === 'critical' ? 'text-red-700' : 'text-yellow-700'}
+                      `}>
+                        {alert.title}
+                      </span>
+                      {!compact && (
+                        <span className="text-xs text-muted-foreground">
+                          {alert.llcName}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {alert.description}
+                    </p>
+                  </div>
+                  {alert.dueDate && (
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(alert.dueDate.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
+                    </span>
+                  )}
+                </Link>
+                <button
+                  onClick={() => hideAlert(alert.id)}
+                  className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Hide this alert"
+                >
+                  hide
+                </button>
+              </div>
+              ))}
           </div>
 
           {remainingCount > 0 && (
