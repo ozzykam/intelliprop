@@ -1,6 +1,7 @@
 import { adminDb } from '@/lib/firebase/admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-export type AlertType = 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due' | 'claim_task_due';
+export type AlertType = 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due' | 'claim_task_due' | 'court_deadline';
 export type AlertSeverity = 'warning' | 'critical';
 
 export interface Alert {
@@ -69,7 +70,7 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
   const llcRef = adminDb.collection('llcs').doc(llcId);
 
   // Fetch all alert sources in parallel
-  const [leasesSnap, chargesSnap, casesSnap, tasksSnap, claimsSnap] = await Promise.all([
+  const [leasesSnap, chargesSnap, casesSnap, tasksSnap, claimsSnap, deadlinesSnap] = await Promise.all([
     // Active leases expiring within 60 days
     llcRef.collection('leases').where('status', '==', 'active').get(),
     // Open/partial charges
@@ -80,6 +81,8 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     adminDb.collectionGroup('tasks').where('status', 'in', ['pending', 'in_progress']).get(),
     // All claims — used to fetch claim tasks per-claim (avoids needing a collection group index)
     llcRef.collection('insuranceClaims').get(),
+    // Pending court deadlines for this LLC
+    adminDb.collectionGroup('deadlines').where('llcId', '==', llcId).where('status', '==', 'pending').get(),
   ]);
 
   // Fetch incomplete tasks for each claim in parallel
@@ -258,17 +261,13 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
         caseId: caseRef.id,
         dueDate: task.dueDate,
       });
-    } else if (task.dueDate <= futureDate7) {
-      // Upcoming task
-      const daysUntilDue = Math.ceil(
-        (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-      );
+    } else if (task.reminderDate && task.reminderDate <= today) {
       alerts.push({
         id: `task-${doc.id}`,
         type: 'task_due',
-        severity: daysUntilDue <= 2 ? 'critical' : 'warning',
-        title: 'Task Due',
-        description: task.title || `Task due in ${daysUntilDue} days`,
+        severity: 'warning',
+        title: 'Task Reminder',
+        description: task.title || 'Task reminder',
         llcId,
         llcName,
         entityType: 'task',
@@ -324,15 +323,60 @@ async function getLlcAlerts(llcId: string, llcName: string): Promise<Alert[]> {
     }
   }
 
+  // Process pending court deadlines (overdue always; upcoming only if reminderDate <= today)
+  for (const doc of deadlinesSnap.docs) {
+    const dl = doc.data();
+    if (!dl.dueDate) continue;
+
+    const deadlineRef = doc.ref; // llcs/{llcId}/cases/{caseId}/deadlines/{deadlineId}
+    const caseRef = deadlineRef.parent.parent;
+    if (!caseRef) continue;
+
+    if (dl.dueDate < today) {
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - new Date(dl.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      alerts.push({
+        id: `deadline-${doc.id}`,
+        type: 'court_deadline',
+        severity: 'critical',
+        title: 'Court Deadline Missed',
+        description: `${dl.description} — overdue by ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}`,
+        llcId,
+        llcName,
+        entityType: 'deadline',
+        entityId: doc.id,
+        caseId: caseRef.id,
+        dueDate: dl.dueDate,
+      });
+    } else if (dl.reminderDate && dl.reminderDate <= today) {
+      alerts.push({
+        id: `deadline-${doc.id}`,
+        type: 'court_deadline',
+        severity: 'warning',
+        title: 'Court Deadline Reminder',
+        description: `${dl.description}`,
+        llcId,
+        llcName,
+        entityType: 'deadline',
+        entityId: doc.id,
+        caseId: caseRef.id,
+        dueDate: dl.dueDate,
+      });
+    }
+  }
+
   return alerts;
 }
 
 /**
- * Check if user is a super-admin
+ * Persist an acknowledged alert ID so it never surfaces again for this user.
  */
-async function isSuperAdmin(userId: string): Promise<boolean> {
-  const userDoc = await adminDb.collection('users').doc(userId).get();
-  return userDoc.exists && userDoc.data()?.isSuperAdmin === true;
+export async function acknowledgeAlert(userId: string, alertId: string): Promise<void> {
+  await adminDb.collection('users').doc(userId).set(
+    { acknowledgedAlertIds: FieldValue.arrayUnion(alertId) },
+    { merge: true }
+  );
 }
 
 /**
@@ -380,10 +424,17 @@ async function getMortgageAlerts(): Promise<Alert[]> {
 }
 
 /**
- * Get all alerts across all user's LLCs
+ * Get all alerts across all user's LLCs, excluding acknowledged ones.
  */
 export async function getOwnerAlerts(userId: string): Promise<Alert[]> {
-  const userLlcs = await getUserLlcs(userId);
+  const [userLlcs, userDoc] = await Promise.all([
+    getUserLlcs(userId),
+    adminDb.collection('users').doc(userId).get(),
+  ]);
+
+  const acknowledgedIds = new Set<string>(userDoc.data()?.acknowledgedAlertIds ?? []);
+  const isSuperAdmin = userDoc.exists && userDoc.data()?.isSuperAdmin === true;
+
   const allAlerts: Alert[] = [];
 
   // Fetch LLC alerts if user has access to any LLCs
@@ -394,24 +445,19 @@ export async function getOwnerAlerts(userId: string): Promise<Alert[]> {
   }
 
   // Fetch mortgage alerts for super-admins
-  const superAdmin = await isSuperAdmin(userId);
-  if (superAdmin) {
+  if (isSuperAdmin) {
     const mortgageAlerts = await getMortgageAlerts();
     allAlerts.push(...mortgageAlerts);
   }
 
   // Sort by severity (critical first) then by due date
   allAlerts.sort((a, b) => {
-    // Critical first
     if (a.severity === 'critical' && b.severity !== 'critical') return -1;
     if (a.severity !== 'critical' && b.severity === 'critical') return 1;
-
-    // Then by due date (earliest first)
-    if (a.dueDate && b.dueDate) {
-      return a.dueDate.localeCompare(b.dueDate);
-    }
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
     return 0;
   });
 
-  return allAlerts;
+  // Filter out acknowledged alerts
+  return allAlerts.filter(a => !acknowledgedIds.has(a.id));
 }

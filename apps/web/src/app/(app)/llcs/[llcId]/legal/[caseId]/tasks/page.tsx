@@ -9,6 +9,7 @@ interface TaskItem {
   title: string;
   description?: string;
   dueDate: string;
+  reminderDate?: string;
   status: string;
   priority: string;
   assignedToUserId?: string;
@@ -122,6 +123,7 @@ function TaskForm({
     title: string;
     description: string;
     dueDate: string;
+    reminderDate: string;
     priority: string;
     status: string;
   };
@@ -129,6 +131,7 @@ function TaskForm({
     title: string;
     description: string;
     dueDate: string;
+    reminderDate: string;
     priority: string;
     status: string;
   }) => void;
@@ -139,12 +142,13 @@ function TaskForm({
   const [title, setTitle] = useState(initialValues.title);
   const [description, setDescription] = useState(initialValues.description);
   const [dueDate, setDueDate] = useState(initialValues.dueDate);
+  const [reminderDate, setReminderDate] = useState(initialValues.reminderDate);
   const [priority, setPriority] = useState(initialValues.priority);
   const [status, setStatus] = useState(initialValues.status);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSubmit({ title, description, dueDate, priority, status });
+    onSubmit({ title, description, dueDate, reminderDate, priority, status });
   };
 
   return (
@@ -224,6 +228,19 @@ function TaskForm({
           className="w-full px-3 py-2 border rounded-md bg-background text-sm"
         />
       </div>
+      <div>
+        <label htmlFor="modal-reminderDate" className="block text-sm font-medium mb-1">
+          Alert Reminder Date
+        </label>
+        <input
+          id="modal-reminderDate"
+          type="date"
+          value={reminderDate}
+          onChange={(e) => setReminderDate(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+        />
+        <p className="text-xs text-muted-foreground mt-1">Alert fires on this date</p>
+      </div>
       <div className="flex justify-end gap-3 pt-2">
         <button
           type="submit"
@@ -276,6 +293,7 @@ export default function TasksPage({ params }: TasksPageProps) {
     title: string;
     description: string;
     dueDate: string;
+    reminderDate: string;
     priority: string;
     status: string;
   }) => {
@@ -289,6 +307,7 @@ export default function TasksPage({ params }: TasksPageProps) {
           title: values.title,
           description: values.description || undefined,
           dueDate: new Date(values.dueDate).toISOString(),
+          reminderDate: values.reminderDate || undefined,
           priority: values.priority,
         }),
       });
@@ -312,6 +331,7 @@ export default function TasksPage({ params }: TasksPageProps) {
     title: string;
     description: string;
     dueDate: string;
+    reminderDate: string;
     priority: string;
     status: string;
   }) => {
@@ -328,6 +348,7 @@ export default function TasksPage({ params }: TasksPageProps) {
             title: values.title,
             description: values.description || undefined,
             dueDate: new Date(values.dueDate).toISOString(),
+            reminderDate: values.reminderDate || undefined,
             priority: values.priority,
             status: values.status,
           }),
@@ -484,6 +505,12 @@ export default function TasksPage({ params }: TasksPageProps) {
                         </span>
                       </div>
 
+                      {task.reminderDate && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Reminder: {formatDate(task.reminderDate)}
+                        </p>
+                      )}
+
                       {(task.completedAt || task.createdAt) && (
                         <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                           {task.createdAt && (
@@ -529,6 +556,7 @@ export default function TasksPage({ params }: TasksPageProps) {
             title: '',
             description: '',
             dueDate: '',
+            reminderDate: '',
             priority: 'medium',
             status: 'pending',
           }}
@@ -552,6 +580,7 @@ export default function TasksPage({ params }: TasksPageProps) {
               title: editingTask.title,
               description: editingTask.description || '',
               dueDate: toDateInputValue(editingTask.dueDate),
+              reminderDate: editingTask.reminderDate || '',
               priority: editingTask.priority,
               status: editingTask.status,
             }}

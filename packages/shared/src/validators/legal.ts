@@ -150,6 +150,7 @@ export const createTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   dueDate: z.string().datetime(),
+  reminderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   status: taskStatusSchema.default('pending'),
   priority: taskPrioritySchema.default('medium'),
   assignedToUserId: z.string().optional(),
@@ -306,3 +307,30 @@ export const createLegalFeeSchema = z.object({
 });
 
 export const updateLegalFeeSchema = createLegalFeeSchema.partial();
+
+// --- Court Deadline schemas ---
+
+export const createCourtDeadlineSchema = z.object({
+  description: z.string().min(1).max(500),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  reminderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  issuedBy: z.string().max(200).optional(),
+  courtDateId: z.string().optional(),
+  status: z.enum(['pending', 'met', 'missed']).optional().default('pending'),
+  notes: z.string().max(2000).optional(),
+});
+
+export const updateCourtDeadlineSchema = z.object({
+  description: z.string().min(1).max(500).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  reminderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  issuedBy: z.string().max(200).optional(),
+  courtDateId: z.string().optional(),
+  status: z.enum(['pending', 'met', 'missed']).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export type CreateCourtDeadlineInput = z.infer<typeof createCourtDeadlineSchema>;
+export type UpdateCourtDeadlineInput = z.infer<typeof updateCourtDeadlineSchema>;

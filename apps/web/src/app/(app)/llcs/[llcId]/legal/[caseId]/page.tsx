@@ -94,6 +94,18 @@ interface Task {
   assignedToUserId?: string;
 }
 
+interface CourtDeadlineItem {
+  id: string;
+  description: string;
+  dueDate: string;
+  reminderDate?: string;
+  issuedDate?: string;
+  issuedBy?: string;
+  courtDateId?: string;
+  status: 'pending' | 'met' | 'missed';
+  notes?: string;
+}
+
 interface Document {
   id: string;
   title: string;
@@ -362,6 +374,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [courtDates, setCourtDates] = useState<CourtDate[]>([]);
+  const [deadlines, setDeadlines] = useState<CourtDeadlineItem[]>([]);
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -371,6 +384,17 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const [editingDamages, setEditingDamages] = useState(false);
   const [damagesInput, setDamagesInput] = useState('');
   const [savingDamages, setSavingDamages] = useState(false);
+
+  // Deadline form state
+  const [showDeadlineForm, setShowDeadlineForm] = useState(false);
+  const [editingDeadlineId, setEditingDeadlineId] = useState<string | null>(null);
+  const [deadlineDescription, setDeadlineDescription] = useState('');
+  const [deadlineDueDate, setDeadlineDueDate] = useState('');
+  const [deadlineReminderDate, setDeadlineReminderDate] = useState('');
+  const [deadlineIssuedBy, setDeadlineIssuedBy] = useState('');
+  const [deadlineIssuedDate, setDeadlineIssuedDate] = useState('');
+  const [deadlineNotes, setDeadlineNotes] = useState('');
+  const [savingDeadline, setSavingDeadline] = useState(false);
 
   // Court date form state
   const [showCourtDateForm, setShowCourtDateForm] = useState(false);
@@ -587,22 +611,24 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [caseRes, tasksRes, docsRes, courtDatesRes, membersRes, feesRes] = await Promise.all([
+      const [caseRes, tasksRes, docsRes, courtDatesRes, membersRes, feesRes, deadlinesRes] = await Promise.all([
         fetch(`/api/llcs/${llcId}/cases/${caseId}`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/tasks`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/documents`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/court-dates`),
         fetch(`/api/llcs/${llcId}/members`),
         fetch(`/api/llcs/${llcId}/cases/${caseId}/fees`),
+        fetch(`/api/llcs/${llcId}/cases/${caseId}/deadlines`),
       ]);
 
-      const [caseJson, tasksJson, docsJson, courtDatesJson, membersJson, feesJson] = await Promise.all([
+      const [caseJson, tasksJson, docsJson, courtDatesJson, membersJson, feesJson, deadlinesJson] = await Promise.all([
         caseRes.json(),
         tasksRes.json(),
         docsRes.json(),
         courtDatesRes.json(),
         membersRes.json(),
         feesRes.json(),
+        deadlinesRes.json(),
       ]);
 
       if (caseJson.ok) setCaseData(caseJson.data);
@@ -616,6 +642,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
       if (courtDatesJson.ok) setCourtDates(courtDatesJson.data);
       if (membersJson.ok) setMembers(membersJson.data);
       if (feesJson.ok) setFees(feesJson.data);
+      if (deadlinesJson.ok) setDeadlines(deadlinesJson.data);
     } catch {
       setError('Failed to load case data');
     } finally {
@@ -965,6 +992,105 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     }
   };
 
+  const resetDeadlineForm = () => {
+    setDeadlineDescription('');
+    setDeadlineDueDate('');
+    setDeadlineReminderDate('');
+    setDeadlineIssuedBy('');
+    setDeadlineIssuedDate('');
+    setDeadlineNotes('');
+    setEditingDeadlineId(null);
+    setShowDeadlineForm(false);
+  };
+
+  const handleEditDeadline = (dl: CourtDeadlineItem) => {
+    setEditingDeadlineId(dl.id);
+    setDeadlineDescription(dl.description);
+    setDeadlineDueDate(dl.dueDate);
+    setDeadlineReminderDate(dl.reminderDate || '');
+    setDeadlineIssuedBy(dl.issuedBy || '');
+    setDeadlineIssuedDate(dl.issuedDate || '');
+    setDeadlineNotes(dl.notes || '');
+    setShowDeadlineForm(true);
+  };
+
+  const handleSaveDeadline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deadlineDescription.trim() || !deadlineDueDate) return;
+
+    setSavingDeadline(true);
+    try {
+      const isEditing = !!editingDeadlineId;
+      const url = isEditing
+        ? `/api/llcs/${llcId}/cases/${caseId}/deadlines/${editingDeadlineId}`
+        : `/api/llcs/${llcId}/cases/${caseId}/deadlines`;
+
+      const res = await fetch(url, {
+        method: isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: deadlineDescription.trim(),
+          dueDate: deadlineDueDate,
+          reminderDate: deadlineReminderDate || undefined,
+          issuedBy: deadlineIssuedBy.trim() || undefined,
+          issuedDate: deadlineIssuedDate || undefined,
+          notes: deadlineNotes.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        if (isEditing) {
+          setDeadlines(prev => prev.map(d => d.id === editingDeadlineId ? data.data : d));
+        } else {
+          setDeadlines(prev => [...prev, data.data].sort((a, b) => a.dueDate.localeCompare(b.dueDate)));
+        }
+        resetDeadlineForm();
+      } else {
+        alert(data.error?.message || `Failed to ${isEditing ? 'update' : 'add'} deadline`);
+      }
+    } catch {
+      alert('Failed to save deadline');
+    } finally {
+      setSavingDeadline(false);
+    }
+  };
+
+  const handleUpdateDeadlineStatus = async (id: string, status: 'met' | 'missed' | 'pending') => {
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/deadlines/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDeadlines(prev => prev.map(d => d.id === id ? data.data : d));
+      } else {
+        alert(data.error?.message || 'Failed to update deadline');
+      }
+    } catch {
+      alert('Failed to update deadline');
+    }
+  };
+
+  const handleDeleteDeadline = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this deadline?')) return;
+    try {
+      const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/deadlines/${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDeadlines(prev => prev.filter(d => d.id !== id));
+      } else {
+        alert(data.error?.message || 'Failed to delete deadline');
+      }
+    } catch {
+      alert('Failed to delete deadline');
+    }
+  };
+
   const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
     setUpdatingTaskId(taskId);
     try {
@@ -992,6 +1118,11 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const today = new Date().toISOString().split('T')[0] || '';
   const upcomingCourtDates = courtDates.filter(cd => cd.date >= today && cd.status === 'scheduled');
   const pastCourtDates = courtDates.filter(cd => cd.date < today || cd.status !== 'scheduled');
+
+  // Deadline derived values
+  const pendingDeadlines = deadlines.filter(d => d.status === 'pending');
+  const overdueDeadlines = deadlines.filter(d => d.status === 'pending' && d.dueDate < today);
+  const resolvedDeadlines = deadlines.filter(d => d.status === 'met' || d.status === 'missed');
 
   if (loading) {
     return (
@@ -1599,6 +1730,265 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                             </button>
                             <button
                               onClick={() => handleDeleteCourtDate(cd.id)}
+                              className="text-xs text-destructive hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Court Deadlines Section */}
+          <div className="border rounded-lg p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2">
+                Court Deadlines
+                {overdueDeadlines.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                    {overdueDeadlines.length} overdue
+                  </span>
+                )}
+                {pendingDeadlines.length > 0 && overdueDeadlines.length === 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                    {pendingDeadlines.length} pending
+                  </span>
+                )}
+                {pendingDeadlines.length > 0 && overdueDeadlines.length > 0 && overdueDeadlines.length < pendingDeadlines.length && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                    {pendingDeadlines.length - overdueDeadlines.length} pending
+                  </span>
+                )}
+              </h2>
+              <button
+                onClick={() => showDeadlineForm ? resetDeadlineForm() : setShowDeadlineForm(true)}
+                className="text-sm text-primary hover:underline"
+              >
+                {showDeadlineForm ? 'Cancel' : '+ Add Deadline'}
+              </button>
+            </div>
+
+            {/* Add/Edit Deadline Form */}
+            {showDeadlineForm && (
+              <div className="mb-4 p-4 bg-secondary/30 rounded-lg">
+                <h3 className="text-sm font-medium mb-3">
+                  {editingDeadlineId ? 'Update Deadline' : 'Add Court Deadline'}
+                </h3>
+                <form onSubmit={handleSaveDeadline} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Description *</label>
+                    <textarea
+                      value={deadlineDescription}
+                      onChange={(e) => {
+                        setDeadlineDescription(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      placeholder="What compliance is required..."
+                      rows={2}
+                      required
+                      className="w-full px-2 py-1.5 border rounded text-sm bg-background resize-none overflow-hidden"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Due Date *</label>
+                      <input
+                        type="date"
+                        value={deadlineDueDate}
+                        onChange={(e) => setDeadlineDueDate(e.target.value)}
+                        className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Issued Date</label>
+                      <input
+                        type="date"
+                        value={deadlineIssuedDate}
+                        onChange={(e) => setDeadlineIssuedDate(e.target.value)}
+                        className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Alert Reminder Date</label>
+                    <input
+                      type="date"
+                      value={deadlineReminderDate}
+                      onChange={(e) => setDeadlineReminderDate(e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Alert fires on this date</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Ordered By</label>
+                    <input
+                      type="text"
+                      value={deadlineIssuedBy}
+                      onChange={(e) => setDeadlineIssuedBy(e.target.value)}
+                      placeholder='e.g. "Judge Smith" or "per stipulation"'
+                      className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Notes</label>
+                    <textarea
+                      value={deadlineNotes}
+                      onChange={(e) => setDeadlineNotes(e.target.value)}
+                      placeholder="Additional details..."
+                      rows={2}
+                      className="w-full px-2 py-1.5 border rounded text-sm bg-background"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={!deadlineDescription.trim() || !deadlineDueDate || savingDeadline}
+                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90 disabled:opacity-50"
+                    >
+                      {savingDeadline
+                        ? (editingDeadlineId ? 'Updating...' : 'Adding...')
+                        : (editingDeadlineId ? 'Update Deadline' : 'Add Deadline')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetDeadlineForm}
+                      className="px-3 py-1.5 border rounded text-sm hover:bg-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {deadlines.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No court deadlines</p>
+            ) : (
+              <div className="space-y-3">
+                {/* Pending deadlines */}
+                {pendingDeadlines.map(dl => {
+                  const isOverdue = dl.dueDate < today;
+                  return (
+                    <div
+                      key={dl.id}
+                      className={`flex items-start gap-3 p-3 rounded-md border ${isOverdue ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
+                    >
+                      <div className={`mt-0.5 ${isOverdue ? 'text-red-600' : 'text-orange-500'}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{dl.description}</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700">pending</span>
+                          {isOverdue && (
+                            <span className="text-xs text-red-600 font-medium">overdue</span>
+                          )}
+                        </div>
+                        <p className={`text-sm ${isOverdue ? 'text-red-700 font-medium' : 'text-muted-foreground'}`}>
+                          Due: {formatDate(dl.dueDate)}
+                        </p>
+                        {(dl.issuedBy || dl.issuedDate) && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {dl.issuedBy && `Ordered by ${dl.issuedBy}`}
+                            {dl.issuedBy && dl.issuedDate && ' · '}
+                            {dl.issuedDate && `issued ${formatDate(dl.issuedDate)}`}
+                          </p>
+                        )}
+                        {dl.reminderDate && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Reminder: {formatDate(dl.reminderDate)}
+                          </p>
+                        )}
+                        {dl.notes && (
+                          <p className="text-xs text-muted-foreground mt-1">{dl.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleUpdateDeadlineStatus(dl.id, 'met')}
+                          className="text-xs text-green-600 hover:underline"
+                        >
+                          Mark Met
+                        </button>
+                        <button
+                          onClick={() => handleUpdateDeadlineStatus(dl.id, 'missed')}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Mark Missed
+                        </button>
+                        <button
+                          onClick={() => handleEditDeadline(dl)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDeadline(dl.id)}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Resolved deadlines (met/missed) */}
+                {resolvedDeadlines.length > 0 && (
+                  <details className="mt-4">
+                    <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground">
+                      {resolvedDeadlines.length} resolved deadline{resolvedDeadlines.length !== 1 ? 's' : ''}
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      {resolvedDeadlines.map(dl => (
+                        <div key={dl.id} className="flex items-start gap-3 p-3 bg-secondary/30 rounded-md opacity-70">
+                          <div className={`mt-0.5 ${dl.status === 'met' ? 'text-green-600' : 'text-red-500'}`}>
+                            {dl.status === 'met' ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{dl.description}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${dl.status === 'met' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {dl.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Due: {formatDate(dl.dueDate)}
+                              {dl.issuedBy && ` · Ordered by ${dl.issuedBy}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleUpdateDeadlineStatus(dl.id, 'pending')}
+                              className="text-xs text-muted-foreground hover:underline"
+                            >
+                              Reopen
+                            </button>
+                            <button
+                              onClick={() => handleEditDeadline(dl)}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDeadline(dl.id)}
                               className="text-xs text-destructive hover:underline"
                             >
                               Delete

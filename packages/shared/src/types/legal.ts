@@ -137,6 +137,7 @@ export interface CaseTask {
   title: string;
   description?: string;
   dueDate: string; // ISO date
+  reminderDate?: string; // YYYY-MM-DD — alert fires on this date
   status: TaskStatus;
   priority: TaskPriority;
   assignedToUserId?: string;
@@ -144,6 +145,25 @@ export interface CaseTask {
   completedByUserId?: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
+}
+
+export type CourtDeadlineStatus = 'pending' | 'met' | 'missed';
+
+export interface CourtDeadline {
+  id: string;
+  caseId: string;
+  llcId: string;
+  description: string;
+  dueDate: string;
+  reminderDate?: string; // YYYY-MM-DD — alert fires on this date
+  issuedDate?: string;
+  issuedBy?: string;
+  courtDateId?: string;
+  status: CourtDeadlineStatus;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  createdByUserId: string;
 }
 
 /**

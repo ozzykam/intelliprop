@@ -6,6 +6,7 @@ export interface CreateTaskInput {
   title: string;
   description?: string;
   dueDate: string;
+  reminderDate?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
   assignedToUserId?: string;
@@ -15,6 +16,7 @@ export interface UpdateTaskInput {
   title?: string;
   description?: string;
   dueDate?: string;
+  reminderDate?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
   assignedToUserId?: string;
@@ -27,6 +29,7 @@ export interface TaskRecord {
   title: string;
   description?: string;
   dueDate: string;
+  reminderDate?: string;
   status: TaskStatus;
   priority: TaskPriority;
   assignedToUserId?: string;
@@ -61,6 +64,7 @@ export async function createTask(
     title: input.title,
     description: input.description || null,
     dueDate: input.dueDate,
+    reminderDate: input.reminderDate || null,
     status: input.status || 'pending',
     priority: input.priority || 'medium',
     assignedToUserId: input.assignedToUserId || null,
@@ -88,6 +92,7 @@ export async function createTask(
     title: input.title,
     description: input.description,
     dueDate: input.dueDate,
+    reminderDate: input.reminderDate || undefined,
     status: (input.status || 'pending') as TaskStatus,
     priority: (input.priority || 'medium') as TaskPriority,
     assignedToUserId: input.assignedToUserId,
@@ -117,6 +122,7 @@ export async function listTasks(llcId: string, caseId: string): Promise<TaskReco
       title: d.title,
       description: d.description || undefined,
       dueDate: d.dueDate,
+      reminderDate: d.reminderDate || undefined,
       status: d.status as TaskStatus,
       priority: d.priority as TaskPriority,
       assignedToUserId: d.assignedToUserId || undefined,
@@ -155,6 +161,7 @@ export async function getTask(
     title: d.title,
     description: d.description || undefined,
     dueDate: d.dueDate,
+    reminderDate: d.reminderDate || undefined,
     status: d.status as TaskStatus,
     priority: d.priority as TaskPriority,
     assignedToUserId: d.assignedToUserId || undefined,
@@ -196,6 +203,7 @@ export async function updateTask(
   if (input.title !== undefined) updateData.title = input.title;
   if (input.description !== undefined) updateData.description = input.description;
   if (input.dueDate !== undefined) updateData.dueDate = input.dueDate;
+  if (input.reminderDate !== undefined) updateData.reminderDate = input.reminderDate;
   if (input.priority !== undefined) updateData.priority = input.priority;
   if (input.assignedToUserId !== undefined) updateData.assignedToUserId = input.assignedToUserId;
 

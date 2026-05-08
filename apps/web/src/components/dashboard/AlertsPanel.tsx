@@ -6,7 +6,7 @@ import { ReactNode } from 'react';
 
 export interface Alert {
   id: string;
-  type: 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due' | 'claim_task_due';
+  type: 'lease_expiring' | 'charge_overdue' | 'payment_due' | 'case_hearing' | 'task_due' | 'mortgage_payment_due' | 'claim_task_due' | 'court_deadline';
   severity: 'warning' | 'critical';
   title: string;
   description: string;
@@ -56,6 +56,11 @@ export const alertIcons: Record<string, ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   ),
+  court_deadline: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+    </svg>
+  ),
 };
 
 export function getAlertLink(alert: Alert): string {
@@ -67,6 +72,8 @@ export function getAlertLink(alert: Alert): string {
     case 'case':
       return `/llcs/${alert.llcId}/legal/${alert.entityId}`;
     case 'task':
+      return `/llcs/${alert.llcId}/legal/${alert.caseId}`;
+    case 'deadline':
       return `/llcs/${alert.llcId}/legal/${alert.caseId}`;
     case 'claim_task':
       return `/llcs/${alert.llcId}/insurance/claims/${alert.claimId}`;
@@ -87,14 +94,18 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
-  const visibleAlerts = alerts.filter(a => !hiddenIds.has(a.id));
-  const criticalCount = visibleAlerts.filter(a => a.severity === 'critical').length;
-  const warningCount = visibleAlerts.filter(a => a.severity === 'warning').length;
+  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+  const warningCount = alerts.filter(a => a.severity === 'warning').length;
 
-  function hideAlert(id: string) {
-    setHiddenIds(prev => new Set(prev).add(id));
+  async function acknowledgeAlert(id: string) {
+    // Optimistically remove from view immediately
+    setAlerts(prev => prev.filter(a => a.id !== id));
+    await fetch('/api/alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alertId: id }),
+    });
   }
 
   useEffect(() => {
@@ -203,7 +214,7 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
     );
   }
 
-  if (visibleAlerts.length === 0) {
+  if (alerts.length === 0) {
     return (
       <div>
         {header}
@@ -219,8 +230,8 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
     );
   }
 
-  const displayAlerts = visibleAlerts.slice(0, maxItems);
-  const remainingCount = visibleAlerts.length - maxItems;
+  const displayAlerts = alerts.slice(0, maxItems);
+  const remainingCount = alerts.length - maxItems;
 
   return (
     <div>
@@ -274,11 +285,11 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
                   )}
                 </Link>
                 <button
-                  onClick={() => hideAlert(alert.id)}
+                  onClick={() => acknowledgeAlert(alert.id)}
                   className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  title="Hide this alert"
+                  title="Acknowledge — dismiss this alert permanently"
                 >
-                  hide
+                  acknowledge
                 </button>
               </div>
               ))}
