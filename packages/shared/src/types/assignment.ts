@@ -111,12 +111,36 @@ export interface AocAssignee {
   email?: string;
 }
 
+export type ObligorEntityType = 'individual' | 'llc' | 'corporation' | 'partnership' | 'trust' | 'unknown';
+export type ObligorRole = 'tenant' | 'lease_signatory' | 'business_owner' | 'manager' | 'guarantor' | 'other' | 'unknown';
+
+export const OBLIGOR_ENTITY_TYPE_LABELS: Record<ObligorEntityType, string> = {
+  individual: 'Individual',
+  llc: 'Limited Liability Company',
+  corporation: 'Corporation',
+  partnership: 'Partnership',
+  trust: 'Trust',
+  unknown: 'Unknown / N/A',
+};
+
+export const OBLIGOR_ROLE_LABELS: Record<ObligorRole, string> = {
+  tenant: 'Tenant',
+  lease_signatory: 'Signed the Lease',
+  business_owner: 'Owner/Member of Named Business',
+  manager: 'Manager of Named Business',
+  guarantor: 'Personal Guarantor',
+  other: 'Other',
+  unknown: 'Unknown / N/A',
+};
+
 export interface Obligor {
   name: string;
   address?: string;
   phone?: string;
   email?: string;
   isPrimary?: boolean;
+  entityType?: ObligorEntityType;
+  role?: ObligorRole;
 }
 
 export interface AssignmentOfClaim {

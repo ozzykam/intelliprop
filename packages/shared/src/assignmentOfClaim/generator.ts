@@ -1,4 +1,4 @@
-import { AssignmentOfClaim, AOC_EXHIBIT_DEFINITIONS } from '../types/assignment';
+import { AssignmentOfClaim, AOC_EXHIBIT_DEFINITIONS, ObligorEntityType, ObligorRole, OBLIGOR_ENTITY_TYPE_LABELS } from '../types/assignment';
 
 function formatDate(iso: string): string {
   const parts = iso.split('-').map(Number);
@@ -325,39 +325,68 @@ export function generateAocDocument(data: AssignmentOfClaim): string {
 
 export function generateNoticeToObligor(
   data: AssignmentOfClaim,
-  targetObligor?: { name: string; address?: string }
+  targetObligor?: { name: string; address?: string; entityType?: ObligorEntityType; role?: ObligorRole }
 ): string {
   const effectiveDateFormatted = formatDate(data.effectiveDate);
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
+  // Resolve which obligor record we're generating for
+  const resolvedObligor = targetObligor ?? (() => {
+    const primary = data.obligors?.find(o => o.isPrimary) ?? data.obligors?.[0];
+    if (primary) return { name: primary.name, address: primary.address, entityType: primary.entityType, role: primary.role };
+    return undefined;
+  })();
+
+  // Entity type (resolved early — used for both address block label and salutation logic)
+  const entityType = resolvedObligor?.entityType;
+  const isBusinessEntity = entityType && entityType !== 'individual' && entityType !== 'unknown';
+  const entityTypeLabel = isBusinessEntity ? OBLIGOR_ENTITY_TYPE_LABELS[entityType!] : null;
+
   // Salutation name
   let obligorName: string;
-  if (targetObligor?.name) {
-    obligorName = targetObligor.name;
+  if (resolvedObligor?.name) {
+    obligorName = resolvedObligor.name;
+  } else if (data.claimType === 'rent_debt') {
+    obligorName = data.tenantName ?? 'Tenant/Obligor';
+  } else if (data.claimType === 'insurance_claim') {
+    obligorName = data.insurer ?? 'Insurer/Obligor';
   } else {
-    const primary = data.obligors?.find(o => o.isPrimary) ?? data.obligors?.[0];
-    if (primary) {
-      obligorName = primary.name;
-    } else if (data.claimType === 'rent_debt') {
-      obligorName = data.tenantName ?? 'Tenant/Obligor';
-    } else if (data.claimType === 'insurance_claim') {
-      obligorName = data.insurer ?? 'Insurer/Obligor';
-    } else {
-      obligorName = 'Obligor';
-    }
+    obligorName = 'Obligor';
   }
 
-  // Salutation line
-  const salutation = obligorName && obligorName !== 'Obligor'
-    ? `Dear ${obligorName}:`
-    : `To Whom It May Concern:`;
+  // Salutation line: business entities always get "To Whom It May Concern:"
+  const salutation = isBusinessEntity || !obligorName || obligorName === 'Obligor'
+    ? `To Whom It May Concern:`
+    : `Dear ${obligorName}:`;
 
   // Delivery address
   const deliveryAddress =
-    targetObligor?.address ??
+    resolvedObligor?.address ??
     (data.claimType === 'rent_debt' && data.propertyAddress
       ? data.propertyAddress
       : '[OBLIGOR MAILING ADDRESS — TO BE COMPLETED BEFORE DELIVERY]');
+
+  // Basis of obligation paragraph (shown for known roles only)
+  const role = resolvedObligor?.role;
+  const basisParagraph: string | null = (() => {
+    if (!role || role === 'unknown') return null;
+    switch (role) {
+      case 'tenant':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice as a tenant under the lease agreement underlying the Claim. As the named tenant, you are directly obligated for the amounts described herein.</p>`;
+      case 'lease_signatory':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice as a signatory to the lease agreement underlying the Claim. As a party who signed the lease, you bear personal liability for the obligations described herein.</p>`;
+      case 'business_owner':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice as an owner or member of the business entity named in the lease agreement underlying the Claim. Your ownership or membership interest in the named business entity is the basis of your potential liability with respect to the assigned Claim.</p>`;
+      case 'manager':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice as a manager of the business entity named in the lease agreement underlying the Claim. Your role as manager of the named business entity is the basis of your potential liability with respect to the assigned Claim.</p>`;
+      case 'guarantor':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice as a personal guarantor of the obligations underlying the Claim. Your guarantee agreement is separate from the primary lease or obligation and independently subjects you to liability for the full amount of the assigned Claim.</p>`;
+      case 'other':
+        return `<p><strong>Basis of Your Obligation:</strong> You are receiving this notice based on your relationship to the obligations underlying the Claim.</p>`;
+      default:
+        return null;
+    }
+  })();
 
   const claimTypeLabel =
     data.claimType === 'rent_debt' ? 'Rent / Tenant Debt'
@@ -482,6 +511,7 @@ export function generateNoticeToObligor(
 
     <div class="address-block">
       <p>${obligorName}</p>
+      ${entityTypeLabel ? `<p>${entityTypeLabel}</p>` : ''}
       <p>${deliveryAddress}</p>
     </div>
 
@@ -498,6 +528,8 @@ export function generateNoticeToObligor(
 
     <p style="margin-bottom:0.1in"><strong>Description of Claim:</strong></p>
     <div style="margin-bottom:0.25in;padding-left:0.15in;border-left:3px solid #ccc;font-size:10.5pt">${descriptionToHtml(data.claimDescription)}</div>
+
+    ${basisParagraph ?? ''}
 
     <div style="page-break-inside:avoid">
       <p>Effective as of <strong>${effectiveDateFormatted}</strong>, all payments, communications, and correspondence relating to the Claim must be directed exclusively to Assignee at:</p>

@@ -11,6 +11,8 @@ import {
   AOC_STATUS_COLORS,
   ASSIGNMENT_CLAIM_TYPE_LABELS,
   AOC_STATUS_TRANSITIONS,
+  ObligorEntityType,
+  ObligorRole,
 } from '@shared/types';
 import { generateAocDocument, generateNoticeToObligor } from '@shared/assignmentOfClaim/generator';
 
@@ -44,6 +46,7 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
   const { llcId, assignmentId } = use(params);
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const noticeIframeRefs = useRef<(HTMLIFrameElement | null)[]>([]);
 
   const [assignment, setAssignment] = useState<AssignmentOfClaim | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,12 +59,10 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showNotice, setShowNotice] = useState(false);
-  const noticeRef = useRef<HTMLIFrameElement>(null);
   const [noticeSignatoryName, setNoticeSignatoryName] = useState('');
   const [noticeSignedDate, setNoticeSignedDate] = useState('');
   const [noticeSigSaving, setNoticeSigSaving] = useState(false);
   const [noticeSigError, setNoticeSigError] = useState('');
-  const [noticeHtml, setNoticeHtml] = useState('');
   const [relatedCase, setRelatedCase] = useState<{ id: string; docketNumber?: string; caseType: string } | null>(null);
 
   const fetchAssignment = useCallback(async () => {
@@ -72,7 +73,6 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
         setAssignment(data.data);
         setNoticeSignatoryName(data.data.noticeSignatoryName || '');
         setNoticeSignedDate(data.data.noticeSignedDate || '');
-        setNoticeHtml(generateNoticeToObligor(data.data));
         // Fetch related case if caseId is set
         if (data.data.caseId) {
           fetch(`/api/llcs/${llcId}/cases/${data.data.caseId}`)
@@ -194,7 +194,6 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
       const data = await res.json();
       if (data.ok) {
         setAssignment(data.data);
-        setNoticeHtml(generateNoticeToObligor(data.data));
       } else {
         setNoticeSigError(data.error?.message || 'Failed to save signature');
       }
@@ -211,6 +210,20 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
 
   const allowedTransitions = AOC_STATUS_TRANSITIONS[assignment.status as AocStatus] ?? [];
   const claimTypeLabel = ASSIGNMENT_CLAIM_TYPE_LABELS[assignment.claimType as AssignmentClaimType] ?? assignment.claimType;
+
+  // Build per-obligor notice targets. If obligors with addresses exist, render one notice each;
+  // otherwise fall back to a single legacy notice (null = use generator's own fallback logic).
+  const noticeTargets: ({ name: string; address: string; entityType?: ObligorEntityType; role?: ObligorRole } | null)[] =
+    assignment.obligors && assignment.obligors.some(o => o.address)
+      ? assignment.obligors.filter(o => o.address).map(o => ({ name: o.name, address: o.address!, entityType: o.entityType, role: o.role }))
+      : [null];
+
+  // Merge live signature inputs so the preview updates before the user clicks "Apply Signature"
+  const noticeData: AssignmentOfClaim = {
+    ...assignment,
+    noticeSignatoryName: noticeSignatoryName || undefined,
+    noticeSignedDate: noticeSignedDate || undefined,
+  };
 
   return (
     <div>
@@ -476,20 +489,29 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
                       {noticeSigError && <span className="text-xs text-destructive">{noticeSigError}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      onClick={() => noticeRef.current?.contentWindow?.print()}
-                      className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary/50"
-                    >
-                      Print Notice
-                    </button>
-                  </div>
-                  <iframe
-                    ref={noticeRef}
-                    srcDoc={noticeHtml}
-                    style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
-                    title="Notice to Obligor"
-                  />
+                  {noticeTargets.map((target, i) => (
+                    <div key={i} className={i > 0 ? 'mt-6' : ''}>
+                      {noticeTargets.length > 1 && (
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                          Notice — {target?.name}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => noticeIframeRefs.current[i]?.contentWindow?.print()}
+                          className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary/50"
+                        >
+                          {noticeTargets.length > 1 ? `Print — ${target?.name}` : 'Print Notice'}
+                        </button>
+                      </div>
+                      <iframe
+                        ref={el => { noticeIframeRefs.current[i] = el; }}
+                        srcDoc={generateNoticeToObligor(noticeData, target ?? undefined)}
+                        style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
+                        title={target ? `Notice to ${target.name}` : 'Notice to Obligor'}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -546,20 +568,29 @@ export default function AssignmentDetailPage({ params }: DetailPageProps) {
                       {noticeSigError && <span className="text-xs text-destructive">{noticeSigError}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      onClick={() => noticeRef.current?.contentWindow?.print()}
-                      className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary/50"
-                    >
-                      Print Notice
-                    </button>
-                  </div>
-                  <iframe
-                    ref={noticeRef}
-                    srcDoc={noticeHtml}
-                    style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
-                    title="Notice to Obligor"
-                  />
+                  {noticeTargets.map((target, i) => (
+                    <div key={i} className={i > 0 ? 'mt-6' : ''}>
+                      {noticeTargets.length > 1 && (
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                          Notice — {target?.name}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => noticeIframeRefs.current[i]?.contentWindow?.print()}
+                          className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary/50"
+                        >
+                          {noticeTargets.length > 1 ? `Print — ${target?.name}` : 'Print Notice'}
+                        </button>
+                      </div>
+                      <iframe
+                        ref={el => { noticeIframeRefs.current[i] = el; }}
+                        srcDoc={generateNoticeToObligor(noticeData, target ?? undefined)}
+                        style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
+                        title={target ? `Notice to ${target.name}` : 'Notice to Obligor'}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

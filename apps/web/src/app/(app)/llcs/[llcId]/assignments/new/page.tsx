@@ -10,6 +10,10 @@ import {
   AocExhibitKey,
   AOC_EXHIBIT_DEFINITIONS,
   ASSIGNMENT_CLAIM_TYPE_LABELS,
+  OBLIGOR_ENTITY_TYPE_LABELS,
+  OBLIGOR_ROLE_LABELS,
+  ObligorEntityType,
+  ObligorRole,
   User,
   OpposingPartyTenant,
 } from '@shared/types';
@@ -69,6 +73,8 @@ interface ObligorEntry {
   phone: string;
   email: string;
   isPrimary: boolean;
+  entityType: ObligorEntityType;
+  role: ObligorRole;
 }
 
 interface NewAssignmentPageProps {
@@ -200,6 +206,8 @@ function buildPreview(s: WizardState, llcName = 'LLC'): AssignmentOfClaim {
       phone: o.phone || undefined,
       email: o.email || undefined,
       isPrimary: o.isPrimary,
+      entityType: o.entityType !== 'unknown' ? o.entityType : undefined,
+      role: o.role !== 'unknown' ? o.role : undefined,
     })) : undefined,
     tenantName: primaryObligor?.name || undefined,
     tenantAddress: primaryObligor?.address || undefined,
@@ -284,6 +292,8 @@ export default function NewAssignmentPage({ params, searchParams }: NewAssignmen
         if (tenantParties.length > 0) {
           patch.obligors = tenantParties.map((op: OpposingPartyTenant, idx: number) => ({
             id: `prefill-${idx}`,
+            entityType: 'unknown' as ObligorEntityType,
+            role: 'unknown' as ObligorRole,
             name: op.tenantName ?? '',
             address: op.propertyAddress ?? '',
             phone: op.phone ?? '',
@@ -307,6 +317,8 @@ export default function NewAssignmentPage({ params, searchParams }: NewAssignmen
         id: Date.now().toString(),
         name: '', address: '', phone: '', email: '',
         isPrimary: prev.obligors.length === 0,
+        entityType: 'unknown',
+        role: 'unknown',
       };
       return { ...prev, obligors: [...prev.obligors, newEntry] };
     });
@@ -451,6 +463,8 @@ export default function NewAssignmentPage({ params, searchParams }: NewAssignmen
           phone: o.phone || undefined,
           email: o.email || undefined,
           isPrimary: o.isPrimary,
+          entityType: o.entityType !== 'unknown' ? o.entityType : undefined,
+          role: o.role !== 'unknown' ? o.role : undefined,
         })) : undefined,
         tenantName: primaryObligor?.name || undefined,
         tenantAddress: primaryObligor?.address || undefined,
@@ -856,6 +870,32 @@ export default function NewAssignmentPage({ params, searchParams }: NewAssignmen
                           className="w-full border rounded-md px-3 py-1.5 text-sm"
                           placeholder="email@example.com"
                         />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Entity Type (optional)</label>
+                        <select
+                          value={obligor.entityType}
+                          onChange={e => updateObligor(obligor.id, { entityType: e.target.value as ObligorEntityType })}
+                          className="w-full border rounded-md px-3 py-1.5 text-sm"
+                        >
+                          {(Object.entries(OBLIGOR_ENTITY_TYPE_LABELS) as [ObligorEntityType, string][]).map(([v, label]) => (
+                            <option key={v} value={v}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Basis of Liability (optional)</label>
+                        <select
+                          value={obligor.role}
+                          onChange={e => updateObligor(obligor.id, { role: e.target.value as ObligorRole })}
+                          className="w-full border rounded-md px-3 py-1.5 text-sm"
+                        >
+                          {(Object.entries(OBLIGOR_ROLE_LABELS) as [ObligorRole, string][]).map(([v, label]) => (
+                            <option key={v} value={v}>{label}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -1444,7 +1484,7 @@ export default function NewAssignmentPage({ params, searchParams }: NewAssignmen
                           Notice — {obligor.name}
                         </p>
                         <iframe
-                          srcDoc={generateNoticeToObligor(noticeData, { name: obligor.name, address: obligor.address })}
+                          srcDoc={generateNoticeToObligor(noticeData, { name: obligor.name, address: obligor.address, entityType: obligor.entityType !== 'unknown' ? obligor.entityType : undefined, role: obligor.role !== 'unknown' ? obligor.role : undefined })}
                           style={{ width: '100%', height: '500px', border: '1px solid #e5e7eb', borderRadius: '6px' }}
                           title={`Notice to ${obligor.name}`}
                         />

@@ -9,6 +9,8 @@ export const obligorSchema = z.object({
   phone: z.string().max(30).optional(),
   email: z.string().email().optional().or(z.literal('')),
   isPrimary: z.boolean().optional(),
+  entityType: z.enum(['individual', 'llc', 'corporation', 'partnership', 'trust', 'unknown']).optional(),
+  role: z.enum(['tenant', 'lease_signatory', 'business_owner', 'manager', 'guarantor', 'other', 'unknown']).optional(),
 });
 
 export const aocAssigneeSchema = z.object({
