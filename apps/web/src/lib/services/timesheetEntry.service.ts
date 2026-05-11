@@ -143,7 +143,7 @@ export async function getActiveTimer(
     .get();
 
   if (snap.empty) return null;
-  return docToEntry(snap.docs[0]);
+  return docToEntry(snap.docs[0]!);
 }
 
 /**

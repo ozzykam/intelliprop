@@ -44,7 +44,7 @@ function formatDuration(minutes: number | undefined): string {
 }
 
 function formatDateCDT(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number) as [number, number, number];
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',

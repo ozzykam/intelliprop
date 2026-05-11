@@ -114,7 +114,7 @@ export async function getTodayClockSession(
     .get();
 
   if (snap.empty) return null;
-  return docToSession(snap.docs[0]);
+  return docToSession(snap.docs[0]!);
 }
 
 /**
@@ -132,7 +132,7 @@ export async function getActiveClockSession(
     .get();
 
   if (snap.empty) return null;
-  return docToSession(snap.docs[0]);
+  return docToSession(snap.docs[0]!);
 }
 
 /**

@@ -52,7 +52,7 @@ export async function GET() {
 
     const summaries: TimesheetStaffSummary[] = staffIds.map((uid, i) => {
       const info = staffMap.get(uid)!;
-      const entries = entriesByUser[i];
+      const entries = entriesByUser[i]!;
       const todayEntries = entries.filter((e) => e.date === today);
 
       const todayDurationMinutes = todayEntries.reduce(

@@ -44,7 +44,7 @@ function formatDuration(minutes: number | undefined): string {
 }
 
 function formatDateCDT(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number) as [number, number, number];
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -124,7 +124,7 @@ export default function StaffActivityPage({ params }: Props) {
   // Group entries by date for a cleaner view
   const grouped = entries.reduce<Record<string, TimesheetEntry[]>>((acc, e) => {
     if (!acc[e.date]) acc[e.date] = [];
-    acc[e.date].push(e);
+    acc[e.date]!.push(e);
     return acc;
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
@@ -215,7 +215,7 @@ export default function StaffActivityPage({ params }: Props) {
       ) : (
         <div className="space-y-4">
           {sortedDates.map((date) => {
-            const dayEntries = grouped[date];
+            const dayEntries = grouped[date]!;
             const dayTotal = dayEntries.reduce((s, e) => s + (e.durationMinutes ?? 0), 0);
             return (
               <div key={date} className="border rounded-lg bg-card overflow-hidden">

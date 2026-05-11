@@ -77,7 +77,7 @@ function formatTimeCDT(isoString: string): string {
 }
 
 function formatDateCDT(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number) as [number, number, number];
   const d = new Date(year, month - 1, day);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
