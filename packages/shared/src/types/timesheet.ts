@@ -235,6 +235,8 @@ export interface TimesheetEntry {
   /** Short description of the work performed */
   title: string;
   notes?: string;
+  /** Visible only to the entry owner — stripped from all other response paths */
+  privateNote?: string;
 
   // ── Timer tracking ────────────────────────────
   timerStatus: TimesheetTimerStatus;
@@ -293,6 +295,8 @@ export interface UpdateTimesheetEntryInput {
   category?: TimesheetCategory;
   title?: string;
   notes?: string;
+  /** null = clear the note; omitted = leave unchanged; string = set/update */
+  privateNote?: string | null;
   isManualEntry?: boolean;
   manualStartTime?: string;
   manualEndTime?: string;

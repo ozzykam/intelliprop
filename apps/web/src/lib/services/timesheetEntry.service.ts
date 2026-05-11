@@ -63,6 +63,7 @@ function docToEntry(doc: FirebaseFirestore.DocumentSnapshot): TimesheetEntry {
     category: d.category,
     title: d.title,
     notes: d.notes ?? undefined,
+    privateNote: d.privateNote ?? undefined,
     timerStatus: d.timerStatus as TimesheetTimerStatus,
     segments: (d.segments ?? []).map((s: Record<string, unknown>) => ({
       startedAt: tsToISO(s.startedAt),
@@ -337,6 +338,11 @@ export async function updateTimesheetEntry(
   if (input.category !== undefined) updateData.category = input.category;
   if (input.title !== undefined) updateData.title = input.title;
   if (input.notes !== undefined) updateData.notes = input.notes;
+  if (input.privateNote === null) {
+    updateData.privateNote = FieldValue.delete();
+  } else if (input.privateNote !== undefined) {
+    updateData.privateNote = input.privateNote;
+  }
   if (input.isManualEntry !== undefined) updateData.isManualEntry = input.isManualEntry;
   if (input.manualStartTime !== undefined) updateData.manualStartTime = input.manualStartTime;
   if (input.manualEndTime !== undefined) updateData.manualEndTime = input.manualEndTime;

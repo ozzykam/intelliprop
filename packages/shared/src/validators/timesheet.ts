@@ -43,6 +43,7 @@ export const updateTimesheetEntrySchema = z.object({
   category: timesheetCategorySchema.optional(),
   title: z.string().min(1).max(200).optional(),
   notes: z.string().max(2000).optional(),
+  privateNote: z.string().max(5000).nullable().optional(),
   isManualEntry: z.boolean().optional(),
   manualStartTime: z.string().regex(timeRegex).optional(),
   manualEndTime: z.string().regex(timeRegex).optional(),

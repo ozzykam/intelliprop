@@ -73,7 +73,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const dateTo = searchParams.get('dateTo') ?? undefined;
     const category = searchParams.get('category') ?? undefined;
 
-    const entries = await listTimesheetEntries(targetUserId, { limit, dateFrom, dateTo, category });
+    const rawEntries = await listTimesheetEntries(targetUserId, { limit, dateFrom, dateTo, category });
+
+    // Strip privateNote — caller is always viewing someone else's entries on this route
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const entries = rawEntries.map(({ privateNote: _pn, ...e }) => e);
 
     return NextResponse.json({
       ok: true,

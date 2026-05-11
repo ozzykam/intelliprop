@@ -98,6 +98,12 @@ export default function EntryDetailPage({ params }: Props) {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
 
+  // Private note state
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState('');
+
   // Timer action state
   const [timerLoading, setTimerLoading] = useState(false);
 
@@ -123,6 +129,35 @@ export default function EntryDetailPage({ params }: Props) {
   }, [entryId]);
 
   useEffect(() => { fetchEntry(); }, [fetchEntry]);
+
+  function startEditingNote() {
+    setNoteInput(entry?.privateNote ?? '');
+    setNoteError('');
+    setEditingNote(true);
+  }
+
+  async function handleNoteSave() {
+    setNoteSaving(true);
+    setNoteError('');
+    try {
+      const res = await fetch(`/api/timesheets/entries/${entryId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ privateNote: noteInput || null }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setEntry(json.data);
+        setEditingNote(false);
+      } else {
+        setNoteError(json.error?.message ?? 'Failed to save');
+      }
+    } catch {
+      setNoteError('Failed to save');
+    } finally {
+      setNoteSaving(false);
+    }
+  }
 
   function startEditing() {
     if (!entry) return;
@@ -462,6 +497,92 @@ export default function EntryDetailPage({ params }: Props) {
               <p className="text-sm whitespace-pre-wrap">{entry.notes}</p>
             </div>
           )}
+
+          {/* Private Note */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Private Note</span>
+                <span className="text-xs text-muted-foreground/60 normal-case tracking-normal">— only visible to you</span>
+              </div>
+              {!editingNote && (
+                <button
+                  onClick={startEditingNote}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {entry.privateNote ? 'Edit' : 'Add'}
+                </button>
+              )}
+            </div>
+
+            {editingNote ? (
+              <div className="space-y-2">
+                <textarea
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  rows={4}
+                  maxLength={5000}
+                  placeholder="Write a private note…"
+                  className="w-full border rounded px-2 py-1.5 text-sm bg-background resize-none"
+                />
+                {noteError && <p className="text-xs text-destructive">{noteError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleNoteSave}
+                    disabled={noteSaving}
+                    className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+                  >
+                    {noteSaving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingNote(false)}
+                    className="px-3 py-1.5 text-sm border rounded hover:bg-secondary"
+                  >
+                    Cancel
+                  </button>
+                  {entry.privateNote && (
+                    <button
+                      onClick={async () => {
+                        setNoteInput('');
+                        setNoteSaving(true);
+                        setNoteError('');
+                        try {
+                          const res = await fetch(`/api/timesheets/entries/${entryId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ privateNote: null }),
+                          });
+                          const json = await res.json();
+                          if (json.ok) {
+                            setEntry(json.data);
+                            setEditingNote(false);
+                          } else {
+                            setNoteError(json.error?.message ?? 'Failed to clear');
+                          }
+                        } catch {
+                          setNoteError('Failed to clear');
+                        } finally {
+                          setNoteSaving(false);
+                        }
+                      }}
+                      disabled={noteSaving}
+                      className="px-3 py-1.5 text-sm text-destructive border border-destructive/30 rounded hover:bg-destructive/10 disabled:opacity-50 ml-auto"
+                    >
+                      Clear note
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                {entry.privateNote ?? <span className="italic text-muted-foreground/60">No private note</span>}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

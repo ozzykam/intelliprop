@@ -38,10 +38,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Owner always has access
+    // Owner always has access — includes privateNote
     if (entry.userId === user.uid) {
       return NextResponse.json({ ok: true, data: entry });
     }
+
+    // Non-owner: strip privateNote before returning
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { privateNote: _pn, ...entryPublic } = entry;
 
     // Check if the entry owner is a super-admin — if so, apply sharedWith rule
     const ownerDoc = await adminDb.collection('users').doc(entry.userId).get();
@@ -53,7 +57,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           { status: 403 }
         );
       }
-      return NextResponse.json({ ok: true, data: entry });
+      return NextResponse.json({ ok: true, data: entryPublic });
     }
 
     // Non-super-admin entry: check caller's access tier
@@ -65,7 +69,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return NextResponse.json({ ok: true, data: entry });
+    return NextResponse.json({ ok: true, data: entryPublic });
   } catch (error) {
     console.error('[GET /api/timesheets/entries/[entryId]]', error);
     return NextResponse.json(
