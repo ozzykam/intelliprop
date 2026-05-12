@@ -66,6 +66,7 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
   const [editType, setEditType] = useState('filing');
   const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -210,6 +211,33 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
     setSaving(true);
     setEditError('');
     try {
+      let fileFields: { fileName: string; storagePath: string; contentType: string; sizeBytes: number } | undefined;
+      const editFile = editFileInputRef.current?.files?.[0];
+
+      if (editFile) {
+        const urlRes = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents/upload-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: editFile.name, contentType: editFile.type }),
+        });
+        const urlData = await urlRes.json();
+        if (!urlData.ok) {
+          setEditError(urlData.error?.message || 'Failed to get upload URL');
+          return;
+        }
+        const { uploadUrl, storagePath } = urlData.data as { uploadUrl: string; storagePath: string };
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': editFile.type },
+          body: editFile,
+        });
+        if (!uploadRes.ok) {
+          setEditError('Failed to upload replacement file');
+          return;
+        }
+        fileFields = { fileName: editFile.name, storagePath, contentType: editFile.type, sizeBytes: editFile.size };
+      }
+
       const res = await fetch(`/api/llcs/${llcId}/cases/${caseId}/documents/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -217,12 +245,14 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
           title: editTitle.trim(),
           description: editDescription.trim() || undefined,
           type: editType,
+          ...fileFields,
         }),
       });
       const data = await res.json();
       if (data.ok) {
         setDocuments((prev) => prev.map((d) => (d.id === editingId ? { ...d, ...data.data } : d)));
         setEditingId(null);
+        if (editFileInputRef.current) editFileInputRef.current.value = '';
       } else {
         setEditError(data.error?.message || 'Failed to save changes');
       }
@@ -419,6 +449,18 @@ export default function DocumentsPage({ params }: DocumentsPageProps) {
                               rows={2}
                               className="w-full px-3 py-2 border rounded-md bg-background text-sm"
                               placeholder="Optional description"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Replace file</label>
+                            <p className="text-xs text-muted-foreground mb-1.5">
+                              Current: {documents.find((d) => d.id === editingId)?.fileName}
+                            </p>
+                            <input
+                              type="file"
+                              ref={editFileInputRef}
+                              accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                              className="w-full text-sm"
                             />
                           </div>
                           <div className="flex gap-2">

@@ -129,7 +129,7 @@ export async function updateDocument(
   llcId: string,
   caseId: string,
   documentId: string,
-  input: { title?: string; description?: string; type?: DocumentType },
+  input: { title?: string; description?: string; type?: DocumentType; fileName?: string; storagePath?: string; contentType?: string; sizeBytes?: number },
   actorUserId: string
 ): Promise<DocumentRecord> {
   const docRef = adminDb
@@ -145,10 +145,19 @@ export async function updateDocument(
     throw new Error('NOT_FOUND: Document not found');
   }
 
+  const existingData = docSnap.data()!;
   const updateData: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
   if (input.title !== undefined) updateData.title = input.title;
   if (input.description !== undefined) updateData.description = input.description || null;
   if (input.type !== undefined) updateData.type = input.type;
+
+  const isReplacingFile = input.fileName && input.storagePath && input.contentType && input.sizeBytes;
+  if (isReplacingFile) {
+    updateData.fileName = input.fileName;
+    updateData.storagePath = input.storagePath;
+    updateData.contentType = input.contentType;
+    updateData.sizeBytes = input.sizeBytes;
+  }
 
   const auditRef = adminDb.collection('llcs').doc(llcId).collection('auditLogs').doc();
   const batch = adminDb.batch();
@@ -160,11 +169,17 @@ export async function updateDocument(
     entityType: 'case_document',
     entityId: documentId,
     entityPath: `llcs/${llcId}/cases/${caseId}/documents/${documentId}`,
-    changes: { before: { title: docSnap.data()?.title }, after: updateData },
+    changes: { before: { title: existingData.title }, after: updateData },
     createdAt: FieldValue.serverTimestamp(),
   });
 
   await batch.commit();
+
+  if (isReplacingFile) {
+    try {
+      await adminStorage.bucket().file(existingData.storagePath).delete();
+    } catch { /* old file may already be gone */ }
+  }
 
   const d = (await docRef.get()).data()!;
   return {

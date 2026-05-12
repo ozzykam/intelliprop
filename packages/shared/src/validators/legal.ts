@@ -182,7 +182,19 @@ export const updateDocumentSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   type: documentTypeSchema.optional(),
-});
+  // File replacement (all four must be provided together, or none)
+  fileName: z.string().min(1).max(255).optional(),
+  storagePath: z.string().min(1).optional(),
+  contentType: z.string().min(1).max(100).optional(),
+  sizeBytes: z.number().positive().optional(),
+}).refine(
+  (data) => {
+    const count = [data.fileName, data.storagePath, data.contentType, data.sizeBytes]
+      .filter((f) => f !== undefined).length;
+    return count === 0 || count === 4;
+  },
+  { message: 'Provide all file fields (fileName, storagePath, contentType, sizeBytes) or none' }
+);
 
 // Court Date schemas
 export const courtDateTypeSchema = z.enum([
