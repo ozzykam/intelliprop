@@ -17,7 +17,8 @@
       "Bash(npm install:*)",
       "Bash(pnpm:*)",
       "Bash(find C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs\\\\[llcId]\\\\legal:*)",
-      "Bash(ls C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs\\\\[llcId]\\\\legal:*)"
+      "Bash(ls C:\\\\Users\\\\Owner\\\\omar-investments\\\\website\\\\apps\\\\web\\\\src\\\\app\\\\\\(app\\)\\\\llcs\\\\[llcId]\\\\legal:*)",
+      "Bash(npx next:*)"
     ]
   }
 }

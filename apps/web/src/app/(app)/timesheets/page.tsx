@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   TimesheetClockSession,
@@ -82,6 +82,22 @@ function formatDateCDT(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function formatTime12h(time24: string): string {
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr ?? '0', 10);
+  const m = mStr ?? '00';
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${period}`;
+}
+
+function entryStartTime(entry: TimesheetEntry): string {
+  if (entry.isManualEntry && entry.manualStartTime) return formatTime12h(entry.manualStartTime);
+  const first = entry.segments[0];
+  if (first) return formatTimeCDT(first.startedAt);
+  return '—';
+}
+
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
@@ -131,6 +147,9 @@ export default function TimesheetsDashboard() {
   // Action states
   const [clockActionLoading, setClockActionLoading] = useState(false);
   const [timerActionLoading, setTimerActionLoading] = useState(false);
+
+  // Row expand/collapse
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -303,6 +322,28 @@ export default function TimesheetsDashboard() {
 
   const activeSession = clockData?.activeSession ?? null;
   const activeTimer = entriesData?.activeTimer ?? null;
+
+  // Expand / collapse helpers
+  const entriesWithNotes = entriesData?.entries.filter((e) => e.notes) ?? [];
+  const allExpanded =
+    entriesWithNotes.length > 0 && entriesWithNotes.every((e) => expandedIds.has(e.id));
+
+  function toggleRow(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allExpanded) {
+      setExpandedIds(new Set());
+    } else {
+      setExpandedIds(new Set(entriesWithNotes.map((e) => e.id)));
+    }
+  }
 
   if (loading) {
     return (
@@ -561,6 +602,14 @@ export default function TimesheetsDashboard() {
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold">My Recent Activity</h2>
           <div className="flex items-center gap-2">
+            {entriesWithNotes.length > 0 && (
+              <button
+                onClick={toggleAll}
+                className="px-2.5 py-1.5 text-xs text-muted-foreground border rounded hover:bg-secondary transition-colors"
+              >
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            )}
             <button
               onClick={() => setShowForm((v) => !v)}
               className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90"
@@ -708,48 +757,91 @@ export default function TimesheetsDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Date</th>
+                <th className="w-8" />
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Date</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Category</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Title</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Duration</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Start</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Duration</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Status</th>
               </tr>
             </thead>
             <tbody>
               {entriesData?.entries && entriesData.entries.length > 0 ? (
                 entriesData.entries.map((entry) => (
-                  <tr key={entry.id} className="border-b last:border-b-0 hover:bg-muted/20">
-                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                      {formatDateCDT(entry.date)}
-                    </td>
-                    <td className="px-4 py-2.5 whitespace-nowrap">
-                      <span className="text-xs bg-secondary px-2 py-0.5 rounded">
-                        {TIMESHEET_CATEGORY_LABELS[entry.category as keyof typeof TIMESHEET_CATEGORY_LABELS] ?? entry.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Link
-                        href={`/timesheets/my-activity/${entry.id}`}
-                        className="hover:underline text-foreground"
-                      >
-                        {entry.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums">
-                      {entry.timerStatus === 'running' ? (
-                        <span className="text-blue-600 font-mono text-xs">{formatElapsed(timerElapsed)}</span>
-                      ) : (
-                        formatDuration(entry.durationMinutes)
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <EntryStatusBadge entry={entry} />
-                    </td>
-                  </tr>
+                  <Fragment key={entry.id}>
+                    <tr className="border-b hover:bg-muted/20">
+                      <td className="w-8 px-2 text-center">
+                        {entry.notes && (
+                          <button
+                            onClick={() => toggleRow(entry.id)}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={expandedIds.has(entry.id) ? 'Collapse' : 'Expand'}
+                          >
+                            <svg
+                              className={`w-3.5 h-3.5 transition-transform ${expandedIds.has(entry.id) ? 'rotate-90' : ''}`}
+                              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                        {formatDateCDT(entry.date)}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <span className="text-xs bg-secondary px-2 py-0.5 rounded">
+                          {TIMESHEET_CATEGORY_LABELS[entry.category as keyof typeof TIMESHEET_CATEGORY_LABELS] ?? entry.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Link
+                          href={`/timesheets/my-activity/${entry.id}`}
+                          className="hover:underline text-foreground"
+                        >
+                          {entry.title}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap tabular-nums">
+                        {entryStartTime(entry)}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums whitespace-nowrap">
+                        {entry.timerStatus === 'running' ? (
+                          <span className="text-blue-600 font-mono text-xs">{formatElapsed(timerElapsed)}</span>
+                        ) : (
+                          formatDuration(entry.durationMinutes)
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <EntryStatusBadge entry={entry} />
+                      </td>
+                    </tr>
+                    {expandedIds.has(entry.id) && (
+                      <tr className="border-b">
+                        <td colSpan={7} className="px-0 pt-0 pb-0">
+                          <div className="bg-muted/40 border-l-[10px] border-muted-foreground/30 px-4 py-3 space-y-3">
+                            {entry.notes && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                                <p className="text-sm whitespace-pre-wrap">{entry.notes}</p>
+                              </div>
+                            )}
+                            {entry.privateNote && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Private Note</p>
+                                <p className="text-sm whitespace-pre-wrap">{entry.privateNote}</p>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     No activity logged yet. Click &quot;+ Log Activity&quot; to get started.
                   </td>
                 </tr>

@@ -6,10 +6,11 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useRole } from '@/lib/contexts/RoleContext';
 import { useRouter, usePathname } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
+import NavClockWidget from './NavClockWidget';
 
 export default function TopBar() {
   const { user, signOut } = useAuth();
-  const { hasTenantRole, clearActiveRole } = useRole();
+  const { hasStaffRole, hasTenantRole, clearActiveRole } = useRole();
   const router = useRouter();
   const pathname = usePathname();
   const [invitationCount, setInvitationCount] = useState(0);
@@ -172,6 +173,9 @@ export default function TopBar() {
                 Switch to Tenant
               </button>
             )}
+
+            {/* Clock widget — staff only */}
+            {hasStaffRole && <NavClockWidget />}
 
             {/* Greeting */}
             <span className="text-sm text-muted-foreground hidden sm:inline">

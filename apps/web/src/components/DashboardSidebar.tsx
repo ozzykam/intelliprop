@@ -253,7 +253,7 @@ export default function DashboardSidebar() {
           hidden lg:flex flex-col
           ${isCollapsed ? 'w-16' : 'w-56'}
           border-r bg-card
-          min-h-[calc(100vh-57px)]
+          sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto
           transition-all duration-200 ease-in-out
           flex-shrink-0
         `}
