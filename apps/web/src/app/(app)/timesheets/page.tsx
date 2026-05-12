@@ -87,7 +87,7 @@ function formatDateCDT(dateStr: string): string {
 // ─────────────────────────────────────────────
 
 interface ClockData {
-  todaySession: TimesheetClockSession | null;
+  todaySessions: TimesheetClockSession[];
   activeSession: TimesheetClockSession | null;
 }
 
@@ -124,6 +124,9 @@ export default function TimesheetsDashboard() {
   const [formBreakMins, setFormBreakMins] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Session detail toggle
+  const [showSessionDetail, setShowSessionDetail] = useState(false);
 
   // Action states
   const [clockActionLoading, setClockActionLoading] = useState(false);
@@ -375,14 +378,63 @@ export default function TimesheetsDashboard() {
             </div>
           )}
 
-          {clockData?.todaySession && clockData.todaySession.status === 'clocked_out' && (
-            <div className="mb-3 text-sm text-muted-foreground">
-              Worked {formatDuration(clockData.todaySession.totalWorkedMinutes)} today
-              {clockData.todaySession.totalBreakMinutes
-                ? ` · ${formatDuration(clockData.todaySession.totalBreakMinutes)} break`
-                : ''}
-            </div>
-          )}
+          {(() => {
+            const clockedOutSessions = clockData?.todaySessions.filter(s => s.status === 'clocked_out') ?? [];
+            if (clockedOutSessions.length === 0) return null;
+            const totalWorkedToday = clockedOutSessions.reduce((s, x) => s + (x.totalWorkedMinutes ?? 0), 0);
+            const totalBreaksToday = clockedOutSessions.reduce((s, x) => s + (x.totalBreakMinutes ?? 0), 0);
+            return (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    {formatDuration(totalWorkedToday)} worked
+                    {totalBreaksToday > 0 ? ` · ${formatDuration(totalBreaksToday)} breaks` : ''}
+                    {' · '}{clockedOutSessions.length} session{clockedOutSessions.length !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    onClick={() => setShowSessionDetail(v => !v)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showSessionDetail ? 'Collapse session detail' : 'Expand session detail'}
+                  >
+                    {showSessionDetail ? '▲' : '▼'}
+                  </button>
+                </div>
+
+                {showSessionDetail && (
+                  <div className="mt-2 space-y-2">
+                    {clockedOutSessions.map((s, i) => {
+                      const breakDurationMin = (b: { startedAt: string; endedAt?: string }) => {
+                        if (!b.endedAt) return 0;
+                        return Math.round((new Date(b.endedAt).getTime() - new Date(b.startedAt).getTime()) / 60_000);
+                      };
+                      return (
+                        <div key={s.id} className="text-xs border rounded p-2 bg-secondary/30">
+                          <div className="font-medium text-foreground">
+                            Session {i + 1} &nbsp;·&nbsp;
+                            {formatTimeCDT(s.clockedInAt)} → {formatTimeCDT(s.clockedOutAt!)}
+                            &nbsp;·&nbsp;{formatDuration(s.totalWorkedMinutes)}
+                          </div>
+                          {s.breaks.length > 0 ? (
+                            <div className="mt-1 space-y-0.5 pl-3 text-muted-foreground">
+                              {s.breaks.map((b, j) => (
+                                <div key={j}>
+                                  Break {j + 1} &nbsp;{formatTimeCDT(b.startedAt)}
+                                  {b.endedAt ? ` – ${formatTimeCDT(b.endedAt)}` : ''}
+                                  &nbsp;·&nbsp;{formatDuration(breakDurationMin(b))}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-1 pl-3 text-muted-foreground italic">No breaks</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="flex flex-wrap gap-2">
             {!activeSession || activeSession.status === 'clocked_out' ? (
@@ -422,6 +474,12 @@ export default function TimesheetsDashboard() {
                 </button>
               </>
             )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t">
+            <Link href="/timesheets/clock-report" className="text-sm text-primary hover:underline">
+              View clock report →
+            </Link>
           </div>
         </div>
 

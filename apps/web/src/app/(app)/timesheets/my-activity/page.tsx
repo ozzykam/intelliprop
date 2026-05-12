@@ -52,6 +52,15 @@ function formatDateCDT(dateStr: string): string {
   });
 }
 
+function formatTime12h(time24: string): string {
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr ?? '0', 10);
+  const m = mStr ?? '00';
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${period}`;
+}
+
 function formatTimeCDT(isoString: string): string {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: TIMESHEET_TIMEZONE,
@@ -231,7 +240,7 @@ export default function MyActivityPage() {
               entries.map((entry) => {
                 const startTime = entry.segments[0]?.startedAt
                   ? formatTimeCDT(entry.segments[0].startedAt)
-                  : entry.manualStartTime ?? '—';
+                  : entry.manualStartTime ? formatTime12h(entry.manualStartTime) : '—';
 
                 return (
                   <tr key={entry.id} className="border-b last:border-b-0 hover:bg-muted/20">

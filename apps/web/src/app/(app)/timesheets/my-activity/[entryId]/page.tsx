@@ -45,6 +45,16 @@ function formatTimeCDT(isoString: string): string {
   }).format(new Date(isoString));
 }
 
+/** Converts a stored "HH:MM" 24-hour string to 12-hour AM/PM display */
+function formatTime12h(time24: string): string {
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr ?? '0', 10);
+  const m = mStr ?? '00';
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${period}`;
+}
+
 function formatDateCDT(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number) as [number, number, number];
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
@@ -449,11 +459,11 @@ export default function EntryDetailPage({ params }: Props) {
             <div className="p-4 grid grid-cols-3 gap-4">
               <div>
                 <div className="text-xs text-muted-foreground">Start Time (CDT)</div>
-                <div className="font-medium mt-0.5">{entry.manualStartTime ?? '—'}</div>
+                <div className="font-medium mt-0.5">{entry.manualStartTime ? formatTime12h(entry.manualStartTime) : '—'}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">End Time (CDT)</div>
-                <div className="font-medium mt-0.5">{entry.manualEndTime ?? '—'}</div>
+                <div className="font-medium mt-0.5">{entry.manualEndTime ? formatTime12h(entry.manualEndTime) : '—'}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Break</div>

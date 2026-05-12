@@ -118,6 +118,24 @@ export async function getTodayClockSession(
 }
 
 /**
+ * Get all of today's clock sessions for a user (by CDT calendar day), ordered chronologically.
+ */
+export async function getTodayClockSessions(
+  userId: string
+): Promise<TimesheetClockSession[]> {
+  const today = getTodayInCDT();
+
+  const snap = await adminDb
+    .collection(COLLECTION)
+    .where('userId', '==', userId)
+    .where('date', '==', today)
+    .orderBy('createdAt', 'asc')
+    .get();
+
+  return snap.docs.map(docToSession);
+}
+
+/**
  * Get the currently active (not clocked-out) session for a user, if any.
  */
 export async function getActiveClockSession(

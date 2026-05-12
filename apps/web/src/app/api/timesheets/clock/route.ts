@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { getUser } from '@/lib/services/user.service';
 import {
-  getTodayClockSession,
+  getTodayClockSessions,
   getActiveClockSession,
   clockIn,
 } from '@/lib/services/timesheetClock.service';
@@ -22,15 +22,15 @@ export async function GET() {
   }
 
   try {
-    const [todaySession, activeSession] = await Promise.all([
-      getTodayClockSession(user.uid),
+    const [todaySessions, activeSession] = await Promise.all([
+      getTodayClockSessions(user.uid),
       getActiveClockSession(user.uid),
     ]);
 
     return NextResponse.json({
       ok: true,
       data: {
-        todaySession,
+        todaySessions,
         activeSession,
       },
     });
