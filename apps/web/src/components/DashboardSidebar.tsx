@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/lib/contexts/SidebarContext';
+import { useRole } from '@/lib/contexts/RoleContext';
 
 const NAV_ITEMS = [
   {
@@ -107,24 +108,8 @@ const SUPER_ADMIN_NAV_ITEMS = [
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggle } = useSidebar();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { isSuperAdmin } = useRole();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  // Check if user is super-admin
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      try {
-        // Try to access admin endpoint - if it succeeds, user is super-admin
-        const res = await fetch('/api/admin/users?limit=1');
-        if (res.ok) {
-          setIsSuperAdmin(true);
-        }
-      } catch {
-        // Not a super-admin or not authenticated
-      }
-    };
-    checkSuperAdmin();
-  }, []);
 
   // Close sidebar when route changes
   useEffect(() => {

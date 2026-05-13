@@ -6,6 +6,7 @@ export interface UserRoleContext {
   isAuthenticated: boolean;
   hasStaffRole: boolean;
   hasTenantRole: boolean;
+  isSuperAdmin: boolean;
   effectiveRole: string | null;
   userType: 'staff' | 'tenant';
   displayName?: string;
@@ -23,6 +24,7 @@ export async function GET() {
           isAuthenticated: false,
           hasStaffRole: false,
           hasTenantRole: false,
+          isSuperAdmin: false,
           effectiveRole: null,
           userType: 'tenant',
           email: '',
@@ -50,6 +52,7 @@ export async function GET() {
         isAuthenticated: true,
         hasStaffRole,
         hasTenantRole,
+        isSuperAdmin: context.isSuperAdmin,
         effectiveRole: context.effectiveRole,
         userType: context.userType,
         displayName: context.displayName,

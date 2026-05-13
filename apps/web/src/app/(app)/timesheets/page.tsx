@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import TimesheetSummaryPanel from '@/components/TimesheetSummaryPanel';
 import {
   TimesheetClockSession,
   TimesheetEntry,
@@ -944,6 +945,8 @@ export default function TimesheetsDashboard() {
           </div>
         </div>
       )}
+
+      <TimesheetSummaryPanel />
     </div>
   );
 }

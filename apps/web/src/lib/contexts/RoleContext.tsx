@@ -17,6 +17,7 @@ interface RoleContextValue {
   loading: boolean;
   hasStaffRole: boolean;
   hasTenantRole: boolean;
+  isSuperAdmin: boolean;
   activeRole: 'staff' | 'tenant' | null;
   needsRoleSelection: boolean;
   effectiveRole: string | null;
@@ -54,6 +55,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hasStaffRole, setHasStaffRole] = useState(false);
   const [hasTenantRole, setHasTenantRole] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [effectiveRole, setEffectiveRole] = useState<string | null>(null);
   const [activeRole, setActiveRoleState] = useState<'staff' | 'tenant' | null>(
     null
@@ -62,6 +64,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const applyRoleContext = useCallback((ctx: UserRoleContext) => {
     setHasStaffRole(ctx.hasStaffRole);
     setHasTenantRole(ctx.hasTenantRole);
+    setIsSuperAdmin(ctx.isSuperAdmin);
     setEffectiveRole(ctx.effectiveRole);
 
     // Read active role from cookie
@@ -93,6 +96,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setHasStaffRole(false);
       setHasTenantRole(false);
+      setIsSuperAdmin(false);
       setEffectiveRole(null);
       setActiveRoleState(null);
       setLoading(false);
@@ -154,6 +158,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         loading: authLoading || loading,
         hasStaffRole,
         hasTenantRole,
+        isSuperAdmin,
         activeRole,
         needsRoleSelection,
         effectiveRole,
