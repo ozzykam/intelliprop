@@ -2,8 +2,9 @@ import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { listTimesheetEntries } from '@/lib/services/timesheetEntry.service';
+import { listClockSessions } from '@/lib/services/timesheetClock.service';
 import { getUser } from '@/lib/services/user.service';
-import { TIMESHEET_TIMEZONE, TIMESHEET_CATEGORY_LABELS, TimesheetCategory } from '@shared/types';
+import { TIMESHEET_TIMEZONE, TIMESHEET_CATEGORY_LABELS, TimesheetCategory, TimesheetClockSession } from '@shared/types';
 
 const anthropic = new Anthropic();
 
@@ -36,14 +37,14 @@ export async function POST(request: NextRequest) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  let body: { period?: string; dateFrom?: string; dateTo?: string };
+  let body: { period?: string; dateFrom?: string; dateTo?: string; additionalContext?: string };
   try {
     body = await request.json();
   } catch {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { period, dateFrom: rawFrom, dateTo: rawTo } = body;
+  const { period, dateFrom: rawFrom, dateTo: rawTo, additionalContext } = body;
   const today = getTodayCDT();
 
   let dateFrom: string;
@@ -94,8 +95,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const [entries, userRecord] = await Promise.all([
+  const [entries, clockSessions, userRecord] = await Promise.all([
     listTimesheetEntries(user.uid, { dateFrom, dateTo, limit: 200 }),
+    listClockSessions(user.uid, { dateFrom, dateTo, limit: 200 }),
     getUser(user.uid),
   ]);
 
@@ -113,9 +115,29 @@ export async function POST(request: NextRequest) {
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 
-  const totalMinutes = sorted.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0);
   const completed = sorted.filter(e => e.status === 'completed').length;
   const incomplete = sorted.length - completed;
+
+  function computeClockMinutes(sessions: TimesheetClockSession[]): number {
+    return sessions.reduce((sum, s) => {
+      if (s.status === 'clocked_out' && s.totalWorkedMinutes != null) {
+        return sum + s.totalWorkedMinutes;
+      }
+      if (s.status !== 'clocked_out') {
+        const now = Date.now();
+        const totalMs = now - new Date(s.clockedInAt).getTime();
+        const breakMs = s.breaks.reduce((bSum, b) => {
+          const start = new Date(b.startedAt).getTime();
+          const end = b.endedAt ? new Date(b.endedAt).getTime() : now;
+          return bSum + (end - start);
+        }, 0);
+        return sum + Math.max(0, Math.round((totalMs - breakMs) / 60_000));
+      }
+      return sum;
+    }, 0);
+  }
+
+  const clockedMinutes = computeClockMinutes(clockSessions);
 
   const entryLines = sorted.map(e => {
     const catLabel = TIMESHEET_CATEGORY_LABELS[e.category as TimesheetCategory] ?? e.category;
@@ -128,9 +150,13 @@ export async function POST(request: NextRequest) {
     return line;
   }).join('\n');
 
+  const clockStatsLine = clockSessions.length > 0
+    ? `${formatMinutes(clockedMinutes)} clocked in for the period (${clockSessions.length} session(s)). `
+    : '';
+
   const prompt = `You are reviewing the timesheet activity log for ${displayName} ${periodLabel}.
 
-Stats: ${sorted.length} entries, ${formatMinutes(totalMinutes)} logged (${completed} completed, ${incomplete} still in progress).
+Stats: ${clockStatsLine}${sorted.length} activity entries logged (${completed} completed, ${incomplete} still in progress).
 
 Entries (oldest first):
 ${entryLines}
@@ -140,7 +166,7 @@ Write a concise activity summary in 2–4 short paragraphs. Cover:
 - Specific tasks worth calling out by name
 - Any in-progress or incomplete items that may still need attention
 
-Be specific and reference actual task titles. Do not invent anything not in the data. Keep the tone professional and direct.`;
+Be specific and reference actual task titles. Do not invent anything not in the data. Keep the tone professional and direct.${additionalContext?.trim() ? `\n\nAdditionally, the user has asked: ${additionalContext.trim()}\nAddress this at the end of your response under the heading "Additional Info:" (plain text, no bold).` : ''}`;
 
   const messageStream = anthropic.messages.stream({
     model: 'claude-haiku-4-5-20251001',

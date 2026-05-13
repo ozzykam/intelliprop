@@ -19,6 +19,7 @@ export default function TimesheetSummaryPanel() {
   const [period, setPeriod] = useState<Period>('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +55,7 @@ export default function TimesheetSummaryPanel() {
         body.dateFrom = customFrom;
         body.dateTo = customTo;
       }
+      if (additionalContext.trim()) body.additionalContext = additionalContext.trim();
 
       const res = await fetch('/api/timesheets/summary', {
         method: 'POST',
@@ -169,6 +171,18 @@ export default function TimesheetSummaryPanel() {
               </div>
             </div>
           )}
+
+          {/* Additional context */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Additional instructions (optional)</label>
+            <textarea
+              value={additionalContext}
+              onChange={e => setAdditionalContext(e.target.value)}
+              placeholder='e.g. "Also include how many times I called Greg"'
+              rows={2}
+              className="w-full text-sm border rounded-md px-3 py-2 bg-background resize-none"
+            />
+          </div>
 
           {/* Generate button */}
           <button
