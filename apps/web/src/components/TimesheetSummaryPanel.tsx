@@ -74,10 +74,13 @@ export default function TimesheetSummaryPanel() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setSummary(prev => prev + decoder.decode(value, { stream: true }));
+      let done = false;
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+        if (!done && result.value) {
+          setSummary(prev => prev + decoder.decode(result.value, { stream: true }));
+        }
       }
     } catch {
       setError('An error occurred while generating the summary.');
