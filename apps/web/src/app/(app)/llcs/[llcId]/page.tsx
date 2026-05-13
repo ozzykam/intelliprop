@@ -40,16 +40,16 @@ async function getLlcStats(llcId: string): Promise<LlcStats> {
   const propertyCount = propertiesSnap.size;
 
   // Count units across all properties
+  const unitSnaps = await Promise.all(
+    propertiesSnap.docs.map((propDoc) =>
+      llcRef.collection('properties').doc(propDoc.id).collection('units').get()
+    )
+  );
   let unitCount = 0;
   let occupiedUnits = 0;
-  for (const propDoc of propertiesSnap.docs) {
-    const unitsSnap = await llcRef
-      .collection('properties')
-      .doc(propDoc.id)
-      .collection('units')
-      .get();
+  for (const unitsSnap of unitSnaps) {
     unitCount += unitsSnap.size;
-    occupiedUnits += unitsSnap.docs.filter(u => u.data().status === 'occupied').length;
+    occupiedUnits += unitsSnap.docs.filter((u) => u.data().status === 'occupied').length;
   }
 
   // Count active leases and leases expiring within 60 days

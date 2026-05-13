@@ -764,6 +764,7 @@ export default function TimesheetsDashboard() {
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Start</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground whitespace-nowrap">Duration</th>
                 <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -816,10 +817,51 @@ export default function TimesheetsDashboard() {
                       <td className="px-4 py-2.5">
                         <EntryStatusBadge entry={entry} />
                       </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {entry.timerStatus === 'running' && (
+                            <button
+                              onClick={() => handleTimerAction(entry.id, 'pause')}
+                              disabled={timerActionLoading}
+                              aria-label="Pause"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-amber-500 text-amber-500 hover:border-amber-600 hover:text-amber-600 disabled:opacity-40 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <rect x="6" y="4" width="4" height="16" rx="1" />
+                                <rect x="14" y="4" width="4" height="16" rx="1" />
+                              </svg>
+                            </button>
+                          )}
+                          {entry.timerStatus === 'paused' && (
+                            <button
+                              onClick={() => handleTimerAction(entry.id, 'resume')}
+                              disabled={timerActionLoading}
+                              aria-label="Resume"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-blue-500 text-blue-500 hover:border-blue-600 hover:text-blue-600 disabled:opacity-40 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </button>
+                          )}
+                          {entry.status !== 'completed' && (
+                            <button
+                              onClick={() => handleTimerAction(entry.id, 'stop')}
+                              disabled={timerActionLoading}
+                              aria-label="Stop"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-red-500 text-red-500 hover:border-red-600 hover:text-red-600 disabled:opacity-40 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <rect x="5" y="5" width="14" height="14" rx="1" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                     {expandedIds.has(entry.id) && (
                       <tr className="border-b">
-                        <td colSpan={7} className="px-0 pt-0 pb-0">
+                        <td colSpan={8} className="px-0 pt-0 pb-0">
                           <div className="bg-muted/40 border-l-[10px] border-muted-foreground/30 px-4 py-3 space-y-3">
                             {entry.notes && (
                               <div>
@@ -841,7 +883,7 @@ export default function TimesheetsDashboard() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                     No activity logged yet. Click &quot;+ Log Activity&quot; to get started.
                   </td>
                 </tr>
@@ -908,13 +950,36 @@ export default function TimesheetsDashboard() {
 
 function EntryStatusBadge({ entry }: { entry: TimesheetEntry }) {
   if (entry.timerStatus === 'running') {
-    return <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Running</span>;
+    return (
+      <span className="flex items-center gap-1" aria-label="Running">
+        {[0, 160, 320].map((delay) => (
+          <span
+            key={delay}
+            className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce"
+            style={{ animationDelay: `${delay}ms` }}
+          />
+        ))}
+      </span>
+    );
   }
   if (entry.timerStatus === 'paused') {
-    return <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Paused</span>;
+    return (
+      <span className="inline-flex items-center justify-center w-5 h-5 text-amber-500" aria-label="Paused">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+      </span>
+    );
   }
   if (entry.status === 'completed') {
-    return <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">Completed</span>;
+    return (
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500" aria-label="Completed">
+        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </span>
+    );
   }
   return <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded">In Progress</span>;
 }
