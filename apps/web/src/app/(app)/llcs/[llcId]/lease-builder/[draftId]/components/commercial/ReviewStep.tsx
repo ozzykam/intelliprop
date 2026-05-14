@@ -49,10 +49,11 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
   const [customName, setCustomName] = useState('');
   const [customTitle, setCustomTitle] = useState('');
 
+  const firstTenantId = draft.tenantIds?.[0];
+
   useEffect(() => {
-    const tenantId = draft.tenantIds?.[0];
-    if (!tenantId) return;
-    fetch(`/api/llcs/${llcId}/tenants/${tenantId}`)
+    if (!firstTenantId) return;
+    fetch(`/api/llcs/${llcId}/tenants/${firstTenantId}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok && data.data?.type === 'business' && data.data?.primaryContact?.name) {
@@ -60,7 +61,7 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
         }
       })
       .catch(() => {});
-  }, [llcId, draft.tenantIds?.[0]]);
+  }, [llcId, firstTenantId]);
 
   const signerOptions = useMemo(() => {
     const opts: { key: string; label: string; name: string; title?: string }[] = [];
@@ -100,7 +101,7 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
       setCustomName(saved.name);
       setCustomTitle(saved.title ?? '');
     }
-  }, [signerOptions]); // intentionally run only when options change (initial load)
+  }, [signerOptions, draft.tenantSigner]);
 
   function handleTenantSignerKeyChange(key: string) {
     setTenantSignerKey(key);
