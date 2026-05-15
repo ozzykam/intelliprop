@@ -33,6 +33,7 @@ const COMMERCIAL_SPACE_TYPES: { value: CommercialSpaceType; label: string }[] = 
   { value: 'warehouse', label: 'Warehouse' },
   { value: 'restaurant', label: 'Restaurant' },
   { value: 'medical', label: 'Medical' },
+  { value: 'daycare_services', label: 'Daycare Services' },
 ];
 
 export default function PropertyProfileStep({ draft, llcId, updateDraft }: StepProps) {

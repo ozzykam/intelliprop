@@ -507,6 +507,18 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
           </div>
         </div>
 
+        {/* Payable to */}
+        <div>
+          <label className="block text-sm font-medium mb-2">Checks / Money Orders Payable To</label>
+          <input
+            type="text"
+            value={financial.payableTo ?? ''}
+            onChange={(e) => updateFinancial({ payableTo: e.target.value || undefined })}
+            placeholder="e.g. Omar Investments LLC"
+            className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
         {/* Returned payment fee */}
         <div>
           <label className="block text-sm font-medium mb-2">Returned Payment Fee ($)</label>

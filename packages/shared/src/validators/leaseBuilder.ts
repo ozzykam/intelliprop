@@ -48,7 +48,7 @@ export const propertyProfileSchema = z.object({
   minneapolisLicenseStatus: z.enum(['yes', 'no', 'unsure']).optional(),
   stPaulRentStabilization: z.enum(['subject', 'exempt', 'unsure']).optional(),
   // Commercial
-  commercialSpaceTypes: z.array(z.enum(['office', 'retail', 'industrial', 'warehouse', 'restaurant', 'medical'])).min(1).optional(),
+  commercialSpaceTypes: z.array(z.enum(['office', 'retail', 'industrial', 'warehouse', 'restaurant', 'medical', 'daycare_services'])).min(1).optional(),
   zoningConfirmed: z.boolean().optional(),
   liquorLicenseRequired: z.boolean().optional(),
   outdoorPatioUse: z.boolean().optional(),
@@ -210,6 +210,7 @@ export const commercialFinancialTermsSchema = z.object({
   defaultInterestRate: z.number().min(0).max(100).optional(),
   freeRentMonths: z.number().int().min(0).max(24).optional(),
   paymentMethods: z.array(paymentMethodSchema).optional(),
+  payableTo: z.string().max(200).optional(),
   returnedPaymentFee: z.number().nonnegative().optional(),
   convenienceFees: z.array(commercialConvenienceFeeSchema).optional(),
   camEnabled: z.boolean(),
@@ -228,6 +229,14 @@ export const commercialDepositTermsSchema = z.object({
   depositReturnDays: z.number().int().min(1).max(365),
 });
 
+const tiContributionInstallmentSchema = z.object({
+  amountCents: z.number().nonnegative(),
+  trigger: z.enum(['lease_execution', 'occupancy_plus_months', 'specific_date']),
+  monthsAfterOccupancy: z.number().int().min(1).optional(),
+  dueDate: z.string().optional(),
+  note: z.string().max(200).optional(),
+});
+
 export const useAndBuildoutTermsSchema = z.object({
   permittedUse: z.string().min(1).max(2000),
   exclusiveUse: z.boolean(),
@@ -242,6 +251,7 @@ export const useAndBuildoutTermsSchema = z.object({
   workLetterDeadlineDays: z.number().int().min(1).optional(),
   workLetterCompletionDate: z.string().optional(),
   workLetterLienDischargeDays: z.number().int().min(1).optional(),
+  tiContributionInstallments: z.array(tiContributionInstallmentSchema).optional(),
   improvementOwnership: z.enum(['landlord', 'tenant_trade_fixtures']),
   signageAllowed: z.boolean(),
   signageRequiresApproval: z.boolean(),

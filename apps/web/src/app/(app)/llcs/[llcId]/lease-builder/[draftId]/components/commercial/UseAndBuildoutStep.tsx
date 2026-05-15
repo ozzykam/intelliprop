@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { LeaseBuilderDraft, UseAndBuildoutTerms } from '@shared/types/leaseBuilder';
+import type { LeaseBuilderDraft, TiContributionInstallment, UseAndBuildoutTerms } from '@shared/types/leaseBuilder';
 
 interface StepProps {
   draft: LeaseBuilderDraft & { id: string };
@@ -66,6 +66,22 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
       premisesCondition: 'as_is',
     }
   );
+
+  function addInstallment() {
+    const current = buildout.tiContributionInstallments || [];
+    updateBuildout({ tiContributionInstallments: [...current, { amountCents: 0, trigger: 'lease_execution' }] });
+  }
+
+  function removeInstallment(i: number) {
+    const current = buildout.tiContributionInstallments || [];
+    updateBuildout({ tiContributionInstallments: current.filter((_, idx) => idx !== i) });
+  }
+
+  function updateInstallment(i: number, patch: Partial<TiContributionInstallment>) {
+    const current = buildout.tiContributionInstallments || [];
+    const updated = current.map((inst, idx) => (idx === i ? { ...inst, ...patch } : inst));
+    updateBuildout({ tiContributionInstallments: updated });
+  }
 
   function updateBuildout(updates: Partial<UseAndBuildoutTerms>) {
     const updated = { ...buildout, ...updates };
@@ -254,6 +270,7 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
         {showWorkLetter && (
           <div className="space-y-4 pl-4 border-l-2 border-input">
             <h2 className="text-lg font-medium">Work Letter Details</h2>
+
             <div>
               <label className="block text-sm font-medium mb-2">
                 Work Letter Description
@@ -345,6 +362,111 @@ export default function UseAndBuildoutStep({ draft, updateDraft }: StepProps) {
           </div>
         )}
       </div>
+
+      {/* TI Contribution Installments */}
+      {showWorkLetter && (
+        <div className="space-y-4 pl-4 border-l-2 border-input">
+          <div>
+            <h3 className="text-base font-medium">Tenant Improvement Contribution</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Use this if the tenant will contribute funds toward the landlord&apos;s build-out costs.
+            </p>
+          </div>
+
+          {(buildout.tiContributionInstallments || []).map((inst, i) => (
+            <div key={i} className="border border-input rounded-md p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Payment {i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeInstallment(i)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Amount ($)</label>
+                  <DollarInput
+                    cents={inst.amountCents}
+                    onChange={(c) => updateInstallment(i, { amountCents: c })}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Due When</label>
+                  <select
+                    value={inst.trigger}
+                    onChange={(e) =>
+                      updateInstallment(i, {
+                        trigger: e.target.value as TiContributionInstallment['trigger'],
+                        monthsAfterOccupancy: undefined,
+                        dueDate: undefined,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="lease_execution">At Lease Execution</option>
+                    <option value="occupancy_plus_months">Months After Occupancy</option>
+                    <option value="specific_date">Specific Date</option>
+                  </select>
+                </div>
+              </div>
+
+              {inst.trigger === 'occupancy_plus_months' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Months After Occupancy</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={inst.monthsAfterOccupancy || ''}
+                    onChange={(e) =>
+                      updateInstallment(i, {
+                        monthsAfterOccupancy: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                      })
+                    }
+                    placeholder="e.g. 6"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              )}
+
+              {inst.trigger === 'specific_date' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={inst.dueDate || ''}
+                    onChange={(e) => updateInstallment(i, { dueDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Note (optional)</label>
+                <input
+                  type="text"
+                  value={inst.note || ''}
+                  onChange={(e) => updateInstallment(i, { note: e.target.value })}
+                  placeholder="e.g. toward build-out costs"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addInstallment}
+            className="text-sm text-primary hover:underline"
+          >
+            + Add Payment
+          </button>
+        </div>
+      )}
 
       {/* Improvement Ownership */}
       <div className="space-y-4">

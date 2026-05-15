@@ -44,6 +44,13 @@ export const WORK_LETTER_ADDENDUM_TEMPLATE = `
   <li><strong>Unused Allowance:</strong> Any unused portion of the TI Allowance shall be {{commercial.useAndBuildout.tiUnusedPolicy}}.</li>
 </ol>
 
+{{#if tiContributionInstallmentsHtml}}
+<h3>5B. TENANT IMPROVEMENT CONTRIBUTION</h3>
+<p>In addition to any TI Allowance provided by Landlord, Tenant shall contribute toward the cost of the Work according to the following payment schedule:</p>
+{{tiContributionInstallmentsHtml}}
+<p>Each contribution shall be paid to Landlord at Landlord's address for notices. Failure to timely pay any installment shall constitute an event of default under the Lease.</p>
+{{/if}}
+
 <h3>6. COMPLETION DEADLINE</h3>
 
 <p>The Work shall be substantially completed within <strong>{{commercial.useAndBuildout.workLetterDeadlineDays}} days</strong> following the later of: (a) Landlord's delivery of the Premises to Tenant, or (b) final approval of the plans and specifications.</p>

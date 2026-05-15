@@ -149,10 +149,28 @@ export default function WizardPage({ params }: PageProps) {
     updateDraftLocal({ currentStep: step });
   }
 
+  function sanitizeDraftForSave(d: LeaseBuilderDraft): Partial<LeaseBuilderDraft> {
+    if (!d.commercial?.risk) return d;
+    if (d.commercial.risk.personalGuaranteeRequired) return d;
+    return {
+      ...d,
+      commercial: {
+        ...d.commercial,
+        risk: {
+          ...d.commercial.risk,
+          personalGuaranteeType: undefined,
+          personalGuaranteeCap: undefined,
+          includePrimaryContactAsGuarantor: undefined,
+          guarantors: undefined,
+        },
+      },
+    };
+  }
+
   async function goNext() {
     const nextStep = steps[currentStepIndex + 1];
     if (!nextStep) return;
-    const saved = await saveDraft({ ...draft, currentStep: nextStep.key });
+    const saved = await saveDraft({ ...sanitizeDraftForSave(draft), currentStep: nextStep.key });
     if (saved) {
       updateDraftLocal({ currentStep: nextStep.key });
     }
@@ -166,7 +184,7 @@ export default function WizardPage({ params }: PageProps) {
 
   async function handleSave() {
     if (draft) {
-      await saveDraft(draft);
+      await saveDraft(sanitizeDraftForSave(draft));
     }
   }
 

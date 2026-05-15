@@ -867,6 +867,7 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   ctx['lease.paymentMethods'] = fin?.paymentMethods?.length
     ? fin.paymentMethods.map((m) => paymentMethodLabels[m] ?? m).join(', ')
     : '';
+  ctx['lease.payableTo'] = fin?.payableTo || ctx['landlord.name'] || '';
 
   // Convenience fee description
   const convFees = fin?.convenienceFees?.filter((f) => f.feeType === 'flat' ? (f.flatAmount ?? 0) > 0 : (f.percentage ?? 0) > 0) ?? [];
@@ -955,6 +956,23 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   ctx['commercial.useAndBuildout.tiConstructionManagedBy'] = ub?.tiConstructionManagedBy || '';
   ctx['commercial.useAndBuildout.improvementOwnership'] = ub?.improvementOwnership || '';
   ctx['lease.workLetterLienDischargeDays'] = String(ub?.workLetterLienDischargeDays || '');
+
+  // TI contribution installments (pre-rendered for work letter addendum)
+  const installments = ub?.tiContributionInstallments ?? [];
+  if (installments.length > 0) {
+    const items = installments.map((inst, i) => {
+      const amount = formatCurrency(inst.amountCents);
+      let when = '';
+      if (inst.trigger === 'lease_execution') when = 'upon execution of the Lease Agreement';
+      else if (inst.trigger === 'occupancy_plus_months') when = `${inst.monthsAfterOccupancy} month(s) after commencement of occupancy`;
+      else if (inst.trigger === 'specific_date') when = `on or before ${formatDate(inst.dueDate)}`;
+      const note = inst.note ? ` — ${inst.note}` : '';
+      return `<li>Installment ${i + 1}: <strong>${amount}</strong>, due ${when}${note}</li>`;
+    }).join('\n');
+    ctx['tiContributionInstallmentsHtml'] = `<ol>${items}</ol>`;
+  } else {
+    ctx['tiContributionInstallmentsHtml'] = '';
+  }
 
   // ── Operations ──
   ctx['landlord.maintenanceItems'] = formatMaintenanceItems(ops?.landlordMaintains);

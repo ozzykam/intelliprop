@@ -94,7 +94,8 @@ export type CommercialSpaceType =
   | 'industrial'
   | 'warehouse'
   | 'restaurant'
-  | 'medical';
+  | 'medical'
+  | 'daycare_services';
 
 // ============================================================================
 // WIZARD DRAFT (Top-Level — Persisted to Firestore)
@@ -345,6 +346,7 @@ export interface CommercialFinancialTerms {
   freeRentMonths?: number; // 0–24
   // Payment methods
   paymentMethods?: LeasePaymentMethod[];
+  payableTo?: string; // name checks/money orders should be made out to
   returnedPaymentFee?: number; // cents
   convenienceFees?: CommercialConvenienceFee[];
   // CAM / Additional rent (NNN and Modified Gross only)
@@ -369,6 +371,14 @@ export interface CommercialDepositTerms {
   depositReturnDays: number;
 }
 
+export interface TiContributionInstallment {
+  amountCents: number;
+  trigger: 'lease_execution' | 'occupancy_plus_months' | 'specific_date';
+  monthsAfterOccupancy?: number;
+  dueDate?: string; // ISO date
+  note?: string;
+}
+
 export interface UseAndBuildoutTerms {
   permittedUse: string;
   exclusiveUse: boolean;
@@ -385,6 +395,8 @@ export interface UseAndBuildoutTerms {
   workLetterDeadlineDays?: number;
   workLetterCompletionDate?: string; // ISO date
   workLetterLienDischargeDays?: number;
+  // Tenant improvement contribution (tenant pays landlord installments)
+  tiContributionInstallments?: TiContributionInstallment[];
   // Improvement ownership
   improvementOwnership: 'landlord' | 'tenant_trade_fixtures';
   // Signage

@@ -275,7 +275,7 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
           <dt className="text-muted-foreground">City</dt>
           <dd>{draft.propertyProfile?.city || '—'}</dd>
           <dt className="text-muted-foreground">Space Type</dt>
-          <dd className="capitalize">{draft.propertyProfile?.commercialSpaceTypes?.join(', ') || '—'}</dd>
+          <dd className="capitalize">{draft.propertyProfile?.commercialSpaceTypes?.map(t => t.replace(/_/g, ' ')).join(', ') || '—'}</dd>
           <dt className="text-muted-foreground">Square Feet</dt>
           <dd>{draft.propertyProfile?.premisesSqft?.toLocaleString() ?? '—'}</dd>
           <dt className="text-muted-foreground">Zoning Confirmed</dt>

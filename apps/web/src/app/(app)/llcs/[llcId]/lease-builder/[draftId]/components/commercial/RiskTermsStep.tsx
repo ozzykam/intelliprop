@@ -238,7 +238,26 @@ export default function RiskTermsStep({ draft, updateDraft, llcId }: StepProps) 
           <input
             type="checkbox"
             checked={risk.personalGuaranteeRequired}
-            onChange={(e) => update('personalGuaranteeRequired', e.target.checked)}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              if (!checked) {
+                updateDraft({
+                  commercial: {
+                    ...draft.commercial!,
+                    risk: {
+                      ...risk,
+                      personalGuaranteeRequired: false,
+                      personalGuaranteeType: undefined,
+                      personalGuaranteeCap: undefined,
+                      includePrimaryContactAsGuarantor: undefined,
+                      guarantors: undefined,
+                    },
+                  },
+                } as Partial<LeaseBuilderDraft>);
+              } else {
+                update('personalGuaranteeRequired', true);
+              }
+            }}
             className="w-4 h-4 rounded border-input"
           />
           <span className="text-sm">Personal Guarantee Required</span>
