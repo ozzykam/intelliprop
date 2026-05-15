@@ -168,6 +168,7 @@ export default function WizardPage({ params }: PageProps) {
   }
 
   async function goNext() {
+    if (!draft) return;
     const nextStep = steps[currentStepIndex + 1];
     if (!nextStep) return;
     const saved = await saveDraft({ ...sanitizeDraftForSave(draft), currentStep: nextStep.key });
