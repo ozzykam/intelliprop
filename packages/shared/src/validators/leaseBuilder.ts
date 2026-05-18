@@ -40,6 +40,7 @@ export const propertyProfileSchema = z.object({
   county: z.string(),
   yearBuilt: z.number().int().min(1800).max(2100).optional(),
   premisesSqft: z.number().positive().optional(),
+  premisesSqftApproximate: z.boolean().optional(),
   hasSharedUtilities: z.boolean(),
   // Residential
   unitType: z.enum(['single_family', 'duplex', 'triplex', 'fourplex', 'apartment', 'townhome', 'condo']).optional(),
@@ -176,12 +177,15 @@ export const residentialTermsSchema = z.object({
 export const commercialLeaseStructureSchema = z.object({
   leaseType: z.enum(['nnn', 'gross', 'modified_gross']),
   startDate: z.string().min(1),
+  startDateApproximate: z.boolean().optional(),
+  startDateCondition: z.string().max(1000).optional(),
   termMonths: z.number().int().min(1).max(600).optional(),
   endDate: z.string().optional(),
   noticeToTerminateDays: z.number().int().min(1).optional(),
   renewalOptions: z.number().int().min(0).max(10),
   renewalTermLength: z.string().max(50).optional(),
   renewalNoticePeriodDays: z.number().int().min(1).optional(),
+  renewalRentAtMarket: z.boolean().optional(),
 });
 
 export const rentStepSchema = z.object({
@@ -212,6 +216,7 @@ export const commercialFinancialTermsSchema = z.object({
   paymentMethods: z.array(paymentMethodSchema).optional(),
   payableTo: z.string().max(200).optional(),
   returnedPaymentFee: z.number().nonnegative().optional(),
+  returnedCheckPaymentRestriction: z.boolean().optional(),
   convenienceFees: z.array(commercialConvenienceFeeSchema).optional(),
   camEnabled: z.boolean(),
   camProRataShare: z.number().min(0).max(100).optional(),
@@ -364,6 +369,7 @@ export const updateLeaseBuilderDraftSchema = z.object({
   unitIds: z.array(z.string()).optional(),
   tenantIds: z.array(z.string()).optional(),
   signerUserId: z.string().optional(),
+  landlordSignature: z.object({ name: z.string(), date: z.string().optional() }).optional(),
   tenantSigner: z.object({ name: z.string(), title: z.string().optional() }).optional(),
   leaseType: z.enum(['fixed_term', 'month_to_month']).optional(),
   propertyProfile: propertyProfileSchema.optional(),

@@ -120,6 +120,13 @@ function formatDate(dateStr: string | undefined): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function formatMonthYear(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+}
+
 function formatAddress(property: Property | null): string {
   if (!property?.address) return '';
   const a = property.address;
@@ -319,6 +326,11 @@ async function buildTemplateContext(
     : null;
   populateLandlord(ctx, llc, signerMember);
 
+  // Landlord digital signature
+  const lsig = draft.landlordSignature;
+  ctx['landlord.signatureLine'] = lsig?.name ? `/s/ ${lsig.name}` : '';
+  ctx['landlord.signatureDate'] = lsig?.date ? formatDate(lsig.date) : '';
+
   // ── Tenant(s) ─────────────────────────────────────────────────────────
   populateTenants(ctx, tenants as Tenant[], draft);
 
@@ -467,6 +479,7 @@ function populatePropertyAndUnit(
   const unitSqft = units.reduce((sum, u) => sum + (u.sqft || 0), 0);
   const totalSqft = unitSqft || draft.propertyProfile?.premisesSqft || '';
   ctx['premises.sqft'] = String(totalSqft);
+  ctx['premises.sqftApproximate'] = draft.propertyProfile?.premisesSqftApproximate ? 'true' : '';
 
   if (units.length > 1) {
     const sqftLabel = totalSqft ? ` (approx. ${totalSqft} sq. ft. combined)` : '';
@@ -824,9 +837,17 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
     modified_gross: 'Modified Gross',
   };
   ctx['commercial.leaseStructure.leaseType'] = leaseTypeLabels[ls?.leaseType || ''] || '';
+  ctx['lease.startDateApproximate'] = ls?.startDateApproximate ? 'true' : '';
+  if (ls?.startDateApproximate && ls.startDate) {
+    ctx['lease.startDate'] = formatMonthYear(ls.startDate);
+    ctx['leaseDate'] = formatMonthYear(ls.startDate);
+    ctx['lease.rentCommencementDate'] = formatMonthYear(ls.startDate);
+  }
+  ctx['lease.startDateCondition'] = (ls?.startDateCondition ?? '').trim();
   ctx['lease.renewalOptions'] = String(ls?.renewalOptions || 0);
   ctx['lease.renewalTermLength'] = ls?.renewalTermLength || '';
   ctx['lease.renewalNoticePeriodDays'] = String(ls?.renewalNoticePeriodDays || '');
+  ctx['lease.renewalRentAtMarket'] = ls?.renewalRentAtMarket ? 'true' : '';
 
   // Term duration display (e.g. "38 months (3 years, 2 months)")
   if (ls?.termMonths) {
@@ -854,6 +875,7 @@ function populateCommercialContext(ctx: Record<string, string>, draft: LeaseBuil
   ctx['lease.lateFeePercentage'] = (fin?.lateFeePercentage ?? (fin?.lateFeeType === 'percentage' ? 5 : undefined))?.toString() ?? '';
   ctx['lease.defaultInterestRate'] = String(fin?.defaultInterestRate || '');
   ctx['lease.returnedPaymentFee'] = formatCurrency(fin?.returnedPaymentFee);
+  ctx['lease.returnedCheckPaymentRestriction'] = fin?.returnedCheckPaymentRestriction ? 'true' : '';
 
   // Payment methods
   const paymentMethodLabels: Record<string, string> = {
@@ -1167,6 +1189,11 @@ function buildKeyTermsSummary(context: Record<string, string>): string {
     if (pcPhone) rows.push(['Contact Phone', pcPhone]);
   }
 
+  const startDateCondition = context['lease.startDateCondition'] || '';
+  const startDateDisplay = context['lease.startDate']
+    ? (startDateCondition ? `${context['lease.startDate']}<sup>†</sup>` : context['lease.startDate'])
+    : '';
+
   rows.push(
     [
       'Premises',
@@ -1178,7 +1205,7 @@ function buildKeyTermsSummary(context: Record<string, string>): string {
     ['Rentable Area', context['premises.sqft'] ? `${context['premises.sqft']} sq. ft.` : ''],
     ['Space Type', context['propertyProfile.commercialSpaceTypes'] || ''],
     ['Lease Type', context['commercial.leaseStructure.leaseType'] || ''],
-    ['Lease Term', [context['lease.startDate'], context['lease.endDate']].filter(Boolean).join(' \u2013 ')],
+    ['Lease Term', [startDateDisplay, context['lease.endDate']].filter(Boolean).join(' \u2013 ')],
     ['Lease Duration', context['lease.termDuration'] || ''],
     ['Monthly Base Rent', context['lease.baseRentMonthly'] || ''],
     ['Security Deposit', context['lease.securityDeposit'] || ''],
@@ -1200,12 +1227,16 @@ function buildKeyTermsSummary(context: Record<string, string>): string {
     .map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`)
     .join('\n    ');
 
+  const footnote = startDateCondition
+    ? `\n<p style="font-size:0.85em;margin-top:6pt;"><sup>†</sup> <strong>Commencement condition:</strong> <em>${startDateCondition}</em></p>`
+    : '';
+
   return `<table class="key-terms-summary">
   <caption>KEY TERMS SUMMARY</caption>
   <tbody>
     ${tableRows}
   </tbody>
-</table>`;
+</table>${footnote}`;
 }
 
 

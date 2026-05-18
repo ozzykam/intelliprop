@@ -117,6 +117,9 @@ export interface LeaseBuilderDraft {
   // Landlord signer (selected LLC member who signs on behalf of the LLC)
   signerUserId?: string;
 
+  // Landlord digital signature (pre-signed; name rendered as /s/ [name])
+  landlordSignature?: { name: string; date?: string };
+
   // Tenant signer (the individual who signs on behalf of the tenant entity)
   tenantSigner?: { name: string; title?: string };
 
@@ -163,6 +166,7 @@ export interface PropertyProfile {
   county: string;
   yearBuilt?: number;
   premisesSqft?: number;
+  premisesSqftApproximate?: boolean;
   hasSharedUtilities: boolean;
 
   // Residential-specific
@@ -315,9 +319,12 @@ export interface CommercialLeaseStructure {
   termMonths?: number; // duration in months (fixed-term only; end date is computed)
   endDate?: string; // ISO date (computed from startDate + termMonths)
   noticeToTerminateDays?: number; // month-to-month
+  startDateApproximate?: boolean; // true = show only month/year in the lease
+  startDateCondition?: string; // e.g. "upon issuance of a Certificate of Occupancy"
   renewalOptions: number; // 0 = none
   renewalTermLength?: string; // e.g. "5 years"
   renewalNoticePeriodDays?: number;
+  renewalRentAtMarket?: boolean; // true = rent resets to fair market value at each renewal
 }
 
 export interface CommercialConvenienceFee {
@@ -348,6 +355,7 @@ export interface CommercialFinancialTerms {
   paymentMethods?: LeasePaymentMethod[];
   payableTo?: string; // name checks/money orders should be made out to
   returnedPaymentFee?: number; // cents
+  returnedCheckPaymentRestriction?: boolean; // 2+ NSF checks → mandatory money order/cashier's check/cash
   convenienceFees?: CommercialConvenienceFee[];
   // CAM / Additional rent (NNN and Modified Gross only)
   camEnabled: boolean;

@@ -270,10 +270,10 @@ export const MN_COMMERCIAL_CORE_TEMPLATE = `
           <p><strong>LANDLORD:</strong></p>
           <p>{{landlord.name}}</p>
           <br/>
-          <p class="signature-field">Signature: <span class="signature-line"></span></p>
+          <p class="signature-field">Signature: {{#if landlord.signatureLine}}{{landlord.signatureLine}}{{/if}}{{#unless landlord.signatureLine}}<span class="signature-line"></span>{{/unless}}</p>
           <p class="signature-field">Printed Name: {{landlord.signerName}}</p>
           <p class="signature-field">Title: {{landlord.signerTitle}}</p>
-          <p class="signature-field">Date: <span class="date-line"></span></p>
+          <p class="signature-field">Date: {{#if landlord.signatureDate}}{{landlord.signatureDate}}{{/if}}{{#unless landlord.signatureDate}}<span class="date-line"></span>{{/unless}}</p>
         </td>
         <td width="50%">
           <p><strong>TENANT:</strong></p>

@@ -35,6 +35,8 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [signerUserId, setSignerUserId] = useState(draft.signerUserId || '');
+  const [landlordSigName, setLandlordSigName] = useState(draft.landlordSignature?.name ?? '');
+  const [landlordSigDate, setLandlordSigDate] = useState(draft.landlordSignature?.date ?? '');
 
   const structure = draft.commercial?.leaseStructure;
   const financial = draft.commercial?.financial;
@@ -148,6 +150,14 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
     updateDraft({ signerUserId: userId || undefined });
   }
 
+  function commitLandlordSignature(name: string, date: string) {
+    updateDraft({
+      landlordSignature: name.trim()
+        ? { name: name.trim(), date: date || undefined }
+        : undefined,
+    });
+  }
+
   function getMemberLabel(m: MemberOption): string {
     const name = m.displayName || m.email;
     const roleLabel = m.role === 'admin' ? 'Managing Member' : 'Authorized Representative';
@@ -200,6 +210,37 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
             ))}
           </select>
         )}
+
+        <div className="space-y-2 pt-1">
+          <p className="text-xs text-muted-foreground">
+            Optionally pre-sign the lease digitally. The name will appear as <strong>/s/ [Name]</strong> in the signature block.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">Signor Name</label>
+              <input
+                type="text"
+                value={landlordSigName}
+                onChange={(e) => setLandlordSigName(e.target.value)}
+                onBlur={(e) => commitLandlordSignature(e.target.value, landlordSigDate)}
+                placeholder="e.g. Omar Ahmed"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Signing Date</label>
+              <input
+                type="date"
+                value={landlordSigDate}
+                onChange={(e) => {
+                  setLandlordSigDate(e.target.value);
+                  commitLandlordSignature(landlordSigName, e.target.value);
+                }}
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Tenant Signer */}

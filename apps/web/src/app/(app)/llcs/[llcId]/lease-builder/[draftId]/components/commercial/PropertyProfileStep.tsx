@@ -178,6 +178,15 @@ export default function PropertyProfileStep({ draft, llcId, updateDraft }: StepP
               placeholder="e.g. 2,500"
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
+            <label className="flex items-center gap-2 mt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={profile.premisesSqftApproximate || false}
+                onChange={(e) => updateProfile({ premisesSqftApproximate: e.target.checked || undefined })}
+                className="w-4 h-4 rounded border-input"
+              />
+              <span className="text-xs text-muted-foreground">Square footage is approximate</span>
+            </label>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">

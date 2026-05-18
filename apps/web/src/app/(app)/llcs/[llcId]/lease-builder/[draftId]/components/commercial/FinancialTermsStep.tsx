@@ -530,6 +530,20 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
             placeholder="0.00"
             className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
+          <label className="flex items-start gap-3 mt-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={financial.returnedCheckPaymentRestriction || false}
+              onChange={(e) => updateFinancial({ returnedCheckPaymentRestriction: e.target.checked || undefined })}
+              className="w-4 h-4 rounded border-input mt-0.5"
+            />
+            <div>
+              <span className="text-sm">Restrict payment method after 2 returned checks</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                If 2 or more checks are returned within 12 months, tenant must pay by money order, cashier&apos;s check, or cash for the remainder of the lease.
+              </p>
+            </div>
+          </label>
         </div>
 
         {/* Convenience fees — shown only when methods are selected */}

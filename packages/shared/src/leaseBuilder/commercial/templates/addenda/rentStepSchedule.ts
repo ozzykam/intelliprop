@@ -56,10 +56,10 @@ export const RENT_STEP_SCHEDULE_ADDENDUM_TEMPLATE = `
     <td width="50%" style="padding-right: 24pt; vertical-align: top;">
       <p><strong>LANDLORD:</strong></p>
       <p>{{landlord.name}}<br/>a Minnesota limited liability company</p>
-      <p>By: ___________________________________</p>
+      <p>By: {{#if landlord.signatureLine}}{{landlord.signatureLine}}{{/if}}{{#unless landlord.signatureLine}}___________________________________{{/unless}}</p>
       <p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.signerName}}</p>
       <p>&nbsp;&nbsp;&nbsp;&nbsp;{{landlord.signerTitle}}</p>
-      <p>Date: ___________________________________</p>
+      <p>Date: {{#if landlord.signatureDate}}{{landlord.signatureDate}}{{/if}}{{#unless landlord.signatureDate}}___________________________________{{/unless}}</p>
     </td>
     <td width="50%" style="padding-left: 24pt; vertical-align: top;">
       <p><strong>TENANT:</strong></p>

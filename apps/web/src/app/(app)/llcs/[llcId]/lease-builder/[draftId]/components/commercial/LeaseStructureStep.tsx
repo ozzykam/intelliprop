@@ -141,6 +141,35 @@ export default function LeaseStructureStep({ draft, updateDraft }: StepProps) {
               }}
               className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
+            <div className="mt-2 space-y-1.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={structure.startDateApproximate || false}
+                  onChange={(e) => updateStructure({ startDateApproximate: e.target.checked || undefined })}
+                  className="w-4 h-4 rounded border-input"
+                />
+                <span className="text-xs text-muted-foreground">Approximate date (show month &amp; year only)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={structure.startDateCondition !== undefined}
+                  onChange={(e) => updateStructure({ startDateCondition: e.target.checked ? '' : undefined })}
+                  className="w-4 h-4 rounded border-input"
+                />
+                <span className="text-xs text-muted-foreground">Start date is conditional</span>
+              </label>
+            </div>
+            {structure.startDateCondition !== undefined && (
+              <textarea
+                value={structure.startDateCondition}
+                onChange={(e) => updateStructure({ startDateCondition: e.target.value })}
+                placeholder="e.g. upon issuance of a Certificate of Occupancy for the Premises"
+                rows={3}
+                className="mt-2 w-full px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            )}
           </div>
 
           {isFixedTerm && (
@@ -219,38 +248,54 @@ export default function LeaseStructureStep({ draft, updateDraft }: StepProps) {
         </div>
 
         {hasRenewalOptions && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Renewal Term Length
-              </label>
-              <input
-                type="text"
-                value={structure.renewalTermLength || ''}
-                onChange={(e) => updateStructure({ renewalTermLength: e.target.value })}
-                placeholder="e.g. 5 years"
-                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Renewal Term Length
+                </label>
+                <input
+                  type="text"
+                  value={structure.renewalTermLength || ''}
+                  onChange={(e) => updateStructure({ renewalTermLength: e.target.value })}
+                  placeholder="e.g. 5 years"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Renewal Notice Period (days)
+                </label>
+                <input
+                  type="number"
+                  value={structure.renewalNoticePeriodDays || ''}
+                  onChange={(e) =>
+                    updateStructure({
+                      renewalNoticePeriodDays: e.target.value
+                        ? parseInt(e.target.value, 10)
+                        : undefined,
+                    })
+                  }
+                  placeholder="e.g. 180"
+                  min={1}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Renewal Notice Period (days)
-              </label>
+            <label className="flex items-start gap-3 cursor-pointer">
               <input
-                type="number"
-                value={structure.renewalNoticePeriodDays || ''}
-                onChange={(e) =>
-                  updateStructure({
-                    renewalNoticePeriodDays: e.target.value
-                      ? parseInt(e.target.value, 10)
-                      : undefined,
-                  })
-                }
-                placeholder="e.g. 180"
-                min={1}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                type="checkbox"
+                checked={structure.renewalRentAtMarket || false}
+                onChange={(e) => updateStructure({ renewalRentAtMarket: e.target.checked || undefined })}
+                className="w-4 h-4 rounded border-input mt-0.5"
               />
-            </div>
+              <div>
+                <span className="text-sm">Rent subject to fair market adjustment at renewal</span>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Renewal rent will be reset to the prevailing market rate rather than continuing the escalation schedule.
+                </p>
+              </div>
+            </label>
           </div>
         )}
       </div>
