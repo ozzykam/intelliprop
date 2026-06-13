@@ -93,14 +93,14 @@ export default function OwnerDashboard() {
         <div>
           <h1 className="text-2xl font-bold">Owner Dashboard</h1>
           <p className="text-muted-foreground text-sm">
-            Overview of all your properties and LLCs
+            Overview of all your properties and businesses. Manage your LLCs, properties, and leases from one place.
           </p>
         </div>
         <Link
           href="/llcs/new"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity text-sm"
         >
-          + New LLC
+          + New Business
         </Link>
       </div>
 
@@ -112,9 +112,9 @@ export default function OwnerDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold mb-2">No LLCs yet</h2>
+          <h2 className="text-xl font-semibold mb-2">No Businesses Yet</h2>
           <p className="text-muted-foreground mb-6">
-            Create your first LLC to start managing properties
+            Create your first business to start managing properties
           </p>
           <Link
             href="/llcs/new"
