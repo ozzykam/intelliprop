@@ -4,11 +4,6 @@
  * Export all HTTPS endpoints and triggers from this file.
  */
 
-import { initializeApp } from 'firebase-admin/app';
-
-// Initialize Firebase Admin SDK
-initializeApp();
-
 // =============================================================================
 // Payment Routes
 // =============================================================================

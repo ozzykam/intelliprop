@@ -13,6 +13,7 @@ export interface CreateLlcInput {
   legalName: string;
   einLast4?: string;
   settings?: Partial<LLCSettings>;
+  accountId?: string; // Account this LLC belongs to
 }
 
 export interface UpdateLlcInput {
@@ -35,6 +36,7 @@ export async function createLlc(input: CreateLlcInput, creatorUserId: string) {
     stripeConnectedAccountId: null,
     settings: { ...DEFAULT_SETTINGS, ...input.settings },
     status: 'active',
+    accountId: input.accountId || null,
     createdAt: FieldValue.serverTimestamp(),
     createdBy: creatorUserId,
   };

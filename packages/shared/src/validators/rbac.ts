@@ -126,6 +126,7 @@ export const updateUserSchema = z.object({
   phoneNumber: z.string().max(20).optional(),
   userType: userTypeSchema.optional(),
   status: userStatusSchema.optional(),
+  isPlatformSuperAdmin: z.boolean().optional(),
   isSuperAdmin: z.boolean().optional(),
   tenantLinks: z.array(tenantLinkSchema).optional(),
   isAssignee: z.boolean().optional(),

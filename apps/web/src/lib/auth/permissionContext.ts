@@ -14,12 +14,13 @@ import {
  * - User record (for userType, super-admin flag, tenant links)
  * - LLC memberships (admin roles)
  * - User assignments (manager/employee roles)
+ * - Account memberships (multi-tenant layer)
  */
 export async function buildPermissionContext(
   user: AuthenticatedUser
 ): Promise<PermissionContext> {
-  // Fetch user record, LLC memberships, and assignments in parallel
-  const [userSnap, assignmentsSnap, llcMembershipsSnap] = await Promise.all([
+  // Fetch user record, LLC memberships, assignments, and account memberships in parallel
+  const [userSnap, assignmentsSnap, llcMembershipsSnap, accountMembershipsSnap] = await Promise.all([
     adminDb.collection('users').doc(user.uid).get(),
     adminDb.collection('userAssignments')
       .where('userId', '==', user.uid)
@@ -30,11 +31,17 @@ export async function buildPermissionContext(
       .where('role', '==', 'admin')
       .where('status', '==', 'active')
       .get(),
+    // 'accountMembers' avoids collectionGroup collision with llcs/{llcId}/members
+    adminDb.collectionGroup('accountMembers')
+      .where('userId', '==', user.uid)
+      .where('status', '==', 'active')
+      .get(),
   ]);
 
   // Get user data
   const userData = userSnap.exists ? userSnap.data() : null;
   const userType: UserType = userData?.userType || 'tenant';
+  const isPlatformSuperAdmin = userData?.isPlatformSuperAdmin === true;
   const isSuperAdmin = userData?.isSuperAdmin === true;
   const tenantLinks: TenantLink[] = userData?.tenantLinks || [];
 
@@ -55,6 +62,44 @@ export async function buildPermissionContext(
     }
   }
 
+  // Parse account memberships
+  // Path is: accounts/{accountId}/accountMembers/{userId}
+  const memberOfAccountIds: string[] = [];
+  const ownerOfAccountIds: string[] = [];
+  for (const doc of accountMembershipsSnap.docs) {
+    const pathParts = doc.ref.path.split('/');
+    const accountId = pathParts[1];
+    if (accountId) {
+      memberOfAccountIds.push(accountId);
+      if (doc.data().role === 'owner') {
+        ownerOfAccountIds.push(accountId);
+      }
+    }
+  }
+
+  // Fetch all LLCs belonging to the user's accounts
+  const accountAdminLlcIds: string[] = [];
+  if (memberOfAccountIds.length > 0) {
+    // Batch into chunks of 30 to stay within Firebase 'in' query limit
+    const chunks: string[][] = [];
+    for (let i = 0; i < memberOfAccountIds.length; i += 30) {
+      chunks.push(memberOfAccountIds.slice(i, i + 30));
+    }
+    const snapshots = await Promise.all(
+      chunks.map(chunk =>
+        adminDb.collection('llcs')
+          .where('accountId', 'in', chunk)
+          .where('status', '!=', 'archived')
+          .get()
+      )
+    );
+    for (const snap of snapshots) {
+      for (const doc of snap.docs) {
+        accountAdminLlcIds.push(doc.id);
+      }
+    }
+  }
+
   // Aggregate assigned LLC IDs and property IDs from assignments
   const assignedLlcIds = new Set<string>();
   const assignedPropertyIds = new Set<string>();
@@ -65,15 +110,12 @@ export async function buildPermissionContext(
   };
 
   for (const assignment of assignments) {
-    // Add LLC IDs
     for (const llcId of assignment.llcIds || []) {
       assignedLlcIds.add(llcId);
     }
-    // Add property IDs
     for (const propertyId of assignment.propertyIds || []) {
       assignedPropertyIds.add(propertyId);
     }
-    // Merge capabilities (any true value wins)
     if (assignment.capabilities) {
       aggregatedCapabilities = {
         workOrderAccess: aggregatedCapabilities.workOrderAccess || assignment.capabilities.workOrderAccess,
@@ -85,9 +127,9 @@ export async function buildPermissionContext(
 
   // Determine effective role (highest privilege wins)
   let effectiveRole: PermissionContext['effectiveRole'] = null;
-  if (isSuperAdmin) {
+  if (isPlatformSuperAdmin) {
     effectiveRole = 'superAdmin';
-  } else if (adminOfLlcIds.length > 0) {
+  } else if (adminOfLlcIds.length > 0 || accountAdminLlcIds.length > 0) {
     effectiveRole = 'admin';
   } else if (assignments.some(a => a.role === 'manager')) {
     effectiveRole = 'manager';
@@ -102,8 +144,12 @@ export async function buildPermissionContext(
     email: user.email || '',
     displayName: userData?.displayName,
     userType,
+    isPlatformSuperAdmin,
     isSuperAdmin,
     effectiveRole,
+    memberOfAccountIds,
+    ownerOfAccountIds,
+    accountAdminLlcIds,
     adminOfLlcIds,
     assignedLlcIds: Array.from(assignedLlcIds),
     assignedPropertyIds: Array.from(assignedPropertyIds),
@@ -137,18 +183,10 @@ export async function requirePermissionContext(): Promise<PermissionContext> {
  * Check if a user has access to a specific LLC.
  */
 export function hasLlcAccess(context: PermissionContext, llcId: string): boolean {
-  // Super-admin has access to all
-  if (context.isSuperAdmin) {
-    return true;
-  }
-  // Admin of the LLC
-  if (context.adminOfLlcIds.includes(llcId)) {
-    return true;
-  }
-  // Assigned to the LLC (manager/employee)
-  if (context.assignedLlcIds.includes(llcId)) {
-    return true;
-  }
+  if (context.isPlatformSuperAdmin) return true;
+  if (context.adminOfLlcIds.includes(llcId)) return true;
+  if (context.assignedLlcIds.includes(llcId)) return true;
+  if (context.accountAdminLlcIds.includes(llcId)) return true;
   return false;
 }
 
@@ -160,10 +198,7 @@ export function hasPropertyAccess(
   llcId: string,
   propertyId: string
 ): boolean {
-  // Super-admin has access to all
-  if (context.isSuperAdmin) {
-    return true;
-  }
+  if (context.isPlatformSuperAdmin) return true;
   // Admin of the LLC has access to all properties
   if (context.adminOfLlcIds.includes(llcId)) {
     return true;
@@ -186,14 +221,15 @@ export function hasPropertyAccess(
  * Get all LLC IDs a user has any access to.
  */
 export function getAccessibleLlcIds(context: PermissionContext): string[] {
-  if (context.isSuperAdmin) {
+  if (context.isPlatformSuperAdmin) {
     // Super-admin has access to all - return empty to indicate "fetch all"
     return [];
   }
-  // Combine admin and assigned LLCs
+  // Combine admin, assigned, and account-scoped LLCs
   const llcIds = new Set<string>([
     ...context.adminOfLlcIds,
     ...context.assignedLlcIds,
+    ...context.accountAdminLlcIds,
   ]);
   return Array.from(llcIds);
 }
@@ -202,8 +238,7 @@ export function getAccessibleLlcIds(context: PermissionContext): string[] {
  * Check if user can manage other users in an LLC.
  */
 export function canManageLlcMembers(context: PermissionContext, llcId: string): boolean {
-  // Super-admin can manage all
-  if (context.isSuperAdmin) {
+  if (context.isPlatformSuperAdmin) {
     return true;
   }
   // Admin of the specific LLC can manage

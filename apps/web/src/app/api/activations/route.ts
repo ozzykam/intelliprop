@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const context = await requirePermissionContext();
 
     // Must be at least a manager to view activations
-    if (!context.isSuperAdmin && context.effectiveRole !== 'admin' && context.effectiveRole !== 'manager') {
+    if (!context.isPlatformSuperAdmin && context.effectiveRole !== 'admin' && context.effectiveRole !== 'manager') {
       return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       role: role || undefined,
       llcId: llcId || undefined,
       // Non-super-admins only see their own creations
-      createdBy: context.isSuperAdmin ? undefined : context.userId,
+      createdBy: context.isPlatformSuperAdmin ? undefined : context.userId,
       limit: limit ? parseInt(limit, 10) : 50,
     });
 

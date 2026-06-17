@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
+import { buildPermissionContext } from '@/lib/auth/permissionContext';
 import { searchTenants } from '@/lib/services/tenant.service';
 
 /**
@@ -27,7 +28,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const tenants = await searchTenants(query, limit);
+    const context = await buildPermissionContext(user);
+    const accountIds = context.isPlatformSuperAdmin ? null : context.memberOfAccountIds;
+    const tenants = await searchTenants(query, { accountIds, limit });
 
     return NextResponse.json({ ok: true, data: tenants });
   } catch (error) {

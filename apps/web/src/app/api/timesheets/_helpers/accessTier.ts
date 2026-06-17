@@ -30,7 +30,7 @@ export async function getTimesheetAccessTier(
 ): Promise<TimesheetAccessTier> {
   // Check super-admin flag
   const userDoc = await adminDb.collection('users').doc(userId).get();
-  if (userDoc.exists && userDoc.data()?.isSuperAdmin === true) {
+  if (userDoc.exists && userDoc.data()?.isPlatformSuperAdmin === true) {
     return 'superAdmin';
   }
 
@@ -164,7 +164,7 @@ export async function getVisibleStaffMap(
     for (const doc of usersSnap.docs) {
       const ud = doc.data();
       // Skip superAdmins from the staff view
-      if (ud.isSuperAdmin) continue;
+      if (ud.isPlatformSuperAdmin) continue;
       result.set(doc.id, {
         role: roleByUser.get(doc.id) ?? 'staff',
         displayName: ud.displayName ?? ud.email ?? doc.id,

@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }
 
     // Check permission - must be creator or super-admin
-    if (!context.isSuperAdmin && activation.createdBy !== context.userId) {
+    if (!context.isPlatformSuperAdmin && activation.createdBy !== context.userId) {
       // Check if user has access to the LLC
       const hasLlcAccess = activation.llcIds.some(
         llcId => context.adminOfLlcIds.includes(llcId) || context.assignedLlcIds.includes(llcId)
@@ -79,7 +79,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     // Check permission - must be creator or super-admin
-    if (!context.isSuperAdmin && activation.createdBy !== context.userId) {
+    if (!context.isPlatformSuperAdmin && activation.createdBy !== context.userId) {
       // Check if user has admin access to the LLC
       const hasAdminAccess = activation.llcIds.some(llcId => context.adminOfLlcIds.includes(llcId));
       if (!hasAdminAccess) {

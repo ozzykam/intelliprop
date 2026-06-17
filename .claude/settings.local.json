@@ -21,7 +21,8 @@
       "Bash(npx next:*)",
       "Bash(node:*)",
       "Bash(rm:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(python3 -m json.tool /mnt/c/Users/azizk/magkamco/property-management/website/emulators/firestore.indexes.json)"
     ]
   }
 }

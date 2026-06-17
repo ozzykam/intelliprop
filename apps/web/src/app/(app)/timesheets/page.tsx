@@ -121,7 +121,7 @@ export default function TimesheetsDashboard() {
   const [clockData, setClockData] = useState<ClockData | null>(null);
   const [entriesData, setEntriesData] = useState<EntriesData | null>(null);
   const [staffList, setStaffList] = useState<TimesheetStaffSummary[] | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isPlatformSuperAdmin, setIsPlatformSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -179,7 +179,7 @@ export default function TimesheetsDashboard() {
       if (entriesJson.ok) setEntriesData(entriesJson.data);
       if (staffJson.ok) setStaffList(staffJson.data);
       // staff 403 is expected for non-admin/manager — silently ignore
-      setIsSuperAdmin(settingsJson.ok === true);
+      setIsPlatformSuperAdmin(settingsJson.ok === true);
     } catch {
       setError('Failed to load timesheet data');
     } finally {
@@ -367,7 +367,7 @@ export default function TimesheetsDashboard() {
           <h1 className="text-2xl font-bold">Timesheets</h1>
           <p className="text-sm text-muted-foreground">Track and log your work activity</p>
         </div>
-        {isSuperAdmin && (
+        {isPlatformSuperAdmin && (
           <Link
             href="/timesheets/settings"
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 hover:bg-secondary/50 transition-colors"

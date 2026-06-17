@@ -40,6 +40,7 @@ export async function getOrCreateUser(
     email: authUser.email || '',
     userType: options?.userType || 'tenant' as UserType,
     status: 'active' as UserStatus,
+    isPlatformSuperAdmin: false,
     isSuperAdmin: false,
     tenantLinks: options?.tenantLinks || [],
     createdAt: now,
@@ -98,7 +99,7 @@ export async function listUsers(options?: {
   }
 
   if (options?.superAdminsOnly) {
-    query = query.where('isSuperAdmin', '==', true);
+    query = query.where('isPlatformSuperAdmin', '==', true);
   }
 
   if (options?.status) {
@@ -155,6 +156,7 @@ export async function updateUser(
     phoneNumber?: string;
     userType?: UserType;
     status?: UserStatus;
+    isPlatformSuperAdmin?: boolean;
     isSuperAdmin?: boolean;
     tenantLinks?: TenantLink[];
     isAssignee?: boolean;
@@ -194,13 +196,23 @@ export async function updateUser(
 }
 
 /**
- * Set super-admin status for a user.
+ * Set platform super-admin status for a user (platform owner bypass).
  * Also ensures userType is 'staff'.
  */
-export async function setSuperAdmin(userId: string, isSuperAdmin: boolean): Promise<User> {
+export async function setPlatformSuperAdmin(userId: string, value: boolean): Promise<User> {
   return updateUser(userId, {
-    isSuperAdmin,
-    userType: isSuperAdmin ? 'staff' : undefined, // Promote to staff if becoming super-admin
+    isPlatformSuperAdmin: value,
+    userType: value ? 'staff' : undefined,
+  });
+}
+
+/**
+ * Set org-level super-admin status for a user.
+ */
+export async function setSuperAdmin(userId: string, value: boolean): Promise<User> {
+  return updateUser(userId, {
+    isSuperAdmin: value,
+    userType: value ? 'staff' : undefined,
   });
 }
 
@@ -256,11 +268,16 @@ export async function removeTenantLink(
 }
 
 /**
- * Check if a user is super-admin.
+ * Check if a user is the platform super-admin.
  */
-export async function checkIsSuperAdmin(userId: string): Promise<boolean> {
+export async function checkIsPlatformSuperAdmin(userId: string): Promise<boolean> {
   const user = await getUser(userId);
-  return user?.isSuperAdmin === true;
+  return user?.isPlatformSuperAdmin === true;
+}
+
+/** @deprecated Use checkIsPlatformSuperAdmin */
+export async function checkIsSuperAdmin(userId: string): Promise<boolean> {
+  return checkIsPlatformSuperAdmin(userId);
 }
 
 /**
@@ -328,6 +345,7 @@ export async function syncFromAuth(userId: string): Promise<User> {
       ...updates,
       userType: 'tenant' as UserType,
       status: 'active' as UserStatus,
+      isPlatformSuperAdmin: false,
       isSuperAdmin: false,
       tenantLinks: [],
       createdAt: FieldValue.serverTimestamp(),
@@ -375,6 +393,7 @@ export async function updatePlatformUser(
   userId: string,
   updates: {
     displayName?: string;
+    isPlatformSuperAdmin?: boolean;
     isSuperAdmin?: boolean;
   }
 ): Promise<User> {

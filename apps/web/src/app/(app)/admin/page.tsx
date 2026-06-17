@@ -9,17 +9,19 @@ interface AdminStats {
   totalAssignments: number;
   activeAssignments: number;
   totalLlcs: number;
+  totalAccounts: number;
 }
 
 async function getAdminStats(): Promise<AdminStats> {
-  const [usersSnap, assignmentsSnap, llcsSnap] = await Promise.all([
-    adminDb.collection('platformUsers').get(),
+  const [usersSnap, assignmentsSnap, llcsSnap, accountsSnap] = await Promise.all([
+    adminDb.collection('users').get(),
     adminDb.collection('userAssignments').get(),
     adminDb.collection('llcs').where('status', '!=', 'archived').get(),
+    adminDb.collection('accounts').get(),
   ]);
 
   const superAdminCount = usersSnap.docs.filter(
-    doc => doc.data().isSuperAdmin === true
+    doc => doc.data().isPlatformSuperAdmin === true
   ).length;
 
   const activeAssignments = assignmentsSnap.docs.filter(
@@ -32,6 +34,7 @@ async function getAdminStats(): Promise<AdminStats> {
     totalAssignments: assignmentsSnap.size,
     activeAssignments,
     totalLlcs: llcsSnap.size,
+    totalAccounts: accountsSnap.size,
   };
 }
 

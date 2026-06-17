@@ -54,6 +54,8 @@ export async function listAllAssignments(options?: {
   role?: 'manager' | 'employee';
   status?: 'active' | 'disabled';
   llcId?: string;
+  /** If provided, only return assignments that include at least one of these LLCs (account-scoping). */
+  scopedToLlcIds?: string[];
   limit?: number;
 }): Promise<UserAssignment[]> {
   let query = adminDb.collection(COLLECTION).orderBy('createdAt', 'desc');
@@ -72,7 +74,17 @@ export async function listAllAssignments(options?: {
   }
 
   const snapshot = await query.get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserAssignment[];
+  let assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserAssignment[];
+
+  // Filter to only assignments that overlap with the scoped LLC IDs
+  if (options?.scopedToLlcIds && options.scopedToLlcIds.length > 0) {
+    const scopedSet = new Set(options.scopedToLlcIds);
+    assignments = assignments.filter(a =>
+      (a.llcIds || []).some(id => scopedSet.has(id))
+    );
+  }
+
+  return assignments;
 }
 
 /**

@@ -1,4 +1,5 @@
 // Types
+export * from './types/account';
 export * from './types/common';
 export * from './types/llc';
 export * from './types/property';

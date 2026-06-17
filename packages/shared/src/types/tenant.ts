@@ -29,6 +29,9 @@ export interface BaseTenant {
   email: string;
   phone?: string;
   notes?: string;
+  // Account scoping — which account and LLC this tenant belongs to
+  accountId: string;
+  llcId: string;
   createdAt: Timestamp;
   createdBy: string; // Firebase Auth UID of user who created this tenant
   updates?: TenantUpdate[]; // Audit trail of updates

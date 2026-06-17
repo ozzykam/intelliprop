@@ -6,6 +6,7 @@ export interface UserRoleContext {
   isAuthenticated: boolean;
   hasStaffRole: boolean;
   hasTenantRole: boolean;
+  isPlatformSuperAdmin: boolean;
   isSuperAdmin: boolean;
   effectiveRole: string | null;
   userType: 'staff' | 'tenant';
@@ -24,6 +25,7 @@ export async function GET() {
           isAuthenticated: false,
           hasStaffRole: false,
           hasTenantRole: false,
+          isPlatformSuperAdmin: false,
           isSuperAdmin: false,
           effectiveRole: null,
           userType: 'tenant',
@@ -38,6 +40,7 @@ export async function GET() {
     // Staff role = userType is 'staff' OR superAdmin OR admin of any LLC OR has any assignments (manager/employee)
     const hasStaffRole =
       context.userType === 'staff' ||
+      context.isPlatformSuperAdmin ||
       context.isSuperAdmin ||
       context.adminOfLlcIds.length > 0 ||
       context.assignments.length > 0;
@@ -52,6 +55,7 @@ export async function GET() {
         isAuthenticated: true,
         hasStaffRole,
         hasTenantRole,
+        isPlatformSuperAdmin: context.isPlatformSuperAdmin,
         isSuperAdmin: context.isSuperAdmin,
         effectiveRole: context.effectiveRole,
         userType: context.userType,

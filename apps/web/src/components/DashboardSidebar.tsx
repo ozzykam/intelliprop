@@ -108,7 +108,7 @@ const SUPER_ADMIN_NAV_ITEMS = [
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggle } = useSidebar();
-  const { isSuperAdmin } = useRole();
+  const { isPlatformSuperAdmin } = useRole();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Close sidebar when route changes
@@ -138,7 +138,7 @@ export default function DashboardSidebar() {
   }, [isMobileOpen]);
 
   // Combine nav items, adding super-admin items if applicable
-  const navItems = isSuperAdmin ? [...NAV_ITEMS, ...SUPER_ADMIN_NAV_ITEMS] : NAV_ITEMS;
+  const navItems = isPlatformSuperAdmin ? [...NAV_ITEMS, ...SUPER_ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
   const sidebarContent = (isMobile: boolean) => (
     <>

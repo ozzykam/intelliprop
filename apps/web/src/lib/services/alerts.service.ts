@@ -433,7 +433,7 @@ export async function getOwnerAlerts(userId: string): Promise<Alert[]> {
   ]);
 
   const acknowledgedIds = new Set<string>(userDoc.data()?.acknowledgedAlertIds ?? []);
-  const isSuperAdmin = userDoc.exists && userDoc.data()?.isSuperAdmin === true;
+  const isSuperAdmin = userDoc.exists && userDoc.data()?.isPlatformSuperAdmin === true;
 
   const allAlerts: Alert[] = [];
 

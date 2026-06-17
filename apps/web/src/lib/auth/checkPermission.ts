@@ -117,7 +117,7 @@ export async function requirePermission(
 export async function requireSuperAdmin(): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
-  if (!context.isSuperAdmin) {
+  if (!context.isPlatformSuperAdmin) {
     throw new PermissionDeniedError('Super-admin access required');
   }
 
@@ -130,7 +130,7 @@ export async function requireSuperAdmin(): Promise<PermissionContext> {
 export async function requireLlcAdmin(llcId: string): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
-  if (!context.isSuperAdmin && !context.adminOfLlcIds.includes(llcId)) {
+  if (!context.isPlatformSuperAdmin && !context.adminOfLlcIds.includes(llcId)) {
     throw new PermissionDeniedError(`Admin access required for LLC ${llcId}`);
   }
 
@@ -186,7 +186,7 @@ export async function requireWorkOrderAccess(): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
   // Super-admin and admin always have work order access
-  if (context.isSuperAdmin || context.effectiveRole === 'admin') {
+  if (context.isPlatformSuperAdmin || context.effectiveRole === 'admin') {
     return context;
   }
 
@@ -205,7 +205,7 @@ export async function requireTaskAccess(): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
   // Super-admin and admin always have task access
-  if (context.isSuperAdmin || context.effectiveRole === 'admin') {
+  if (context.isPlatformSuperAdmin || context.effectiveRole === 'admin') {
     return context;
   }
 
@@ -224,7 +224,7 @@ export async function requirePaymentProcessing(): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
   // Super-admin and admin always have payment processing
-  if (context.isSuperAdmin || context.effectiveRole === 'admin') {
+  if (context.isPlatformSuperAdmin || context.effectiveRole === 'admin') {
     return context;
   }
 
@@ -243,7 +243,7 @@ export function filterAccessibleLlcs(
   context: PermissionContext,
   llcIds: string[]
 ): string[] {
-  if (context.isSuperAdmin) {
+  if (context.isPlatformSuperAdmin) {
     return llcIds;
   }
   return llcIds.filter(id => hasLlcAccess(context, id));
@@ -257,7 +257,7 @@ export function filterAccessibleProperties(
   llcId: string,
   propertyIds: string[]
 ): string[] {
-  if (context.isSuperAdmin || context.adminOfLlcIds.includes(llcId)) {
+  if (context.isPlatformSuperAdmin || context.adminOfLlcIds.includes(llcId)) {
     return propertyIds;
   }
   return propertyIds.filter(id => hasPropertyAccess(context, llcId, id));

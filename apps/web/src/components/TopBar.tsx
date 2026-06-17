@@ -8,11 +8,22 @@ import { useRouter, usePathname } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
 import NavClockWidget from './NavClockWidget';
 
+function getPlatformViewOrgCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)__platform_view_org=([^;]+)/);
+  return match ? (match[1] ?? null) : null;
+}
+
+function clearPlatformViewOrgCookie() {
+  document.cookie = '__platform_view_org=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+}
+
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const { hasStaffRole, hasTenantRole, clearActiveRole } = useRole();
   const router = useRouter();
   const pathname = usePathname();
+  const [platformViewOrg, setPlatformViewOrg] = useState<{ id: string; name: string } | null>(null);
   const [invitationCount, setInvitationCount] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -23,6 +34,18 @@ export default function TopBar() {
   // Extract llcId from pathname (e.g. /llcs/abc123/properties)
   const llcIdMatch = pathname.match(/^\/llcs\/([^/]+)/);
   const llcId = llcIdMatch ? llcIdMatch[1] : null;
+
+  // Detect platform admin org-view mode
+  useEffect(() => {
+    const orgId = getPlatformViewOrgCookie();
+    if (!orgId) { setPlatformViewOrg(null); return; }
+    fetch(`/api/admin/accounts/${orgId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) setPlatformViewOrg({ id: orgId, name: d.data.name });
+      })
+      .catch(() => {});
+  }, [pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -124,6 +147,33 @@ export default function TopBar() {
 
   return (
     <>
+      {/* Platform admin org-view banner */}
+      {platformViewOrg && (
+        <div className="bg-primary text-primary-foreground px-4 py-1.5 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <svg className="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="font-medium">Platform Admin</span>
+            <span className="opacity-70">·</span>
+            <span>Viewing <strong>{platformViewOrg.name}</strong></span>
+          </div>
+          <button
+            onClick={() => {
+              clearPlatformViewOrgCookie();
+              setPlatformViewOrg(null);
+              router.push('/main');
+            }}
+            className="flex items-center gap-1 opacity-80 hover:opacity-100 transition-opacity text-xs font-medium"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Exit to Platform
+          </button>
+        </div>
+      )}
+
       <header className="border-b bg-card sticky top-0 z-40">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">

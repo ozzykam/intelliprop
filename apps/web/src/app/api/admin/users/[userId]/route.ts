@@ -61,7 +61,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 /**
  * PATCH /api/admin/users/[userId]
  * Update a user (super-admin only)
- * Body: { displayName?: string, isSuperAdmin?: boolean }
+ * Body: { displayName?: string, isPlatformSuperAdmin?: boolean, isSuperAdmin?: boolean }
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Prevent removing own super-admin status
     if (userId === context.userId) {
       const body = await request.json();
-      if (body.isSuperAdmin === false) {
+      if (body.isPlatformSuperAdmin === false) {
         return NextResponse.json(
           { ok: false, error: { code: 'INVALID_INPUT', message: 'Cannot remove your own super-admin status' } },
           { status: 400 }

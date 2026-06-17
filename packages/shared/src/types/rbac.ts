@@ -35,7 +35,8 @@ export interface User {
   userType: UserType;
 
   // Staff-specific fields (when userType === 'staff')
-  isSuperAdmin?: boolean;
+  isPlatformSuperAdmin?: boolean; // Platform owner — bypasses all access checks globally
+  isSuperAdmin?: boolean; // Org-level super admin — full access within their organization
   // Assignee designation — staff users that can receive Assignments of Claim
   isAssignee?: boolean;
   assigneeEntityType?: 'individual' | 'company';
@@ -149,8 +150,14 @@ export interface PermissionContext {
   userType: UserType;
 
   // Role determination (for staff users)
-  isSuperAdmin: boolean;
+  isPlatformSuperAdmin: boolean; // Platform owner — bypasses all checks globally
+  isSuperAdmin: boolean; // Org-level super admin (future use)
   effectiveRole: 'superAdmin' | 'admin' | 'manager' | 'employee' | 'tenant' | null;
+
+  // Account access (multi-tenant layer)
+  memberOfAccountIds: string[]; // Accounts where user is owner or admin
+  ownerOfAccountIds: string[]; // Accounts where user is the owner
+  accountAdminLlcIds: string[]; // LLCs belonging to any account the user is a member of
 
   // LLC access (for staff users)
   adminOfLlcIds: string[]; // LLCs where user is admin (from llcs/members)

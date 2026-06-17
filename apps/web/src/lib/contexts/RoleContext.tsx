@@ -17,6 +17,7 @@ interface RoleContextValue {
   loading: boolean;
   hasStaffRole: boolean;
   hasTenantRole: boolean;
+  isPlatformSuperAdmin: boolean;
   isSuperAdmin: boolean;
   activeRole: 'staff' | 'tenant' | null;
   needsRoleSelection: boolean;
@@ -55,6 +56,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hasStaffRole, setHasStaffRole] = useState(false);
   const [hasTenantRole, setHasTenantRole] = useState(false);
+  const [isPlatformSuperAdmin, setIsPlatformSuperAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [effectiveRole, setEffectiveRole] = useState<string | null>(null);
   const [activeRole, setActiveRoleState] = useState<'staff' | 'tenant' | null>(
@@ -64,6 +66,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const applyRoleContext = useCallback((ctx: UserRoleContext) => {
     setHasStaffRole(ctx.hasStaffRole);
     setHasTenantRole(ctx.hasTenantRole);
+    setIsPlatformSuperAdmin(ctx.isPlatformSuperAdmin);
     setIsSuperAdmin(ctx.isSuperAdmin);
     setEffectiveRole(ctx.effectiveRole);
 
@@ -96,6 +99,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setHasStaffRole(false);
       setHasTenantRole(false);
+      setIsPlatformSuperAdmin(false);
       setIsSuperAdmin(false);
       setEffectiveRole(null);
       setActiveRoleState(null);
@@ -158,6 +162,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         loading: authLoading || loading,
         hasStaffRole,
         hasTenantRole,
+        isPlatformSuperAdmin,
         isSuperAdmin,
         activeRole,
         needsRoleSelection,

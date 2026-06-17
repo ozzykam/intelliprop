@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
-import { createTenant, listAllTenants } from '@/lib/services/tenant.service';
+import { buildPermissionContext } from '@/lib/auth/permissionContext';
+import { createTenant, listTenants } from '@/lib/services/tenant.service';
 import { createActivation } from '@/lib/services/activation.service';
+import { adminDb } from '@/lib/firebase/admin';
 import { createTenantSchema } from '@shared/types';
 
 /**
@@ -21,7 +23,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
-    const tenants = await listAllTenants(limit);
+    const context = await buildPermissionContext(user);
+    // superAdmin sees all; account members see only their account's tenants
+    const accountIds = context.isPlatformSuperAdmin ? null : context.memberOfAccountIds;
+    const tenants = await listTenants({ accountIds, limit });
 
     return NextResponse.json({ ok: true, data: tenants });
   } catch (error) {
@@ -64,7 +69,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tenant = await createTenant(parsed.data, user.uid);
+    // Derive accountId from the LLC this tenant belongs to
+    const llcId = (parsed.data as { llcId?: string }).llcId;
+    let accountId: string | null = null;
+    if (llcId) {
+      const llcDoc = await adminDb.collection('llcs').doc(llcId).get();
+      accountId = llcDoc.exists ? (llcDoc.data()?.accountId as string | null) ?? null : null;
+    }
+
+    const tenant = await createTenant({ ...parsed.data, llcId: llcId ?? '', accountId: accountId ?? '' }, user.uid);
 
     // Create pending activation for account activation
     try {

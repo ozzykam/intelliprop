@@ -2,7 +2,7 @@ import { Timestamp } from './common';
 import { MemberRole, MemberStatus } from '../constants/roles';
 
 /**
- * Platform account - top-level account that owns LLCs
+ * @deprecated Use Account from './account' instead
  */
 export interface PlatformAccount {
   id: string;
@@ -17,7 +17,7 @@ export interface PlatformAccount {
  */
 export interface LLC {
   id: string;
-  platformAccountId: string;
+  accountId: string; // Replaces platformAccountId
   legalName: string;
   einLast4?: string;
   stripeConnectedAccountId?: string;

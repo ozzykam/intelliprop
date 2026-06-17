@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { requireLlcRole } from '@/lib/auth/requireLlcMember';
-import { createTenant, listAllTenants } from '@/lib/services/tenant.service';
+import { createTenant, listTenants } from '@/lib/services/tenant.service';
+import { adminDb } from '@/lib/firebase/admin';
 import { createActivation } from '@/lib/services/activation.service';
 import { createTenantSchema } from '@shared/types';
 
@@ -27,8 +28,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     await requireLlcRole(llcId, ['admin', 'manager', 'accounting', 'maintenance', 'legal', 'readOnly']);
 
-    // Tenants are now global - return all tenants
-    const tenants = await listAllTenants();
+    // Return tenants scoped to this LLC's account
+    const llcDoc = await adminDb.collection('llcs').doc(llcId).get();
+    const accountId = llcDoc.exists ? (llcDoc.data()?.accountId as string | null) ?? null : null;
+    const tenants = await listTenants({ accountIds: accountId ? [accountId] : [] });
     return NextResponse.json({ ok: true, data: tenants });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '';
@@ -74,7 +77,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const tenant = await createTenant(parsed.data, user.uid);
+    // Derive accountId from the LLC
+    const llcDoc = await adminDb.collection('llcs').doc(llcId).get();
+    const accountId = llcDoc.exists ? (llcDoc.data()?.accountId as string | null) ?? '' : '';
+
+    const tenant = await createTenant({ ...parsed.data, llcId, accountId }, user.uid);
 
     // Create pending activation for account activation
     try {

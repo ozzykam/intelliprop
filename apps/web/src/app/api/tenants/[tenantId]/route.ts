@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
+import { buildPermissionContext } from '@/lib/auth/permissionContext';
 import { getTenant, updateTenant, deleteTenant } from '@/lib/services/tenant.service';
 import { updateTenantSchema } from '@shared/types';
 
@@ -29,6 +30,22 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         { ok: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } },
         { status: 404 }
       );
+    }
+
+    // Verify the caller has access to this tenant's account
+    const context2 = await buildPermissionContext(user);
+    if (!context2.isPlatformSuperAdmin) {
+      const tenantAccountId = (tenant as Record<string, unknown>).accountId as string | undefined;
+      if (!tenantAccountId || !context2.memberOfAccountIds.includes(tenantAccountId)) {
+        // Also allow tenant portal users to read their own record
+        const tenantUserId = (tenant as Record<string, unknown>).userId as string | undefined;
+        if (tenantUserId !== user.uid) {
+          return NextResponse.json(
+            { ok: false, error: { code: 'FORBIDDEN', message: 'Access denied' } },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     return NextResponse.json({ ok: true, data: tenant });

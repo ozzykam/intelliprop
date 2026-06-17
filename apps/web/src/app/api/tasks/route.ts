@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         llcId,
         status: status as never,
       });
-    } else if (context.isSuperAdmin) {
+    } else if (context.isPlatformSuperAdmin) {
       // Super-admin can see all tasks
       tasks = await listGlobalTasks({
         status: status as never,

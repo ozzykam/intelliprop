@@ -336,6 +336,7 @@ export async function createAccount(
     displayName,
     userType,
     status: 'active',
+    isPlatformSuperAdmin: false,
     isSuperAdmin: false,
     createdAt: FieldValue.serverTimestamp(),
   };
@@ -490,6 +491,7 @@ export async function overrideActivation(
     displayName,
     userType,
     status: 'active',
+    isPlatformSuperAdmin: false,
     isSuperAdmin: false,
     createdAt: FieldValue.serverTimestamp(),
   };
@@ -584,7 +586,7 @@ export async function overrideActivation(
  */
 export function canCreateActivation(
   context: {
-    isSuperAdmin: boolean;
+    isPlatformSuperAdmin: boolean;
     effectiveRole: string | null;
     adminOfLlcIds: string[];
     assignedLlcIds: string[];
@@ -594,8 +596,8 @@ export function canCreateActivation(
   llcIds: string[],
   propertyIds: string[]
 ): boolean {
-  // Super-admin can create any type
-  if (context.isSuperAdmin) {
+  // Platform super-admin can create any type
+  if (context.isPlatformSuperAdmin) {
     return true;
   }
 

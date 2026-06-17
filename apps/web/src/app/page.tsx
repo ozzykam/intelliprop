@@ -15,6 +15,7 @@ export default function HomePage() {
     needsRoleSelection,
     hasStaffRole,
     hasTenantRole,
+    isPlatformSuperAdmin,
     setActiveRole,
   } = useRole();
   const router = useRouter();
@@ -25,6 +26,12 @@ export default function HomePage() {
 
     if (!user) {
       // Not authenticated - show landing page
+      return;
+    }
+
+    // Platform super admin always goes to /main first
+    if (isPlatformSuperAdmin) {
+      router.replace('/main');
       return;
     }
 
@@ -53,6 +60,7 @@ export default function HomePage() {
     needsRoleSelection,
     hasStaffRole,
     hasTenantRole,
+    isPlatformSuperAdmin,
     router,
   ]);
 

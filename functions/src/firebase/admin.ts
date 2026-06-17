@@ -1,19 +1,20 @@
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
-// Get Firestore instance
+if (getApps().length === 0) {
+  initializeApp();
+}
+
 export const db = getFirestore();
-
-// Get Auth instance
 export const auth = getAuth();
-
-// Get Storage instance
 export const storage = getStorage();
 
 // Collection references
 export const collections = {
-  platformAccounts: () => db.collection('platformAccounts'),
+  accounts: () => db.collection('accounts'),
+  accountMembers: (accountId: string) => db.collection(`accounts/${accountId}/accountMembers`),
   llcs: () => db.collection('llcs'),
   llcMembers: (llcId: string) => db.collection(`llcs/${llcId}/members`),
   properties: (llcId: string) => db.collection(`llcs/${llcId}/properties`),

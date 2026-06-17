@@ -32,7 +32,10 @@ export interface CreateBusinessTenantInput {
   notes?: string;
 }
 
-export type CreateTenantInput = CreateIndividualTenantInput | CreateBusinessTenantInput;
+export type CreateTenantInput = (CreateIndividualTenantInput | CreateBusinessTenantInput) & {
+  llcId: string;    // Required for account scoping
+  accountId: string; // Derived from the LLC at creation time
+};
 
 export interface TenantData {
   id: string;
@@ -112,6 +115,8 @@ export async function createTenant(
     notes: input.notes || null,
     stripeCustomerId: null,
     userId: null,
+    llcId: input.llcId,
+    accountId: input.accountId,
     createdAt: FieldValue.serverTimestamp(),
     createdBy: actorUserId,
     updates: [],
@@ -245,71 +250,103 @@ export async function getTenantsByIds(tenantIds: string[]) {
 }
 
 /**
- * List all tenants created by a specific user
+ * List tenants scoped to specific accounts. Pass null for accountIds to list all (superAdmin only).
  */
-export async function listTenants(createdByUserId: string) {
-  const snapshot = await adminDb
-    .collection('tenants')
-    .where('createdBy', '==', createdByUserId)
-    .orderBy('createdAt', 'desc')
-    .get();
+export async function listTenants(options: { accountIds: string[] | null; limit?: number }) {
+  const { accountIds, limit = 100 } = options;
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-}
+  if (accountIds === null) {
+    // superAdmin: return all
+    const snapshot = await adminDb
+      .collection('tenants')
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
 
-/**
- * List all tenants (admin-level access for searching across all tenants)
- */
-export async function listAllTenants(limit = 100) {
-  const snapshot = await adminDb
-    .collection('tenants')
-    .orderBy('createdAt', 'desc')
-    .limit(limit)
-    .get();
+  if (accountIds.length === 0) return [];
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-}
+  // Batch into chunks of 30 (Firebase 'in' limit)
+  const chunks: string[][] = [];
+  for (let i = 0; i < accountIds.length; i += 30) {
+    chunks.push(accountIds.slice(i, i + 30));
+  }
 
-/**
- * Search tenants by name or email
- */
-export async function searchTenants(query: string, limit = 50) {
-  const lowerQuery = query.toLowerCase();
-
-  // Firestore doesn't support full-text search, so we'll fetch and filter client-side
-  // For production, consider using Algolia, Elasticsearch, or Firebase Extensions
-  const snapshot = await adminDb
-    .collection('tenants')
-    .orderBy('createdAt', 'desc')
-    .limit(500) // Fetch more to filter
-    .get();
-
-  const results = snapshot.docs
-    .map((doc): TenantData => ({ id: doc.id, ...doc.data() }))
-    .filter((tenant) => {
-      const email = (tenant.email || '').toLowerCase();
-      const firstName = (tenant.firstName || '').toLowerCase();
-      const lastName = (tenant.lastName || '').toLowerCase();
-      const businessName = (tenant.businessName || '').toLowerCase();
-      const fullName = `${firstName} ${lastName}`.trim();
-
-      return (
-        email.includes(lowerQuery) ||
-        firstName.includes(lowerQuery) ||
-        lastName.includes(lowerQuery) ||
-        fullName.includes(lowerQuery) ||
-        businessName.includes(lowerQuery)
-      );
-    })
-    .slice(0, limit);
+  const results: Record<string, unknown>[] = [];
+  for (const chunk of chunks) {
+    const snapshot = await adminDb
+      .collection('tenants')
+      .where('accountId', 'in', chunk)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    snapshot.docs.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+  }
 
   return results;
+}
+
+/**
+ * Search tenants by name or email, scoped to specific accounts.
+ * Pass null for accountIds to search all (superAdmin only).
+ */
+export async function searchTenants(
+  query: string,
+  options: { accountIds: string[] | null; limit?: number } = { accountIds: null }
+) {
+  const { accountIds, limit = 50 } = options;
+  const lowerQuery = query.toLowerCase();
+
+  const baseQuery = adminDb.collection('tenants').orderBy('createdAt', 'desc');
+
+  // For non-superAdmin, we need to fetch within account scope
+  // Since 'in' + orderBy requires composite index, we fetch and filter in memory
+  const fetchLimit = accountIds !== null ? Math.min(accountIds.length * 100, 500) : 500;
+
+  if (accountIds !== null && accountIds.length === 0) return [];
+
+  // If account-scoped, use 'in' batching
+  if (accountIds !== null) {
+    const results: TenantData[] = [];
+    const chunks: string[][] = [];
+    for (let i = 0; i < accountIds.length; i += 30) {
+      chunks.push(accountIds.slice(i, i + 30));
+    }
+    for (const chunk of chunks) {
+      const snapshot = await adminDb
+        .collection('tenants')
+        .where('accountId', 'in', chunk)
+        .limit(fetchLimit)
+        .get();
+      snapshot.docs.forEach(doc => results.push({ id: doc.id, ...doc.data() } as TenantData));
+    }
+    return results
+      .filter(tenant => matchesTenantQuery(tenant, lowerQuery))
+      .slice(0, limit);
+  }
+
+  // superAdmin: fetch all and filter
+  const snapshot = await baseQuery.limit(fetchLimit).get();
+  return snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as TenantData))
+    .filter(tenant => matchesTenantQuery(tenant, lowerQuery))
+    .slice(0, limit);
+}
+
+function matchesTenantQuery(tenant: TenantData, lowerQuery: string): boolean {
+  const email = (tenant.email || '').toLowerCase();
+  const firstName = (tenant.firstName || '').toLowerCase();
+  const lastName = (tenant.lastName || '').toLowerCase();
+  const businessName = (tenant.businessName || '').toLowerCase();
+  const fullName = `${firstName} ${lastName}`.trim();
+  return (
+    email.includes(lowerQuery) ||
+    firstName.includes(lowerQuery) ||
+    lastName.includes(lowerQuery) ||
+    fullName.includes(lowerQuery) ||
+    businessName.includes(lowerQuery)
+  );
 }
 
 /**
