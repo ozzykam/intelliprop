@@ -112,13 +112,20 @@ export async function requirePermission(
 }
 
 /**
- * Require super-admin access. Throws if not super-admin.
+ * Require super-admin access.
+ * Allowed: platform super admin, platform admin, org super admin, or any org/LLC admin.
  */
 export async function requireSuperAdmin(): Promise<PermissionContext> {
   const context = await requirePermissionContext();
 
-  if (!context.isPlatformSuperAdmin) {
-    throw new PermissionDeniedError('Super-admin access required');
+  const isAdmin =
+    context.isPlatformSuperAdmin ||
+    context.isPlatformAdmin ||
+    context.isSuperAdmin ||
+    context.effectiveRole === 'admin';
+
+  if (!isAdmin) {
+    throw new PermissionDeniedError('Admin access required');
   }
 
   return context;

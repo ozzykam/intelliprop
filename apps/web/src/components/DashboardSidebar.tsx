@@ -121,7 +121,7 @@ const SUPER_ADMIN_NAV_ITEMS = [
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggle } = useSidebar();
-  const { isPlatformSuperAdmin, isPlatformAdmin, isSuperAdmin } = useRole();
+  const { isPlatformSuperAdmin, isPlatformAdmin, isSuperAdmin, effectiveRole } = useRole();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Close sidebar when route changes
@@ -151,6 +151,8 @@ export default function DashboardSidebar() {
   }, [isMobileOpen]);
 
   const isPlatformLevel = isPlatformSuperAdmin || isPlatformAdmin;
+  const isOrgAdmin = isSuperAdmin || effectiveRole === 'admin';
+  const showAdminNav = isPlatformLevel || isOrgAdmin;
 
   // Detect if we're on an org dashboard (/{orgId} — single dynamic segment, not a known static route)
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -164,8 +166,8 @@ export default function DashboardSidebar() {
 
   const navItems = [
     ...NAV_ITEMS.map(item => item.href === '/llcs' ? { ...item, href: dashboardHref } : item),
-    ...(isSuperAdmin && !isPlatformLevel ? ORG_ADMIN_NAV_ITEMS : []),
-    ...(isPlatformLevel ? SUPER_ADMIN_NAV_ITEMS : []),
+    ...(isOrgAdmin && !isPlatformLevel ? ORG_ADMIN_NAV_ITEMS : []),
+    ...(showAdminNav ? SUPER_ADMIN_NAV_ITEMS : []),
   ];
 
   const sidebarContent = (isMobile: boolean) => (
