@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 interface LlcSidebarProps {
+  orgId: string;
   llcId: string;
   legalName: string;
 }
@@ -23,9 +24,9 @@ const NAV_ITEMS = [
   { label: 'Settings', href: '/settings' },
 ];
 
-export default function LlcSidebar({ llcId, legalName }: LlcSidebarProps) {
+export default function LlcSidebar({ orgId, llcId, legalName }: LlcSidebarProps) {
   const pathname = usePathname();
-  const basePath = `/llcs/${llcId}`;
+  const basePath = `/${orgId}/llcs/${llcId}`;
   const [isOpen, setIsOpen] = useState(false);
 
   // Close sidebar when route changes

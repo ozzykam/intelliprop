@@ -156,7 +156,7 @@ export default async function PlatformDashboard() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/admin/organizations/${org.id}`}
+                        href={`/main/organizations/${org.id}`}
                         className="text-primary hover:underline"
                       >
                         Manage

@@ -28,10 +28,11 @@ interface LlcItem {
 
 interface ExpandableLlcCardProps {
   llc: LlcItem;
+  orgId: string;
   defaultExpanded?: boolean;
 }
 
-export default function ExpandableLlcCard({ llc, defaultExpanded = false }: ExpandableLlcCardProps) {
+export default function ExpandableLlcCard({ llc, orgId, defaultExpanded = false }: ExpandableLlcCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [stats, setStats] = useState<LlcDashboardStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -154,32 +155,32 @@ export default function ExpandableLlcCard({ llc, defaultExpanded = false }: Expa
               {/* Quick Actions */}
               <div className="px-4 pb-4 flex flex-wrap gap-2">
                 <Link
-                  href={`/llcs/${llc.id}`}
+                  href={`/${orgId}/llcs/${llc.id}`}
                   className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
                 >
                   Open Dashboard
                 </Link>
                 <Link
-                  href={`/llcs/${llc.id}/properties`}
+                  href={`/${orgId}/llcs/${llc.id}/properties`}
                   className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary transition-colors"
                 >
                   Properties
                 </Link>
                 <Link
-                  href={`/llcs/${llc.id}/leases`}
+                  href={`/${orgId}/llcs/${llc.id}/leases`}
                   className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary transition-colors"
                 >
                   Leases
                 </Link>
                 <Link
-                  href={`/llcs/${llc.id}/tenants`}
+                  href={`/${orgId}/llcs/${llc.id}/tenants`}
                   className="px-3 py-1.5 text-sm border rounded-md hover:bg-secondary transition-colors"
                 >
                   Tenants
                 </Link>
                 {stats.openCases > 0 && (
                   <Link
-                    href={`/llcs/${llc.id}/legal`}
+                    href={`/${orgId}/llcs/${llc.id}/legal`}
                     className="px-3 py-1.5 text-sm border border-yellow-500 text-yellow-700 rounded-md hover:bg-yellow-50 transition-colors"
                   >
                     Legal Cases ({stats.openCases})

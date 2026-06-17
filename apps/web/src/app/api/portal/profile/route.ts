@@ -15,6 +15,7 @@ export interface UserProfile {
   userType: 'staff' | 'tenant';
   status: string;
   createdAt?: string;
+  orgName?: string;
 }
 
 /**
@@ -41,6 +42,19 @@ export async function GET() {
     }
 
     const userData = userDoc.data();
+
+    // Resolve org name from the first tenant link's LLC accountId
+    let orgName: string | undefined;
+    const tenantLinks: { llcId: string }[] = userData?.tenantLinks ?? [];
+    if (tenantLinks.length > 0 && tenantLinks[0]?.llcId) {
+      const llcDoc = await adminDb.collection('llcs').doc(tenantLinks[0].llcId).get();
+      const accountId = llcDoc.data()?.accountId as string | undefined;
+      if (accountId) {
+        const orgDoc = await adminDb.collection('accounts').doc(accountId).get();
+        orgName = orgDoc.data()?.name as string | undefined;
+      }
+    }
+
     const profile: UserProfile = {
       id: user.uid,
       email: userData?.email || user.email || '',
@@ -53,6 +67,7 @@ export async function GET() {
       userType: userData?.userType || 'tenant',
       status: userData?.status || 'active',
       createdAt: userData?.createdAt?.toDate?.()?.toISOString(),
+      orgName,
     };
 
     return NextResponse.json({ ok: true, data: profile });

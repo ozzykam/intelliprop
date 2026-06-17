@@ -16,6 +16,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,6 +28,9 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
         const data = await res.json();
         if (data.ok && data.data?.displayName) {
           setDisplayName(data.data.displayName);
+        }
+        if (data.ok && data.data?.orgName) {
+          setOrgName(data.data.orgName);
         }
       } catch {
         // Silently fail - fall back to email
@@ -70,7 +74,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/portal" className="text-xl font-semibold">
-            O.I. Properties
+            {orgName ?? process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Portal'}
           </Link>
           <div className="flex items-center gap-4">
             {hasStaffRole && (

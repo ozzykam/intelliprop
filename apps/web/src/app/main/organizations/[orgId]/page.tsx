@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface OrgMember {
   userId: string;
@@ -40,6 +41,7 @@ interface OrgDetail {
 export default function PlatformOrgDetailPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
 
+  const router = useRouter();
   const [org, setOrg] = useState<OrgDetail | null>(null);
   const [llcs, setLlcs] = useState<OrgLlc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,6 +206,13 @@ export default function PlatformOrgDetailPage({ params }: { params: Promise<{ or
     finally { setCreatingLlc(false); }
   }
 
+  function handleEnterOrg() {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + 14 * 24 * 60 * 60 * 1000);
+    document.cookie = `__platform_view_org=${orgId};expires=${expires.toUTCString()};path=/`;
+    router.push(`/${orgId}`);
+  }
+
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
   if (error) return <div className="p-8 text-center text-destructive">{error}</div>;
   if (!org) return <div className="p-8 text-center text-muted-foreground">Organization not found</div>;
@@ -236,12 +245,23 @@ export default function PlatformOrgDetailPage({ params }: { params: Promise<{ or
             )}
           </div>
         </div>
-        <Link
-          href={`/main/organizations/${orgId}/edit`}
-          className="px-3 py-1.5 border rounded-md text-sm hover:bg-muted transition-colors"
-        >
-          Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/main/organizations/${orgId}/edit`}
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-muted transition-colors"
+          >
+            Edit
+          </Link>
+          <button
+            onClick={handleEnterOrg}
+            className="px-4 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            Enter Organization
+          </button>
+        </div>
       </div>
 
       {/* Members */}
@@ -408,6 +428,6 @@ export default function PlatformOrgDetailPage({ params }: { params: Promise<{ or
           )}
         </div>
       </section>
-    </div>
-  );
-}
+    </div>);
+
+        }

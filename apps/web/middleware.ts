@@ -4,7 +4,7 @@ const SESSION_COOKIE_NAME = '__session';
 const ACTIVE_ROLE_COOKIE = '__active_role';
 
 // Routes that require authentication
-const PROTECTED_PREFIXES = ['/llcs', '/portal', '/main'];
+const PROTECTED_PREFIXES = ['/llcs', '/portal', '/main', '/admin', '/org', '/financials', '/tenants', '/timesheets', '/activity', '/alerts', '/tasks', '/invitations', '/profile'];
 
 // Routes that should redirect to app if already authenticated
 const AUTH_ROUTES = ['/login', '/signup'];

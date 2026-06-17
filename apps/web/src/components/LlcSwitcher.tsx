@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 interface LlcOption {
   id: string;
   legalName: string;
+  accountId?: string | null;
 }
 
 interface LlcSwitcherProps {
@@ -73,7 +74,7 @@ export default function LlcSwitcher({ currentLlcId, currentName }: LlcSwitcherPr
               <button
                 key={llc.id}
                 onClick={() => {
-                  router.push(`/llcs/${llc.id}`);
+                  router.push(llc.accountId ? `/${llc.accountId}/llcs/${llc.id}` : `/llcs/${llc.id}`);
                   setOpen(false);
                 }}
                 className={`block w-full text-left px-3 py-2 text-sm transition-colors ${

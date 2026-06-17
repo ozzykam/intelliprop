@@ -13,7 +13,7 @@ export async function GET(
     const llcs = await listOrgLlcs(orgId);
     return NextResponse.json({ ok: true, data: llcs });
   } catch (error) {
-    console.error('GET /api/admin/organizations/[orgId]/llcs error:', error);
+    console.error('GET /api/main/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list LLCs' } }, { status: 500 });
   }
 }
@@ -36,7 +36,7 @@ export async function POST(
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/admin/organizations/[orgId]/llcs error:', error);
+    console.error('POST /api/main/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to assign LLC' } }, { status: 500 });
   }
 }

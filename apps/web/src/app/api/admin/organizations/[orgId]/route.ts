@@ -38,7 +38,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, data: { ...organization, members: enrichedMembers } });
   } catch (error) {
-    console.error('GET /api/admin/organizations/[orgId] error:', error);
+    console.error('GET /api/main/organizations/[orgId] error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get organization' } }, { status: 500 });
   }
 }
@@ -61,7 +61,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('PATCH /api/admin/organizations/[orgId] error:', error);
+    console.error('PATCH /api/main/organizations/[orgId] error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update organization' } }, { status: 500 });
   }
 }

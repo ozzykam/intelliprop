@@ -152,8 +152,18 @@ export default function DashboardSidebar() {
 
   const isPlatformLevel = isPlatformSuperAdmin || isPlatformAdmin;
 
+  // Detect if we're on an org dashboard (/{orgId} — single dynamic segment, not a known static route)
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const STATIC_FIRST_SEGMENTS = new Set(['admin', 'financials', 'tenants', 'timesheets', 'activity', 'alerts', 'tasks', 'invitations', 'profile', 'llcs', 'main', 'org']);
+  const isOnOrgDashboard = pathSegments.length === 1 && !STATIC_FIRST_SEGMENTS.has(pathSegments[0] ?? '');
+  // If inside /{orgId}/llcs/... or on /{orgId}, the dashboard link should stay within that org
+  const currentOrgId = (!STATIC_FIRST_SEGMENTS.has(pathSegments[0] ?? '') && pathSegments[0])
+    ? pathSegments[0]
+    : null;
+  const dashboardHref = currentOrgId ? `/${currentOrgId}` : '/llcs';
+
   const navItems = [
-    ...NAV_ITEMS,
+    ...NAV_ITEMS.map(item => item.href === '/llcs' ? { ...item, href: dashboardHref } : item),
     ...(isSuperAdmin && !isPlatformLevel ? ORG_ADMIN_NAV_ITEMS : []),
     ...(isPlatformLevel ? SUPER_ADMIN_NAV_ITEMS : []),
   ];
@@ -179,8 +189,10 @@ export default function DashboardSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/llcs' && pathname.startsWith(item.href));
+          const isActive =
+            item.href === dashboardHref && (item.href === '/llcs' || currentOrgId)
+              ? pathname === item.href || (isOnOrgDashboard && item.href !== '/llcs')
+              : pathname.startsWith(item.href) && item.href !== '/';
 
           return (
             <Link

@@ -29,17 +29,30 @@ export default function TopBar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [llcName, setLlcName] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Extract llcId from pathname (e.g. /llcs/abc123/properties)
-  const llcIdMatch = pathname.match(/^\/llcs\/([^/]+)/);
+  // Extract orgId and llcId from pathname (e.g. /{orgId}/llcs/{llcId}/properties)
+  const STATIC_SEGMENTS = new Set(['admin', 'financials', 'tenants', 'timesheets', 'activity', 'alerts', 'tasks', 'invitations', 'profile', 'llcs', 'main', 'org', 'portal', 'login']);
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const currentOrgId = pathSegments[0] && !STATIC_SEGMENTS.has(pathSegments[0]) ? pathSegments[0] : null;
+  const llcIdMatch = pathname.match(/^\/[^/]+\/llcs\/([^/]+)/);
   const llcId = llcIdMatch ? llcIdMatch[1] : null;
+
+  // Fetch org name when inside an org context
+  useEffect(() => {
+    if (!currentOrgId) { setOrgName(null); return; }
+    fetch(`/api/orgs/${currentOrgId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setOrgName(d.data.name); })
+      .catch(() => {});
+  }, [currentOrgId]);
 
   // Detect platform admin org-view mode
   useEffect(() => {
     const orgId = getPlatformViewOrgCookie();
     if (!orgId) { setPlatformViewOrg(null); return; }
-    fetch(`/api/admin/accounts/${orgId}`)
+    fetch(`/api/admin/organizations/${orgId}`)
       .then(r => r.json())
       .then(d => {
         if (d.ok) setPlatformViewOrg({ id: orgId, name: d.data.name });
@@ -177,8 +190,8 @@ export default function TopBar() {
       <header className="border-b bg-card sticky top-0 z-40">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
-            <Link href="/llcs" className="text-lg font-semibold hover:opacity-80 transition-opacity">
-              O.I. Properties
+            <Link href={currentOrgId ? `/${currentOrgId}` : '/'} className="text-lg font-semibold hover:opacity-80 transition-opacity">
+              {orgName ?? process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform'}
             </Link>
             {llcName && (
               <>

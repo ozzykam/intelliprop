@@ -1,22 +1,19 @@
-import { ReactNode } from 'react';
+import { redirect } from 'next/navigation';
 import { adminDb } from '@/lib/firebase/admin';
-import LlcSidebar from '@/components/LlcSidebar';
 
-interface LlcLayoutProps {
-  children: ReactNode;
+export default async function LlcLegacyLayout({
+  params,
+}: {
+  children: React.ReactNode;
   params: Promise<{ llcId: string }>;
-}
-
-export default async function LlcLayout({ children, params }: LlcLayoutProps) {
+}) {
   const { llcId } = await params;
-
   const llcDoc = await adminDb.collection('llcs').doc(llcId).get();
-  const legalName = llcDoc.exists ? llcDoc.data()?.legalName : 'Unknown LLC';
+  const accountId = llcDoc.exists ? (llcDoc.data()?.accountId as string | undefined) : undefined;
 
-  return (
-    <div className="flex">
-      <LlcSidebar llcId={llcId} legalName={legalName} />
-      <div className="flex-1 p-6">{children}</div>
-    </div>
-  );
+  if (accountId) {
+    redirect(`/${accountId}/llcs/${llcId}`);
+  }
+
+  redirect('/llcs');
 }

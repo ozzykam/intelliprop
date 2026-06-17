@@ -14,7 +14,7 @@ export default function EditOrgPage({ params }: { params: Promise<{ orgId: strin
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`/api/admin/organizations/${orgId}`)
+    fetch(`/api/main/organizations/${orgId}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok) setName(data.data.name ?? '');
@@ -30,7 +30,7 @@ export default function EditOrgPage({ params }: { params: Promise<{ orgId: strin
     if (!name.trim()) { setError('Organization name is required.'); return; }
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/organizations/${orgId}`, {
+      const res = await fetch(`/api/main/organizations/${orgId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),

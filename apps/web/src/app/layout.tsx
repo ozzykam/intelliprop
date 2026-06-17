@@ -7,7 +7,7 @@ import '@/styles/globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'O.I. Properties',
+  title: process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform',
   description: 'Property management platform',
 };
 

@@ -15,10 +15,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { loading } = useAuth();
   const pathname = usePathname();
 
-  // Check if we're inside an LLC context (e.g., /llcs/abc123/properties)
-  // The pattern /llcs/[llcId] means we have at least 3 segments: '', 'llcs', '[llcId]'
+  // Check if we're inside an LLC context (e.g., /{orgId}/llcs/{llcId}/properties)
   const pathSegments = pathname.split('/').filter(Boolean);
-  const isInsideLlc = pathSegments[0] === 'llcs' && pathSegments.length >= 2 && pathSegments[1] !== 'new';
+  const isInsideLlc = pathSegments[1] === 'llcs' && pathSegments.length >= 3 && pathSegments[2] !== 'new';
 
   if (loading) {
     return (

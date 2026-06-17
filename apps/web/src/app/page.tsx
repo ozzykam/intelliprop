@@ -101,7 +101,7 @@ export default function HomePage() {
         {/* Header */}
         <header className="border-b">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <h1 className="text-xl font-semibold">O.I. Properties</h1>
+            <h1 className="text-xl font-semibold">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform'}</h1>
             <Link
               href="/login"
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
