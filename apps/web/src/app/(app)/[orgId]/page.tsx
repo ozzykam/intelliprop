@@ -83,7 +83,7 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground text-sm">
-            Manage your LLCs, properties, and leases.
+            Manage your businesses, properties, and leases.
           </p>
         </div>
         <Link
@@ -101,10 +101,10 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold mb-2">No LLCs Yet</h2>
-          <p className="text-muted-foreground mb-6">Create your first LLC to start managing properties</p>
+          <h2 className="text-xl font-semibold mb-2">No Businesses Yet</h2>
+          <p className="text-muted-foreground mb-6">Create your first business (LLC, Corporation, etc.) to start managing properties</p>
           <Link href={`/${orgId}/llcs/new`} className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity">
-            Create Your First LLC
+            Create Your First Business
           </Link>
         </div>
       ) : (

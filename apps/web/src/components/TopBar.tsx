@@ -30,6 +30,7 @@ export default function TopBar() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [llcName, setLlcName] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
+  const [memberOrg, setMemberOrg] = useState<{ id: string; name: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Extract orgId and llcId from pathname (e.g. /{orgId}/llcs/{llcId}/properties)
@@ -39,7 +40,16 @@ export default function TopBar() {
   const llcIdMatch = pathname.match(/^\/[^/]+\/llcs\/([^/]+)/);
   const llcId = llcIdMatch ? llcIdMatch[1] : null;
 
-  // Fetch org name when inside an org context
+  // Fetch the user's org memberships once on login
+  useEffect(() => {
+    if (!user) { setMemberOrg(null); return; }
+    fetch('/api/me/orgs')
+      .then(r => r.json())
+      .then(d => { if (d.ok && d.data.length > 0) setMemberOrg(d.data[0]); })
+      .catch(() => {});
+  }, [user]);
+
+  // Fetch org name when the URL puts us inside a specific org context
   useEffect(() => {
     if (!currentOrgId) { setOrgName(null); return; }
     fetch(`/api/orgs/${currentOrgId}`)
@@ -52,13 +62,21 @@ export default function TopBar() {
   useEffect(() => {
     const orgId = getPlatformViewOrgCookie();
     if (!orgId) { setPlatformViewOrg(null); return; }
+
+    // Cookie is only valid while inside that org's URL context
+    if (currentOrgId !== orgId) {
+      clearPlatformViewOrgCookie();
+      setPlatformViewOrg(null);
+      return;
+    }
+
     fetch(`/api/admin/organizations/${orgId}`)
       .then(r => r.json())
       .then(d => {
         if (d.ok) setPlatformViewOrg({ id: orgId, name: d.data.name });
       })
       .catch(() => {});
-  }, [pathname]);
+  }, [pathname, currentOrgId]);
 
   useEffect(() => {
     if (!user) return;
@@ -190,8 +208,8 @@ export default function TopBar() {
       <header className="border-b bg-card sticky top-0 z-40">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
-            <Link href={currentOrgId ? `/${currentOrgId}` : '/'} className="text-lg font-semibold hover:opacity-80 transition-opacity">
-              {orgName ?? process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform'}
+            <Link href={currentOrgId ? `/${currentOrgId}` : memberOrg ? `/${memberOrg.id}` : '/'} className="text-lg font-semibold hover:opacity-80 transition-opacity">
+              {orgName ?? memberOrg?.name ?? process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform'}
             </Link>
             {llcName && (
               <>

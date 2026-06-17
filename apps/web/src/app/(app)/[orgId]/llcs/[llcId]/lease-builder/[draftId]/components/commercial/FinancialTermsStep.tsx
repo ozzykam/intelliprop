@@ -514,7 +514,7 @@ export default function FinancialTermsStep({ draft, updateDraft }: StepProps) {
             type="text"
             value={financial.payableTo ?? ''}
             onChange={(e) => updateFinancial({ payableTo: e.target.value || undefined })}
-            placeholder="e.g. Omar Investments LLC"
+            placeholder="e.g. MagKam Investments LLC"
             className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>

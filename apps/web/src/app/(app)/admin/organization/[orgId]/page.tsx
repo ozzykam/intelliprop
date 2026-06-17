@@ -59,8 +59,8 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
   const fetchData = useCallback(async () => {
     try {
       const [orgRes, llcsRes, meRes] = await Promise.all([
-        fetch(`/api/main/organizations/${orgId}`),
-        fetch(`/api/main/organizations/${orgId}/llcs`),
+        fetch(`/api/admin/organizations/${orgId}`),
+        fetch(`/api/admin/organizations/${orgId}/llcs`),
         fetch('/api/me/context'),
       ]);
       const [orgData, llcsData, meData] = await Promise.all([orgRes.json(), llcsRes.json(), meRes.json()]);
@@ -116,7 +116,7 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
     if (!memberUserId) { setMemberError('Please select a user.'); return; }
     setAddingMember(true);
     try {
-      const res = await fetch(`/api/main/organizations/${orgId}/members`, {
+      const res = await fetch(`/api/admin/organizations/${orgId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: memberUserId, role: memberRole }),
@@ -132,7 +132,7 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
 
   async function handleRoleChange(userId: string, role: 'owner' | 'admin') {
     try {
-      await fetch(`/api/main/organizations/${orgId}/members/${userId}`, {
+      await fetch(`/api/admin/organizations/${orgId}/members/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
@@ -144,7 +144,7 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
   async function handleRemoveMember(userId: string) {
     if (!confirm('Remove this member from the organization?')) return;
     try {
-      await fetch(`/api/main/organizations/${orgId}/members/${userId}`, { method: 'DELETE' });
+      await fetch(`/api/admin/organizations/${orgId}/members/${userId}`, { method: 'DELETE' });
       fetchData();
     } catch { /* silent */ }
   }

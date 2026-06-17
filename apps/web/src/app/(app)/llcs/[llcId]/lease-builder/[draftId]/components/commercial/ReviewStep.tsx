@@ -223,7 +223,7 @@ export default function ReviewStep({ draft, llcId, updateDraft }: StepProps) {
                 value={landlordSigName}
                 onChange={(e) => setLandlordSigName(e.target.value)}
                 onBlur={(e) => commitLandlordSignature(e.target.value, landlordSigDate)}
-                placeholder="e.g. Omar Ahmed"
+                placeholder="e.g. Jane Doe"
                 className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePlatformAdmin } from '@/lib/auth/checkPermission';
+import { requirePlatformAdmin, requireOrgEditAccess, PermissionDeniedError } from '@/lib/auth/checkPermission';
 import { listOrgLlcs, assignLlcToOrg } from '@/lib/services/account.service';
 import { getAuthUser } from '@/lib/auth/requireUser';
 
@@ -8,12 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    await requirePlatformAdmin();
     const { orgId } = await params;
+    await requireOrgEditAccess(orgId);
     const llcs = await listOrgLlcs(orgId);
     return NextResponse.json({ ok: true, data: llcs });
   } catch (error) {
-    console.error('GET /api/main/organizations/[orgId]/llcs error:', error);
+    if (error instanceof PermissionDeniedError) {
+      return NextResponse.json({ ok: false, error: { code: 'PERMISSION_DENIED', message: 'No access to this organization' } }, { status: 403 });
+    }
+    console.error('GET /api/admin/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list LLCs' } }, { status: 500 });
   }
 }
@@ -36,7 +39,10 @@ export async function POST(
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/main/organizations/[orgId]/llcs error:', error);
+    if (error instanceof PermissionDeniedError) {
+      return NextResponse.json({ ok: false, error: { code: 'PERMISSION_DENIED', message: 'Platform admin access required' } }, { status: 403 });
+    }
+    console.error('POST /api/admin/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to assign LLC' } }, { status: 500 });
   }
 }

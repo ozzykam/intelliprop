@@ -106,7 +106,7 @@ export default function LlcSettingsPage({ params }: SettingsPageProps) {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-bold mb-6">LLC Settings</h1>
+      <h1 className="text-2xl font-bold mb-6">Business Settings</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
