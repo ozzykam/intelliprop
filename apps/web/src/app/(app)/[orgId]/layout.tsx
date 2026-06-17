@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requirePermissionContext } from '@/lib/auth/permissionContext';
+import { adminDb } from '@/lib/firebase/admin';
 
 export default async function OrgLayout({
   children,
@@ -17,16 +18,27 @@ export default async function OrgLayout({
 
   const { orgId } = await params;
 
-  // Platform roles bypass org membership check
   if (!context.isPlatformSuperAdmin && !context.isPlatformAdmin) {
-    const hasAccess =
-      context.memberOfAccountIds.includes(orgId) ||
-      context.accountAdminLlcIds.length > 0 ||
-      context.adminOfLlcIds.length > 0 ||
-      context.assignedLlcIds.length > 0;
+    // Org members have direct access
+    if (!context.memberOfAccountIds.includes(orgId)) {
+      // LLC-level staff: verify at least one of their LLCs actually belongs to this org
+      const userLlcIds = [...new Set([
+        ...context.adminOfLlcIds,
+        ...context.assignedLlcIds,
+      ])].slice(0, 30);
 
-    if (!hasAccess) {
-      redirect('/llcs');
+      if (userLlcIds.length === 0) {
+        redirect('/llcs');
+      }
+
+      const docs = await adminDb.getAll(
+        ...userLlcIds.map(id => adminDb.collection('llcs').doc(id))
+      );
+      const hasLlcInOrg = docs.some(d => d.exists && d.data()?.accountId === orgId);
+
+      if (!hasLlcInOrg) {
+        redirect('/llcs');
+      }
     }
   }
 
