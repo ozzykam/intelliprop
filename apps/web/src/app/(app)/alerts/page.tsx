@@ -45,7 +45,14 @@ export default function AlertsPage() {
   useEffect(() => {
     async function fetchAlerts() {
       try {
-        const res = await fetch('/api/alerts');
+        const orgsRes = await fetch('/api/me/orgs');
+        const orgsData = await orgsRes.json();
+        const orgId: string | undefined = orgsData.ok && orgsData.data.length > 0
+          ? orgsData.data[0].id
+          : undefined;
+
+        const url = orgId ? `/api/alerts?orgId=${orgId}` : '/api/alerts';
+        const res = await fetch(url);
         const data = await res.json();
         if (data.ok) {
           setAlerts(data.data);

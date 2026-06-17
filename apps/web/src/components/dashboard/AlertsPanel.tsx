@@ -87,9 +87,10 @@ export function getAlertLink(alert: Alert): string {
 interface AlertsPanelProps {
   maxItems?: number;
   compact?: boolean;
+  orgId?: string;
 }
 
-export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPanelProps) {
+export default function AlertsPanel({ maxItems = 10, compact = false, orgId }: AlertsPanelProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -111,7 +112,8 @@ export default function AlertsPanel({ maxItems = 10, compact = false }: AlertsPa
   useEffect(() => {
     async function fetchAlerts() {
       try {
-        const res = await fetch('/api/alerts');
+        const url = orgId ? `/api/alerts?orgId=${orgId}` : '/api/alerts';
+        const res = await fetch(url);
         const data = await res.json();
 
         if (data.ok) {

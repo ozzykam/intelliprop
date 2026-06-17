@@ -21,9 +21,18 @@ export interface Alert {
 }
 
 /**
- * Get all LLCs accessible to a user
+ * Get LLCs accessible to a user, optionally scoped to a specific org account.
  */
-async function getUserLlcs(userId: string): Promise<{ id: string; legalName: string }[]> {
+async function getUserLlcs(userId: string, accountId?: string): Promise<{ id: string; legalName: string }[]> {
+  if (accountId) {
+    const snap = await adminDb
+      .collection('llcs')
+      .where('accountId', '==', accountId)
+      .where('status', '==', 'active')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, legalName: d.data().legalName || 'Unknown' }));
+  }
+
   const membershipsSnapshot = await adminDb
     .collectionGroup('members')
     .where('userId', '==', userId)
@@ -424,11 +433,11 @@ async function getMortgageAlerts(): Promise<Alert[]> {
 }
 
 /**
- * Get all alerts across all user's LLCs, excluding acknowledged ones.
+ * Get all alerts across the user's LLCs, scoped to an org when accountId is provided.
  */
-export async function getOwnerAlerts(userId: string): Promise<Alert[]> {
+export async function getOwnerAlerts(userId: string, accountId?: string): Promise<Alert[]> {
   const [userLlcs, userDoc] = await Promise.all([
-    getUserLlcs(userId),
+    getUserLlcs(userId, accountId),
     adminDb.collection('users').doc(userId).get(),
   ]);
 

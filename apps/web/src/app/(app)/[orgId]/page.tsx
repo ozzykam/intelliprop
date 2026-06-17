@@ -144,7 +144,7 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <div className="border rounded-lg p-4">
-                <AlertsPanel maxItems={10} />
+                <AlertsPanel maxItems={10} orgId={orgId} />
               </div>
               <div>
                 <h2 className="font-semibold mb-4">LLCs</h2>
@@ -167,7 +167,7 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
                   See All &rarr;
                 </Link>
               </div>
-              <ActivityFeed maxItems={10} />
+              <ActivityFeed maxItems={10} orgId={orgId} />
             </div>
           </div>
         </>

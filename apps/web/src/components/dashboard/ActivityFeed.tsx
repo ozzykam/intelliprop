@@ -57,9 +57,10 @@ function getRelativeTime(dateString: string): string {
 
 interface ActivityFeedProps {
   maxItems?: number;
+  orgId?: string;
 }
 
-export default function ActivityFeed({ maxItems = 10 }: ActivityFeedProps) {
+export default function ActivityFeed({ maxItems = 10, orgId }: ActivityFeedProps) {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,7 +68,9 @@ export default function ActivityFeed({ maxItems = 10 }: ActivityFeedProps) {
   useEffect(() => {
     async function fetchActivity() {
       try {
-        const res = await fetch(`/api/activity?limit=${maxItems}`);
+        const params = new URLSearchParams({ limit: String(maxItems) });
+        if (orgId) params.set('orgId', orgId);
+        const res = await fetch(`/api/activity?${params}`);
         const data = await res.json();
 
         if (data.ok) {
@@ -83,7 +86,7 @@ export default function ActivityFeed({ maxItems = 10 }: ActivityFeedProps) {
     }
 
     fetchActivity();
-  }, [maxItems]);
+  }, [maxItems, orgId]);
 
   if (loading) {
     return (

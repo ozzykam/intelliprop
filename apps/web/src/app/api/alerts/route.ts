@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
+import { requirePermissionContext } from '@/lib/auth/permissionContext';
 import { getOwnerAlerts, acknowledgeAlert } from '@/lib/services/alerts.service';
 
 /**
@@ -39,10 +40,10 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/alerts
- * Get all alerts across all user's LLCs
+ * GET /api/alerts?orgId=<accountId>
+ * Get alerts scoped to an org. orgId is required; users must be a member of that org.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json(
@@ -52,7 +53,23 @@ export async function GET() {
   }
 
   try {
-    const alerts = await getOwnerAlerts(user.uid);
+    const orgId = new URL(request.url).searchParams.get('orgId') ?? undefined;
+
+    if (orgId) {
+      const context = await requirePermissionContext();
+      const hasAccess =
+        context.isPlatformSuperAdmin ||
+        context.isPlatformAdmin ||
+        context.memberOfAccountIds.includes(orgId);
+      if (!hasAccess) {
+        return NextResponse.json(
+          { ok: false, error: { code: 'PERMISSION_DENIED', message: 'No access to this organization' } },
+          { status: 403 }
+        );
+      }
+    }
+
+    const alerts = await getOwnerAlerts(user.uid, orgId);
     return NextResponse.json({ ok: true, data: alerts });
   } catch (error) {
     console.error('Error fetching alerts:', error);

@@ -14,9 +14,18 @@ export interface ActivityItem {
 }
 
 /**
- * Get all LLCs accessible to a user
+ * Get LLCs accessible to a user, optionally scoped to a specific org account.
  */
-async function getUserLlcs(userId: string): Promise<{ id: string; legalName: string }[]> {
+async function getUserLlcs(userId: string, accountId?: string): Promise<{ id: string; legalName: string }[]> {
+  if (accountId) {
+    const snap = await adminDb
+      .collection('llcs')
+      .where('accountId', '==', accountId)
+      .where('status', '==', 'active')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, legalName: d.data().legalName || 'Unknown' }));
+  }
+
   const membershipsSnapshot = await adminDb
     .collectionGroup('members')
     .where('userId', '==', userId)
@@ -114,10 +123,10 @@ async function getLlcActivity(llcId: string, llcName: string, limit: number): Pr
 }
 
 /**
- * Get recent activity across all user's LLCs
+ * Get recent activity across the user's LLCs, scoped to an org when accountId is provided.
  */
-export async function getRecentActivity(userId: string, limit = 20): Promise<ActivityItem[]> {
-  const userLlcs = await getUserLlcs(userId);
+export async function getRecentActivity(userId: string, limit = 20, accountId?: string): Promise<ActivityItem[]> {
+  const userLlcs = await getUserLlcs(userId, accountId);
 
   if (userLlcs.length === 0) {
     return [];
@@ -152,14 +161,16 @@ export interface PaginatedActivityResult {
 }
 
 /**
- * Get paginated activity across all user's LLCs with actor display names resolved.
+ * Get paginated activity across the user's LLCs with actor display names resolved.
+ * Scoped to an org when accountId is provided.
  */
 export async function getPaginatedActivity(
   userId: string,
-  options: PaginatedActivityOptions
+  options: PaginatedActivityOptions,
+  accountId?: string
 ): Promise<PaginatedActivityResult> {
   const { page, limit } = options;
-  const userLlcs = await getUserLlcs(userId);
+  const userLlcs = await getUserLlcs(userId, accountId);
 
   if (userLlcs.length === 0) {
     return { items: [], total: 0, page, limit, hasMore: false };

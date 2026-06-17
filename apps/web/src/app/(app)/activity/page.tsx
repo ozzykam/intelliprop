@@ -40,11 +40,27 @@ export default function ActivityLogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [orgId, setOrgId] = useState<string | undefined>(undefined);
+  const [orgLoaded, setOrgLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/me/orgs')
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.data.length > 0) setOrgId(d.data[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setOrgLoaded(true));
+  }, []);
+
   const fetchData = useCallback(async () => {
+    if (!orgLoaded) return;
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/activity?page=${page}&limit=${limit}`);
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (orgId) params.set('orgId', orgId);
+      const res = await fetch(`/api/activity?${params}`);
       const json = await res.json();
       if (json.ok) {
         setData(json.data);
@@ -56,7 +72,7 @@ export default function ActivityLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, orgId, orgLoaded]);
 
   useEffect(() => {
     fetchData();
