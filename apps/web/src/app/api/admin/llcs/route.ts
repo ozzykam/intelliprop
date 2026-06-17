@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const unassigned = searchParams.get('unassigned') === 'true';
 
-    let query = adminDb.collection('llcs').where('status', '!=', 'archived');
+    const query = adminDb.collection('llcs').where('status', '!=', 'archived');
 
     const snap = await query.get();
     const llcs = snap.docs
