@@ -38,7 +38,7 @@ export default async function OrganizationsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{orgs.length} client account{orgs.length !== 1 ? 's' : ''}</p>
         </div>
         <Link
-          href="/admin/accounts/new"
+          href="/main/organizations/new"
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
         >
           + New Organization
@@ -63,7 +63,7 @@ export default async function OrganizationsPage() {
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   No organizations yet.{' '}
-                  <Link href="/admin/accounts/new" className="text-primary hover:underline">
+                  <Link href="/main/organizations/new" className="text-primary hover:underline">
                     Create the first one
                   </Link>
                 </td>
@@ -94,7 +94,7 @@ export default async function OrganizationsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
-                      href={`/main/organizations/${org.id}`}
+                      href={`/admin/organizations/${org.id}`}
                       className="text-primary hover:underline"
                     >
                       Manage

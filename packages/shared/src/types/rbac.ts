@@ -36,6 +36,7 @@ export interface User {
 
   // Staff-specific fields (when userType === 'staff')
   isPlatformSuperAdmin?: boolean; // Platform owner — bypasses all access checks globally
+  isPlatformAdmin?: boolean; // Platform staff — can manage organizations and their data
   isSuperAdmin?: boolean; // Org-level super admin — full access within their organization
   // Assignee designation — staff users that can receive Assignments of Claim
   isAssignee?: boolean;
@@ -151,7 +152,8 @@ export interface PermissionContext {
 
   // Role determination (for staff users)
   isPlatformSuperAdmin: boolean; // Platform owner — bypasses all checks globally
-  isSuperAdmin: boolean; // Org-level super admin (future use)
+  isPlatformAdmin: boolean; // Platform staff — can manage organizations and their data
+  isSuperAdmin: boolean; // Org-level super admin — full access within their organization
   effectiveRole: 'superAdmin' | 'admin' | 'manager' | 'employee' | 'tenant' | null;
 
   // Account access (multi-tenant layer)

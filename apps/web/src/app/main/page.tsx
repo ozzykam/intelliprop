@@ -84,7 +84,7 @@ export default async function PlatformDashboard() {
         <StatCard
           label="Active Organizations"
           value={stats.activeOrgs}
-          href="/main/organizations"
+          href="/admin/organizations"
           description="Client accounts"
         />
         <StatCard
@@ -109,7 +109,7 @@ export default async function PlatformDashboard() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold">Organizations</h2>
-          <Link href="/main/organizations" className="text-sm text-primary hover:underline">
+          <Link href="/admin/organizations" className="text-sm text-primary hover:underline">
             View all
           </Link>
         </div>
@@ -156,7 +156,7 @@ export default async function PlatformDashboard() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/main/organizations/${org.id}`}
+                        href={`/admin/organizations/${org.id}`}
                         className="text-primary hover:underline"
                       >
                         Manage

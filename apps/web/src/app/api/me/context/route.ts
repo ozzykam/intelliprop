@@ -7,6 +7,7 @@ export interface UserRoleContext {
   hasStaffRole: boolean;
   hasTenantRole: boolean;
   isPlatformSuperAdmin: boolean;
+  isPlatformAdmin: boolean;
   isSuperAdmin: boolean;
   effectiveRole: string | null;
   userType: 'staff' | 'tenant';
@@ -26,6 +27,7 @@ export async function GET() {
           hasStaffRole: false,
           hasTenantRole: false,
           isPlatformSuperAdmin: false,
+          isPlatformAdmin: false,
           isSuperAdmin: false,
           effectiveRole: null,
           userType: 'tenant',
@@ -36,17 +38,14 @@ export async function GET() {
 
     const context = await buildPermissionContext(user);
 
-    // Determine if user has staff role
-    // Staff role = userType is 'staff' OR superAdmin OR admin of any LLC OR has any assignments (manager/employee)
     const hasStaffRole =
       context.userType === 'staff' ||
       context.isPlatformSuperAdmin ||
+      context.isPlatformAdmin ||
       context.isSuperAdmin ||
       context.adminOfLlcIds.length > 0 ||
       context.assignments.length > 0;
 
-    // Determine if user has tenant role
-    // Tenant role = has tenant links
     const hasTenantRole = context.tenantLinks.length > 0;
 
     return NextResponse.json({
@@ -56,6 +55,7 @@ export async function GET() {
         hasStaffRole,
         hasTenantRole,
         isPlatformSuperAdmin: context.isPlatformSuperAdmin,
+        isPlatformAdmin: context.isPlatformAdmin,
         isSuperAdmin: context.isSuperAdmin,
         effectiveRole: context.effectiveRole,
         userType: context.userType,

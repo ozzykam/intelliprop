@@ -46,8 +46,8 @@ export default function PlatformOrgDetailPage({ params }: { params: Promise<{ ac
     async function fetchData() {
       try {
         const [orgRes, llcsRes] = await Promise.all([
-          fetch(`/api/admin/accounts/${accountId}`),
-          fetch(`/api/admin/accounts/${accountId}/llcs`),
+          fetch(`/api/admin/organizations/${accountId}`),
+          fetch(`/api/admin/organizations/${accountId}/llcs`),
         ]);
         const [orgData, llcsData] = await Promise.all([orgRes.json(), llcsRes.json()]);
         if (!orgData.ok) throw new Error(orgData.error?.message || 'Failed to load org');
@@ -102,7 +102,7 @@ export default function PlatformOrgDetailPage({ params }: { params: Promise<{ ac
 
         <div className="flex items-center gap-2">
           <Link
-            href={`/admin/accounts/${accountId}`}
+            href={`/admin/organizations/${accountId}/edit`}
             className="px-3 py-1.5 border rounded-md text-sm hover:bg-muted transition-colors"
           >
             Edit

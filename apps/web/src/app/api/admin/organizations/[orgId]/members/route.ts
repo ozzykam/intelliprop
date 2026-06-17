@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth/checkPermission';
+import { requireOrgEditAccess } from '@/lib/auth/checkPermission';
 import { listOrgMembers, addOrgMember } from '@/lib/services/account.service';
 import { getAuthUser } from '@/lib/auth/requireUser';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ accountId: string }> }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    await requireSuperAdmin();
-    const { accountId } = await params;
-    const members = await listOrgMembers(accountId);
+    const { orgId } = await params;
+    await requireOrgEditAccess(orgId);
+    const members = await listOrgMembers(orgId);
     return NextResponse.json({ ok: true, data: members });
   } catch (error) {
-    console.error('GET /api/admin/accounts/[accountId]/members error:', error);
+    console.error('GET /api/admin/organizations/[orgId]/members error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list members' } }, { status: 500 });
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ accountId: string }> }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    await requireSuperAdmin();
-    const { accountId } = await params;
+    const { orgId } = await params;
+    await requireOrgEditAccess(orgId);
     const body = await request.json() as { userId?: string; role?: string };
 
     if (!body.userId?.trim() || !body.role) {
@@ -37,14 +37,14 @@ export async function POST(
 
     const authUser = await getAuthUser();
     await addOrgMember(
-      accountId,
+      orgId,
       { userId: body.userId.trim(), role: body.role as 'owner' | 'admin' },
       authUser?.uid ?? ''
     );
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/admin/accounts/[accountId]/members error:', error);
+    console.error('POST /api/admin/organizations/[orgId]/members error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to add member' } }, { status: 500 });
   }
 }

@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSuperAdmin } from '@/lib/auth/checkPermission';
+import { requirePlatformAdmin } from '@/lib/auth/checkPermission';
 import { listOrgLlcs, assignLlcToOrg } from '@/lib/services/account.service';
 import { getAuthUser } from '@/lib/auth/requireUser';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ accountId: string }> }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    await requireSuperAdmin();
-    const { accountId } = await params;
-    const llcs = await listOrgLlcs(accountId);
+    await requirePlatformAdmin();
+    const { orgId } = await params;
+    const llcs = await listOrgLlcs(orgId);
     return NextResponse.json({ ok: true, data: llcs });
   } catch (error) {
-    console.error('GET /api/admin/accounts/[accountId]/llcs error:', error);
+    console.error('GET /api/admin/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list LLCs' } }, { status: 500 });
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ accountId: string }> }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
-    await requireSuperAdmin();
-    const { accountId } = await params;
+    await requirePlatformAdmin();
+    const { orgId } = await params;
     const body = await request.json() as { llcId?: string };
 
     if (!body.llcId?.trim()) {
@@ -32,11 +32,11 @@ export async function POST(
     }
 
     const authUser = await getAuthUser();
-    await assignLlcToOrg(body.llcId.trim(), accountId, authUser?.uid ?? '');
+    await assignLlcToOrg(body.llcId.trim(), orgId, authUser?.uid ?? '');
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/admin/accounts/[accountId]/llcs error:', error);
+    console.error('POST /api/admin/organizations/[orgId]/llcs error:', error);
     return NextResponse.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to assign LLC' } }, { status: 500 });
   }
 }

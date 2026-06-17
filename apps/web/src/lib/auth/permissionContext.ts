@@ -42,6 +42,7 @@ export async function buildPermissionContext(
   const userData = userSnap.exists ? userSnap.data() : null;
   const userType: UserType = userData?.userType || 'tenant';
   const isPlatformSuperAdmin = userData?.isPlatformSuperAdmin === true;
+  const isPlatformAdmin = userData?.isPlatformAdmin === true;
   const isSuperAdmin = userData?.isSuperAdmin === true;
   const tenantLinks: TenantLink[] = userData?.tenantLinks || [];
 
@@ -127,7 +128,7 @@ export async function buildPermissionContext(
 
   // Determine effective role (highest privilege wins)
   let effectiveRole: PermissionContext['effectiveRole'] = null;
-  if (isPlatformSuperAdmin) {
+  if (isPlatformSuperAdmin || isPlatformAdmin) {
     effectiveRole = 'superAdmin';
   } else if (adminOfLlcIds.length > 0 || accountAdminLlcIds.length > 0) {
     effectiveRole = 'admin';
@@ -145,6 +146,7 @@ export async function buildPermissionContext(
     displayName: userData?.displayName,
     userType,
     isPlatformSuperAdmin,
+    isPlatformAdmin,
     isSuperAdmin,
     effectiveRole,
     memberOfAccountIds,

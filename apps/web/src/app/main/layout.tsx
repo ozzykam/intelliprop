@@ -11,7 +11,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     redirect('/login');
   }
 
-  if (!context.isPlatformSuperAdmin) {
+  if (!context.isPlatformSuperAdmin && !context.isPlatformAdmin) {
     redirect('/llcs');
   }
 

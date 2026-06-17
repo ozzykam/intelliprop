@@ -18,6 +18,7 @@ interface RoleContextValue {
   hasStaffRole: boolean;
   hasTenantRole: boolean;
   isPlatformSuperAdmin: boolean;
+  isPlatformAdmin: boolean;
   isSuperAdmin: boolean;
   activeRole: 'staff' | 'tenant' | null;
   needsRoleSelection: boolean;
@@ -57,6 +58,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [hasStaffRole, setHasStaffRole] = useState(false);
   const [hasTenantRole, setHasTenantRole] = useState(false);
   const [isPlatformSuperAdmin, setIsPlatformSuperAdmin] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [effectiveRole, setEffectiveRole] = useState<string | null>(null);
   const [activeRole, setActiveRoleState] = useState<'staff' | 'tenant' | null>(
@@ -67,6 +69,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setHasStaffRole(ctx.hasStaffRole);
     setHasTenantRole(ctx.hasTenantRole);
     setIsPlatformSuperAdmin(ctx.isPlatformSuperAdmin);
+    setIsPlatformAdmin(ctx.isPlatformAdmin);
     setIsSuperAdmin(ctx.isSuperAdmin);
     setEffectiveRole(ctx.effectiveRole);
 
@@ -100,6 +103,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       setHasStaffRole(false);
       setHasTenantRole(false);
       setIsPlatformSuperAdmin(false);
+      setIsPlatformAdmin(false);
       setIsSuperAdmin(false);
       setEffectiveRole(null);
       setActiveRoleState(null);
@@ -163,6 +167,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         hasStaffRole,
         hasTenantRole,
         isPlatformSuperAdmin,
+        isPlatformAdmin,
         isSuperAdmin,
         activeRole,
         needsRoleSelection,

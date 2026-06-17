@@ -125,6 +125,33 @@ export async function requireSuperAdmin(): Promise<PermissionContext> {
 }
 
 /**
+ * Require platform-level access (platform super admin or platform admin).
+ * Use this for create/delete organization operations.
+ */
+export async function requirePlatformAdmin(): Promise<PermissionContext> {
+  const context = await requirePermissionContext();
+
+  if (!context.isPlatformSuperAdmin && !context.isPlatformAdmin) {
+    throw new PermissionDeniedError('Platform admin access required');
+  }
+
+  return context;
+}
+
+/**
+ * Require edit access to a specific organization.
+ * Allowed: platform super admin, platform admin, or an owner/admin member of the org.
+ */
+export async function requireOrgEditAccess(orgId: string): Promise<PermissionContext> {
+  const context = await requirePermissionContext();
+
+  if (context.isPlatformSuperAdmin || context.isPlatformAdmin) return context;
+  if (context.memberOfAccountIds.includes(orgId)) return context;
+
+  throw new PermissionDeniedError(`No edit access to organization ${orgId}`);
+}
+
+/**
  * Require admin access to a specific LLC.
  */
 export async function requireLlcAdmin(llcId: string): Promise<PermissionContext> {
@@ -233,6 +260,18 @@ export async function requirePaymentProcessing(): Promise<PermissionContext> {
     throw new PermissionDeniedError('Payment processing not granted');
   }
 
+  return context;
+}
+
+/**
+ * Require access to a specific organization (owner or admin of that org, or platform superadmin).
+ */
+export async function requireOrgAccess(orgId: string): Promise<PermissionContext> {
+  const context = await requirePermissionContext();
+  if (context.isPlatformSuperAdmin || context.isPlatformAdmin) return context;
+  if (!context.memberOfAccountIds.includes(orgId)) {
+    throw new PermissionDeniedError(`No access to organization ${orgId}`);
+  }
   return context;
 }
 
