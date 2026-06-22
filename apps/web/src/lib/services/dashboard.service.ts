@@ -29,9 +29,18 @@ export interface OwnerDashboardStats {
 }
 
 /**
- * Get all LLCs accessible to a user
+ * Get LLCs accessible to a user, optionally scoped to a specific org account.
  */
-async function getUserLlcs(userId: string): Promise<{ id: string; legalName: string }[]> {
+async function getUserLlcs(userId: string, accountId?: string): Promise<{ id: string; legalName: string }[]> {
+  if (accountId) {
+    const snap = await adminDb
+      .collection('llcs')
+      .where('accountId', '==', accountId)
+      .where('status', '==', 'active')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, legalName: d.data().legalName || 'Unknown' }));
+  }
+
   const membershipsSnapshot = await adminDb
     .collectionGroup('members')
     .where('userId', '==', userId)
@@ -163,8 +172,8 @@ export async function getLlcDashboardStats(llcId: string): Promise<LlcDashboardS
 /**
  * Get aggregated dashboard stats across all user's LLCs
  */
-export async function getOwnerDashboardStats(userId: string): Promise<OwnerDashboardStats> {
-  const userLlcs = await getUserLlcs(userId);
+export async function getOwnerDashboardStats(userId: string, accountId?: string): Promise<OwnerDashboardStats> {
+  const userLlcs = await getUserLlcs(userId, accountId);
 
   if (userLlcs.length === 0) {
     return {
