@@ -317,7 +317,7 @@ export async function listPublishedLeases(
  * Admin: list published leases across all LLCs with enriched data.
  */
 export async function listAllPublishedLeases(
-  filters?: { llcId?: string; status?: string; accepted?: boolean }
+  filters?: { llcId?: string; status?: string; accepted?: boolean; accountId?: string }
 ): Promise<{
   id: string;
   llcId: string;
@@ -335,8 +335,11 @@ export async function listAllPublishedLeases(
   publishedAt: string;
   daysUntilExpiry: number | null;
 }[]> {
-  // Get all LLCs
-  const llcsSnap = await adminDb.collection('llcs').get();
+  // Build LLC map scoped to the org when accountId is provided
+  const llcsQuery = filters?.accountId
+    ? adminDb.collection('llcs').where('accountId', '==', filters.accountId)
+    : adminDb.collection('llcs');
+  const llcsSnap = await llcsQuery.get();
   const llcMap = new Map<string, string>();
   llcsSnap.docs.forEach(doc => {
     llcMap.set(doc.id, doc.data().legalName || 'Unknown LLC');
@@ -369,6 +372,9 @@ export async function listAllPublishedLeases(
     const pathParts = doc.ref.path.split('/');
     if (pathParts.length < 2 || !pathParts[1]) continue;
     const llcId = pathParts[1];
+
+    // Skip leases not in the org's LLC set
+    if (!llcMap.has(llcId)) continue;
 
     // Apply filters
     if (filters?.llcId && llcId !== filters.llcId) continue;

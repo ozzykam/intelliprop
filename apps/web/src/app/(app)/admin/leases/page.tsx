@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface AdminPublishedLease {
@@ -57,6 +58,9 @@ const ACCEPTED_FILTERS = [
 ];
 
 export default function AdminLeasesPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [leases, setLeases] = useState<AdminPublishedLease[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,24 +72,25 @@ export default function AdminLeasesPage() {
   const [acceptedFilter, setAcceptedFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchLlcs = async () => {
+  const fetchLlcs = useCallback(async () => {
     try {
-      const res = await fetch('/api/llcs');
+      const url = orgId ? `/api/llcs?accountId=${orgId}` : '/api/llcs';
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.ok) {
-        setLlcs(data.data);
-      }
+      if (data.ok) setLlcs(data.data);
     } catch {
       console.error('Failed to fetch LLCs');
     }
-  };
+  }, [orgId]);
 
   const fetchLeases = useCallback(async () => {
+    if (!orgId) { setLoading(false); return; }
     setLoading(true);
     setError('');
 
     try {
       const params = new URLSearchParams();
+      params.set('accountId', orgId);
       if (llcFilter) params.set('llcId', llcFilter);
       if (statusFilter) params.set('status', statusFilter);
       if (acceptedFilter) params.set('accepted', acceptedFilter);
@@ -103,15 +108,10 @@ export default function AdminLeasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [llcFilter, statusFilter, acceptedFilter]);
+  }, [llcFilter, statusFilter, acceptedFilter, orgId]);
 
-  useEffect(() => {
-    fetchLlcs();
-  }, []);
-
-  useEffect(() => {
-    fetchLeases();
-  }, [fetchLeases]);
+  useEffect(() => { fetchLlcs(); }, [fetchLlcs]);
+  useEffect(() => { fetchLeases(); }, [fetchLeases]);
 
   // Client-side search filter
   const filteredLeases = leases.filter(lease => {
@@ -132,6 +132,17 @@ export default function AdminLeasesPage() {
   const totalMonthlyRent = filteredLeases
     .filter(l => l.status === 'active')
     .reduce((sum, l) => sum + l.monthlyRent, 0);
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Leases</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view leases.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

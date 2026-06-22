@@ -22,10 +22,20 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const accountId = searchParams.get('accountId');
 
     const context = await buildPermissionContext(user);
-    // superAdmin sees all; account members see only their account's tenants
-    const accountIds = context.isPlatformSuperAdmin ? null : context.memberOfAccountIds;
+
+    // Scope to a specific org when accountId is provided; require it for platform admins
+    let accountIds: string[] | null;
+    if (accountId) {
+      accountIds = [accountId];
+    } else if (context.isPlatformSuperAdmin || context.isPlatformAdmin) {
+      return NextResponse.json({ ok: true, data: [] });
+    } else {
+      accountIds = context.memberOfAccountIds;
+    }
+
     const tenants = await listTenants({ accountIds, limit });
 
     return NextResponse.json({ ok: true, data: tenants });

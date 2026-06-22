@@ -18,11 +18,17 @@ export async function GET(request: NextRequest) {
     const llcId = searchParams.get('llcId') || undefined;
     const status = searchParams.get('status') || undefined;
     const accepted = searchParams.get('accepted');
+    const accountId = searchParams.get('accountId') || undefined;
+
+    if (!accountId) {
+      return NextResponse.json({ ok: true, data: [] });
+    }
 
     const leases = await listAllPublishedLeases({
       llcId,
       status,
       accepted: accepted !== null ? accepted === 'true' : undefined,
+      accountId,
     });
 
     return NextResponse.json({ ok: true, data: leases });

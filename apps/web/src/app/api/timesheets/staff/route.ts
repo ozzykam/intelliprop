@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { getTodayEntries } from '@/lib/services/timesheetEntry.service';
 import { getTimesheetAccessTier, getVisibleStaffMap } from '../_helpers/accessTier';
@@ -13,7 +13,7 @@ import { TimesheetStaffSummary, TIMESHEET_TIMEZONE } from '@shared/types';
  *   manager — staff-level members (accounting, maintenance, legal, readOnly)
  *   others  — 403
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json(
@@ -23,6 +23,7 @@ export async function GET() {
   }
 
   try {
+    const accountId = new URL(request.url).searchParams.get('accountId') ?? undefined;
     const tier = await getTimesheetAccessTier(user.uid);
 
     if (tier === 'superAdmin' || tier === 'employee') {
@@ -32,7 +33,7 @@ export async function GET() {
       );
     }
 
-    const staffMap = await getVisibleStaffMap(user.uid, tier);
+    const staffMap = await getVisibleStaffMap(user.uid, tier, accountId);
     if (staffMap.size === 0) {
       return NextResponse.json({ ok: true, data: [] });
     }

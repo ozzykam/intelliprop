@@ -21,9 +21,14 @@ export async function GET(request: NextRequest) {
 
     const OPEN_STATUSES = new Set(['open', 'under_review', 'approved']);
     const CLOSED_STATUSES = new Set(['denied', 'settled', 'closed']);
+    const accountId = searchParams.get('accountId');
 
-    // Get all LLCs
-    const llcsSnap = await adminDb.collection('llcs').get();
+    if (!accountId) {
+      return NextResponse.json({ ok: true, data: [] });
+    }
+
+    // Build LLC map scoped to the given org account
+    const llcsSnap = await adminDb.collection('llcs').where('accountId', '==', accountId).get();
     const llcMap = new Map<string, string>();
     llcsSnap.docs.forEach(doc => {
       llcMap.set(doc.id, doc.data().legalName || 'Unknown LLC');
@@ -42,6 +47,9 @@ export async function GET(request: NextRequest) {
       if (pathParts.length !== 4 || pathParts[0] !== 'llcs' || pathParts[2] !== 'insuranceClaims') continue;
 
       const llcId = pathParts[1]!;
+
+      // Skip claims not in the org's LLC set
+      if (!llcMap.has(llcId)) continue;
 
       // Apply filters
       if (llcIdFilter && llcId !== llcIdFilter) continue;

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRole } from '@/lib/contexts/RoleContext';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import GlobalSearch from './GlobalSearch';
 import NavClockWidget from './NavClockWidget';
 
@@ -23,6 +23,7 @@ export default function TopBar() {
   const { hasStaffRole, hasTenantRole, clearActiveRole } = useRole();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [platformViewOrg, setPlatformViewOrg] = useState<{ id: string; name: string } | null>(null);
   const [invitationCount, setInvitationCount] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -39,6 +40,9 @@ export default function TopBar() {
   const currentOrgId = pathSegments[0] && !STATIC_SEGMENTS.has(pathSegments[0]) ? pathSegments[0] : null;
   const llcIdMatch = pathname.match(/^\/[^/]+\/llcs\/([^/]+)/);
   const llcId = llcIdMatch ? llcIdMatch[1] : null;
+
+  // The effective org context — path-based takes priority, then query param
+  const activeOrgId = currentOrgId ?? searchParams.get('orgId');
 
   // Fetch the user's org memberships once on login
   useEffect(() => {
@@ -60,23 +64,25 @@ export default function TopBar() {
 
   // Detect platform admin org-view mode
   useEffect(() => {
-    const orgId = getPlatformViewOrgCookie();
-    if (!orgId) { setPlatformViewOrg(null); return; }
+    const cookieOrgId = getPlatformViewOrgCookie();
+    if (!cookieOrgId) { setPlatformViewOrg(null); return; }
 
-    // Cookie is only valid while inside that org's URL context
-    if (currentOrgId !== orgId) {
+    // Only clear the cookie when the user explicitly navigates to a DIFFERENT org's context.
+    // When activeOrgId is null (e.g. /main, /admin, /profile) we keep the cookie alive —
+    // the admin hasn't left the org, they're just on a non-org-prefixed page.
+    if (activeOrgId && activeOrgId !== cookieOrgId) {
       clearPlatformViewOrgCookie();
       setPlatformViewOrg(null);
       return;
     }
 
-    fetch(`/api/admin/organizations/${orgId}`)
+    fetch(`/api/admin/organizations/${cookieOrgId}`)
       .then(r => r.json())
       .then(d => {
-        if (d.ok) setPlatformViewOrg({ id: orgId, name: d.data.name });
+        if (d.ok) setPlatformViewOrg({ id: cookieOrgId, name: d.data.name });
       })
       .catch(() => {});
-  }, [pathname, currentOrgId]);
+  }, [activeOrgId]);
 
   useEffect(() => {
     if (!user) return;

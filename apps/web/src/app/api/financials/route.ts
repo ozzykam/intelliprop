@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/requireUser';
 import { getAccountsReceivable } from '@/lib/services/financials.service';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json(
@@ -11,8 +11,14 @@ export async function GET() {
     );
   }
 
+  const accountId = new URL(request.url).searchParams.get('accountId') ?? undefined;
+
+  if (!accountId) {
+    return NextResponse.json({ ok: true, data: { totalMonthlyIncome: 0, totalOverdue: 0, llcs: [], overdueByLease: [] } });
+  }
+
   try {
-    const data = await getAccountsReceivable(user.uid);
+    const data = await getAccountsReceivable(user.uid, accountId);
     return NextResponse.json({ ok: true, data });
   } catch (error) {
     console.error('Error fetching financials:', error);

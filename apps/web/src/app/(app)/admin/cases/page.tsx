@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface AdminCase {
@@ -118,6 +119,9 @@ function formatCurrency(cents: number): string {
 }
 
 export default function AdminCasesPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [cases, setCases] = useState<AdminCase[]>([]);
   const [activeTasks, setActiveTasks] = useState<AdminTask[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
@@ -130,24 +134,25 @@ export default function AdminCasesPage() {
   const [caseTypeFilter, setCaseTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchLlcs = async () => {
+  const fetchLlcs = useCallback(async () => {
     try {
-      const res = await fetch('/api/llcs');
+      const url = orgId ? `/api/llcs?accountId=${orgId}` : '/api/llcs';
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.ok) {
-        setLlcs(data.data);
-      }
+      if (data.ok) setLlcs(data.data);
     } catch {
       console.error('Failed to fetch LLCs');
     }
-  };
+  }, [orgId]);
 
   const fetchCases = useCallback(async () => {
+    if (!orgId) { setLoading(false); return; }
     setLoading(true);
     setError('');
 
     try {
       const params = new URLSearchParams();
+      params.set('accountId', orgId);
       if (llcFilter) params.set('llcId', llcFilter);
       if (statusFilter) params.set('status', statusFilter);
       if (caseTypeFilter) params.set('caseType', caseTypeFilter);
@@ -166,15 +171,10 @@ export default function AdminCasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [llcFilter, statusFilter, caseTypeFilter]);
+  }, [llcFilter, statusFilter, caseTypeFilter, orgId]);
 
-  useEffect(() => {
-    fetchLlcs();
-  }, []);
-
-  useEffect(() => {
-    fetchCases();
-  }, [fetchCases]);
+  useEffect(() => { fetchLlcs(); }, [fetchLlcs]);
+  useEffect(() => { fetchCases(); }, [fetchCases]);
 
   // Client-side search filter
   const filteredCases = cases.filter(c => {
@@ -194,7 +194,18 @@ export default function AdminCasesPage() {
   const casesWithHearings = filteredCases.filter(c => c.nextCourtDate).length;
   const totalDamagesSoughtCents = filteredCases.reduce((sum, c) => sum + (c.damagesSoughtCents ?? 0), 0);
   const totalDamagesAwardedCents = filteredCases.reduce((sum, c) => sum + (c.resolution?.amount ?? 0), 0);
-  
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Legal Cases</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view legal cases.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">

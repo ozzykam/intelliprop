@@ -6,21 +6,25 @@ import { createLlc } from '@/lib/services/llc.service';
 import { createLlcSchema } from '@shared/types';
 
 /**
- * GET /api/llcs
- * List all LLCs the authenticated user has access to (account-scoped).
+ * GET /api/llcs?accountId=<id>
+ * List LLCs the authenticated user has access to, optionally scoped to an org account.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Not signed in' } }, { status: 401 });
   }
 
   try {
+    const accountId = new URL(request.url).searchParams.get('accountId') || undefined;
     const context = await buildPermissionContext(user);
 
-    // super-admin sees all active LLCs
-    if (context.isPlatformSuperAdmin) {
-      const snap = await adminDb.collection('llcs').where('status', '!=', 'archived').get();
+    // Platform super-admin: scope to account when provided, otherwise all active LLCs
+    if (context.isPlatformSuperAdmin || context.isPlatformAdmin) {
+      const query = accountId
+        ? adminDb.collection('llcs').where('accountId', '==', accountId).where('status', '!=', 'archived')
+        : adminDb.collection('llcs').where('status', '!=', 'archived');
+      const snap = await query.get();
       return NextResponse.json({ ok: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
     }
 

@@ -63,9 +63,14 @@ export async function GET(request: NextRequest) {
     const llcIdFilter = searchParams.get('llcId');
     const statusFilter = searchParams.get('status');
     const caseTypeFilter = searchParams.get('caseType');
+    const accountId = searchParams.get('accountId');
 
-    // Get all LLCs first
-    const llcsSnap = await adminDb.collection('llcs').get();
+    if (!accountId) {
+      return NextResponse.json({ ok: true, data: [], activeTasks: [] });
+    }
+
+    // Build LLC map scoped to the given org account
+    const llcsSnap = await adminDb.collection('llcs').where('accountId', '==', accountId).get();
     const llcMap = new Map<string, string>();
     llcsSnap.docs.forEach(doc => {
       llcMap.set(doc.id, doc.data().legalName || 'Unknown LLC');
@@ -85,6 +90,9 @@ export async function GET(request: NextRequest) {
       const pathParts = caseDoc.ref.path.split('/');
       const llcId = pathParts[1];
       if (!llcId || pathParts.length < 4 || pathParts[0] !== 'llcs' || pathParts[2] !== 'cases') continue;
+
+      // Skip cases not in the org's LLC set
+      if (!llcMap.has(llcId)) continue;
 
       // Apply LLC filter
       if (llcIdFilter && llcId !== llcIdFilter) continue;

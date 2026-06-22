@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface AdminProperty {
@@ -90,6 +91,9 @@ const UNIT_STATUSES = [
 ];
 
 export default function AdminPropertiesPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [units, setUnits] = useState<AdminUnit[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
@@ -109,9 +113,10 @@ export default function AdminPropertiesPage() {
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferResult, setTransferResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const fetchLlcs = async () => {
+  const fetchLlcs = useCallback(async () => {
     try {
-      const res = await fetch('/api/llcs');
+      const url = orgId ? `/api/llcs?accountId=${orgId}` : '/api/llcs';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.ok) {
         setLlcs(data.data);
@@ -119,14 +124,19 @@ export default function AdminPropertiesPage() {
     } catch {
       console.error('Failed to fetch LLCs');
     }
-  };
+  }, [orgId]);
 
   const fetchData = useCallback(async () => {
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
 
     try {
       const params = new URLSearchParams();
+      if (orgId) params.set('accountId', orgId);
       if (llcFilter) params.set('llcId', llcFilter);
       if (propertyTypeFilter) params.set('propertyType', propertyTypeFilter);
       if (unitStatusFilter) params.set('unitStatus', unitStatusFilter);
@@ -145,15 +155,10 @@ export default function AdminPropertiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [llcFilter, propertyTypeFilter, unitStatusFilter]);
+  }, [llcFilter, propertyTypeFilter, unitStatusFilter, orgId]);
 
-  useEffect(() => {
-    fetchLlcs();
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchLlcs(); }, [fetchLlcs]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Client-side search filter
   const filteredProperties = properties.filter(p => {
@@ -222,6 +227,17 @@ export default function AdminPropertiesPage() {
   const avgOccupancy = totalProperties > 0
     ? Math.round(filteredProperties.reduce((sum, p) => sum + p.occupancyRate, 0) / totalProperties)
     : 0;
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">All Properties & Units</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view properties.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

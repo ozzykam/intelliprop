@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import TimesheetSummaryPanel from '@/components/TimesheetSummaryPanel';
 import {
@@ -118,6 +119,9 @@ interface EntriesData {
 // ─────────────────────────────────────────────
 
 export default function TimesheetsDashboard() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [clockData, setClockData] = useState<ClockData | null>(null);
   const [entriesData, setEntriesData] = useState<EntriesData | null>(null);
   const [staffList, setStaffList] = useState<TimesheetStaffSummary[] | null>(null);
@@ -161,10 +165,13 @@ export default function TimesheetsDashboard() {
     setLoading(true);
     setError('');
     try {
+      const staffUrl = orgId
+        ? `/api/timesheets/staff?accountId=${orgId}`
+        : '/api/timesheets/staff';
       const [clockRes, entriesRes, staffRes, settingsRes] = await Promise.all([
         fetch('/api/timesheets/clock'),
         fetch('/api/timesheets/entries?limit=10&includeActive=true'),
-        fetch('/api/timesheets/staff'),
+        fetch(staffUrl),
         fetch('/api/timesheets/settings'),
       ]);
 
@@ -185,7 +192,7 @@ export default function TimesheetsDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     fetchAll();

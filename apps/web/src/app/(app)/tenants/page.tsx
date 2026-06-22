@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   SearchFilter,
@@ -52,6 +53,9 @@ function getTenantDisplayName(tenant: TenantItem): string {
 }
 
 export default function GlobalTenantsPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [tenants, setTenants] = useState<TenantItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -71,8 +75,9 @@ export default function GlobalTenantsPage() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
   const fetchTenants = useCallback(async () => {
+    if (!orgId) { setLoading(false); return; }
     try {
-      const res = await fetch('/api/tenants');
+      const res = await fetch(`/api/tenants?accountId=${orgId}`);
       const data = await res.json();
 
       if (data.ok) {
@@ -85,7 +90,7 @@ export default function GlobalTenantsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     fetchTenants();
@@ -199,6 +204,17 @@ export default function GlobalTenantsPage() {
       alert('Failed to delete tenant');
     }
   };
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Tenants</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view tenants.
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="text-muted-foreground">Loading tenants...</div>;

@@ -112,7 +112,8 @@ export async function getVisibleUserIds(
  */
 export async function getVisibleStaffMap(
   callerId: string,
-  tier: TimesheetAccessTier
+  tier: TimesheetAccessTier,
+  accountId?: string
 ): Promise<Map<string, { role: string; displayName: string; email: string }>> {
   const result = new Map<
     string,
@@ -123,11 +124,28 @@ export async function getVisibleStaffMap(
     return result; // No staff overview for these tiers
   }
 
-  // Get all active memberships
-  const membersSnap = await adminDb
-    .collectionGroup('members')
-    .where('status', '==', 'active')
-    .get();
+  // When scoped to an org, only look at members of that org's LLCs
+  let membersSnap: FirebaseFirestore.QuerySnapshot;
+  if (accountId) {
+    const orgLlcsSnap = await adminDb
+      .collection('llcs')
+      .where('accountId', '==', accountId)
+      .get();
+    const orgLlcIds = orgLlcsSnap.docs.map(d => d.id);
+    if (orgLlcIds.length === 0) return result;
+
+    const memberSnaps = await Promise.all(
+      orgLlcIds.map(llcId =>
+        adminDb.collection('llcs').doc(llcId).collection('members').where('status', '==', 'active').get()
+      )
+    );
+    membersSnap = { docs: memberSnaps.flatMap(s => s.docs) } as FirebaseFirestore.QuerySnapshot;
+  } else {
+    membersSnap = await adminDb
+      .collectionGroup('members')
+      .where('status', '==', 'active')
+      .get();
+  }
 
   // Collect eligible userIds
   const eligible = new Set<string>();

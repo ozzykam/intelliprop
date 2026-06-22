@@ -71,9 +71,14 @@ export async function GET(request: NextRequest) {
     const llcIdFilter = searchParams.get('llcId');
     const propertyTypeFilter = searchParams.get('propertyType');
     const unitStatusFilter = searchParams.get('unitStatus');
+    const accountId = searchParams.get('accountId');
 
-    // Get all LLCs first
-    const llcsSnap = await adminDb.collection('llcs').get();
+    if (!accountId) {
+      return NextResponse.json({ ok: true, data: { properties: [], units: [] } });
+    }
+
+    // Build LLC map scoped to the given org account
+    const llcsSnap = await adminDb.collection('llcs').where('accountId', '==', accountId).get();
     const llcMap = new Map<string, string>();
     llcsSnap.docs.forEach(doc => {
       llcMap.set(doc.id, doc.data().legalName || 'Unknown LLC');
@@ -91,6 +96,9 @@ export async function GET(request: NextRequest) {
       const pathParts = propertyDoc.ref.path.split('/');
       if (pathParts.length < 2 || !pathParts[1]) continue;
       const llcId = pathParts[1];
+
+      // Skip properties not in the org's LLC set
+      if (!llcMap.has(llcId)) continue;
 
       // Apply LLC filter
       if (llcIdFilter && llcId !== llcIdFilter) continue;

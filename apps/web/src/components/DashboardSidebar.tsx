@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useSidebar } from '@/lib/contexts/SidebarContext';
 import { useRole } from '@/lib/contexts/RoleContext';
 
@@ -150,6 +150,8 @@ export default function DashboardSidebar() {
     };
   }, [isMobileOpen]);
 
+  const searchParams = useSearchParams();
+
   const isPlatformLevel = isPlatformSuperAdmin || isPlatformAdmin;
   const isOrgAdmin = isSuperAdmin || effectiveRole === 'admin';
   const showAdminNav = isPlatformLevel || isOrgAdmin;
@@ -162,12 +164,20 @@ export default function DashboardSidebar() {
   const currentOrgId = (!STATIC_FIRST_SEGMENTS.has(pathSegments[0] ?? '') && pathSegments[0])
     ? pathSegments[0]
     : null;
-  const dashboardHref = currentOrgId ? `/${currentOrgId}` : '/llcs';
+  // orgId for all links: prefer the path-based org, fall back to ?orgId= query param
+  // (admin/financials/timesheets/tenants pages live at static paths, not /{orgId}/...)
+  const activeOrgId = currentOrgId ?? searchParams.get('orgId');
+  const dashboardHref = activeOrgId ? `/${activeOrgId}` : '/llcs';
+  const orgSuffix = activeOrgId ? `?orgId=${activeOrgId}` : '';
 
   const navItems = [
-    ...NAV_ITEMS.map(item => item.href === '/llcs' ? { ...item, href: dashboardHref } : item),
+    ...NAV_ITEMS.map(item =>
+      item.href === '/llcs'
+        ? { ...item, href: dashboardHref }
+        : { ...item, href: item.href + orgSuffix }
+    ),
     ...(isOrgAdmin && !isPlatformLevel ? ORG_ADMIN_NAV_ITEMS : []),
-    ...(showAdminNav ? SUPER_ADMIN_NAV_ITEMS : []),
+    ...(showAdminNav ? SUPER_ADMIN_NAV_ITEMS.map(item => ({ ...item, href: item.href + orgSuffix })) : []),
   ];
 
   const sidebarContent = (isMobile: boolean) => (
@@ -191,10 +201,11 @@ export default function DashboardSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
+          const itemPath = item.href.split('?')[0]!;
           const isActive =
-            item.href === dashboardHref && (item.href === '/llcs' || currentOrgId)
-              ? pathname === item.href || (isOnOrgDashboard && item.href !== '/llcs')
-              : pathname.startsWith(item.href) && item.href !== '/';
+            itemPath === dashboardHref || itemPath === '/llcs'
+              ? pathname === itemPath || isOnOrgDashboard
+              : pathname.startsWith(itemPath) && itemPath !== '/';
 
           return (
             <Link

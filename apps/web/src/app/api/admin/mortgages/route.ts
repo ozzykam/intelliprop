@@ -6,6 +6,7 @@ import {
   createMortgage,
   getUniqueLenders,
 } from '@/lib/services/mortgage.service';
+import { adminDb } from '@/lib/firebase/admin';
 
 /**
  * GET /api/admin/mortgages
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     await requireSuperAdmin();
 
     const { searchParams } = new URL(request.url);
-    const llcId = searchParams.get('llcId') || undefined;
+    const llcIdFilter = searchParams.get('llcId') || undefined;
     const propertyId = searchParams.get('propertyId') || undefined;
     const status = searchParams.get('status') as 'active' | 'paid_off' | 'defaulted' | 'refinanced' | undefined;
     const lender = searchParams.get('lender') || undefined;
@@ -30,17 +31,29 @@ export async function GET(request: NextRequest) {
     const upcomingPaymentsDays = upcomingPaymentsParam
       ? parseInt(upcomingPaymentsParam, 10)
       : undefined;
+    const accountId = searchParams.get('accountId');
 
-    const [mortgages, lenders] = await Promise.all([
-      listMortgages({
-        llcId,
-        propertyId,
-        status,
-        lender,
-        upcomingPaymentsDays,
-      }),
+    const emptySummary = { totalMortgages: 0, activeMortgages: 0, totalBalance: 0, totalMonthlyPayments: 0, avgInterestRate: 0, propertiesWithMortgages: 0 };
+    if (!accountId) {
+      return NextResponse.json({ ok: true, data: { mortgages: [], lenders: [], summary: emptySummary } });
+    }
+
+    // Resolve org's LLC IDs to scope the mortgage query
+    const orgLlcsSnap = await adminDb.collection('llcs').where('accountId', '==', accountId).get();
+    const orgLlcIds = new Set(orgLlcsSnap.docs.map(d => d.id));
+
+    // If a specific llcId was requested but it's not in this org, return empty
+    if (llcIdFilter && !orgLlcIds.has(llcIdFilter)) {
+      return NextResponse.json({ ok: true, data: { mortgages: [], lenders: [], summary: emptySummary } });
+    }
+
+    const [allMortgages, lenders] = await Promise.all([
+      listMortgages({ llcId: llcIdFilter, propertyId, status, lender, upcomingPaymentsDays }),
       getUniqueLenders(),
     ]);
+
+    // Filter to this org's LLCs
+    const mortgages = allMortgages.filter(m => orgLlcIds.has((m as unknown as { llcId: string }).llcId));
 
     // Calculate summary stats
     const activeMortgages = mortgages.filter(m => m.status === 'active');

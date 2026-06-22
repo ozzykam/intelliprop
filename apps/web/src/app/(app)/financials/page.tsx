@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import StatsCard from '@/components/dashboard/StatsCard';
 import type { ARData, ARLlcGroup, ARPropertyGroup, ARLeaseRow } from '@/lib/services/financials.service';
 
@@ -14,6 +15,9 @@ function oldestDueDate(charges: ARLeaseRow['overdueCharges']) {
 }
 
 export default function FinancialsPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [data, setData] = useState<ARData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,7 +25,9 @@ export default function FinancialsPage() {
   const [expandedProps, setExpandedProps] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch('/api/financials')
+    if (!orgId) { setLoading(false); return; }
+    const url = `/api/financials?accountId=${orgId}`;
+    fetch(url)
       .then(r => r.json())
       .then(res => {
         if (res.ok) {
@@ -40,7 +46,7 @@ export default function FinancialsPage() {
       })
       .catch(() => setError('Failed to load financials'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [orgId]);
 
   function toggleLlc(llcId: string) {
     setExpandedLlcs(prev => {
@@ -58,6 +64,17 @@ export default function FinancialsPage() {
       else next.add(propertyId);
       return next;
     });
+  }
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Financials</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view financials.
+        </div>
+      </div>
+    );
   }
 
   if (loading) {

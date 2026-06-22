@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   INSURANCE_CLAIM_STATUS_LABELS,
@@ -49,6 +50,9 @@ const OPEN_STATUSES = new Set(['open', 'under_review', 'approved']);
 const CLOSED_STATUSES = new Set(['denied', 'settled', 'closed']);
 
 export default function AdminClaimsPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('orgId') ?? undefined;
+
   const [claims, setClaims] = useState<AdminClaim[]>([]);
   const [llcs, setLlcs] = useState<LLC[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,17 +64,17 @@ export default function AdminClaimsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetch('/api/llcs')
-      .then(r => r.json())
-      .then(d => { if (d.ok) setLlcs(d.data); })
-      .catch(() => {});
-  }, []);
+    const url = orgId ? `/api/llcs?accountId=${orgId}` : '/api/llcs';
+    fetch(url).then(r => r.json()).then(d => { if (d.ok) setLlcs(d.data); }).catch(() => {});
+  }, [orgId]);
 
   const fetchClaims = useCallback(async () => {
+    if (!orgId) { setLoading(false); return; }
     setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams();
+      params.set('accountId', orgId);
       if (llcFilter) params.set('llcId', llcFilter);
       if (statusGroup !== 'all') params.set('statusGroup', statusGroup);
 
@@ -86,7 +90,7 @@ export default function AdminClaimsPage() {
     } finally {
       setLoading(false);
     }
-  }, [llcFilter, statusGroup]);
+  }, [llcFilter, statusGroup, orgId]);
 
   useEffect(() => { fetchClaims(); }, [fetchClaims]);
 
@@ -107,6 +111,17 @@ export default function AdminClaimsPage() {
   const totalOpen = claims.filter(c => OPEN_STATUSES.has(c.status)).length;
   const totalClosed = claims.filter(c => CLOSED_STATUSES.has(c.status)).length;
   const totalReported = claims.reduce((sum, c) => sum + (c.reportedAmount ?? 0), 0);
+
+  if (!orgId) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Insurance Claims</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view claims.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

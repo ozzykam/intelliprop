@@ -46,7 +46,16 @@ export interface ARData {
   overdueByLease: ARLeaseRow[];
 }
 
-async function getUserLlcs(userId: string): Promise<{ id: string; legalName: string }[]> {
+async function getUserLlcs(userId: string, accountId?: string): Promise<{ id: string; legalName: string }[]> {
+  if (accountId) {
+    const snap = await adminDb
+      .collection('llcs')
+      .where('accountId', '==', accountId)
+      .where('status', '==', 'active')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, legalName: d.data().legalName || 'Unknown' }));
+  }
+
   const membershipsSnapshot = await adminDb
     .collectionGroup('members')
     .where('userId', '==', userId)
@@ -186,9 +195,9 @@ async function getArForLlc(
   };
 }
 
-export async function getAccountsReceivable(userId: string): Promise<ARData> {
+export async function getAccountsReceivable(userId: string, accountId?: string): Promise<ARData> {
   const today = new Date().toISOString().slice(0, 10);
-  const userLlcs = await getUserLlcs(userId);
+  const userLlcs = await getUserLlcs(userId, accountId);
 
   if (userLlcs.length === 0) {
     return { totalMonthlyIncome: 0, totalOverdue: 0, llcs: [], overdueByLease: [] };
