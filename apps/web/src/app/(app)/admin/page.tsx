@@ -12,7 +12,41 @@ interface AdminStats {
   totalAccounts: number;
 }
 
-async function getAdminStats(): Promise<AdminStats> {
+async function getAdminStats(orgId?: string): Promise<AdminStats> {
+  if (orgId) {
+    // Org-scoped stats
+    const [llcsSnap, accountMembersSnap, allAssignmentsSnap] = await Promise.all([
+      adminDb.collection('llcs').where('accountId', '==', orgId).where('status', '!=', 'archived').get(),
+      adminDb.collection('accounts').doc(orgId).collection('accountMembers').where('status', '==', 'active').get(),
+      adminDb.collection('userAssignments').where('status', '==', 'active').get(),
+    ]);
+
+    const orgLlcIds = new Set(llcsSnap.docs.map(d => d.id));
+
+    // Users: account members + staff assigned to org LLCs
+    const userIds = new Set<string>(
+      accountMembersSnap.docs.map(d => d.data().userId as string).filter(Boolean)
+    );
+    const activeAssignmentsInOrg = allAssignmentsSnap.docs.filter(d => {
+      const llcIds: string[] = d.data().llcIds || [];
+      if (llcIds.some(id => orgLlcIds.has(id))) {
+        userIds.add(d.data().userId as string);
+        return true;
+      }
+      return false;
+    });
+
+    return {
+      totalUsers: userIds.size,
+      superAdminCount: 0,
+      totalAssignments: activeAssignmentsInOrg.length,
+      activeAssignments: activeAssignmentsInOrg.length,
+      totalLlcs: llcsSnap.size,
+      totalAccounts: 1,
+    };
+  }
+
+  // Platform-wide stats
   const [usersSnap, assignmentsSnap, llcsSnap, accountsSnap] = await Promise.all([
     adminDb.collection('users').get(),
     adminDb.collection('userAssignments').get(),
@@ -38,43 +72,50 @@ async function getAdminStats(): Promise<AdminStats> {
   };
 }
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ orgId?: string }>;
+}) {
   try {
     await requireSuperAdmin();
   } catch {
     redirect('/llcs');
   }
 
-  const stats = await getAdminStats();
+  const { orgId } = await searchParams;
+  const stats = await getAdminStats(orgId);
+
+  // Helper to build links that preserve orgId
+  const link = (path: string) => orgId ? `${path}${path.includes('?') ? '&' : '?'}orgId=${orgId}` : path;
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Platform Administration</h1>
+        <h1 className="text-2xl font-bold">Admin Settings</h1>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Link
-          href="/admin/users"
+          href={link('/admin/users')}
           className="p-4 border rounded-lg hover:bg-secondary/30 transition-colors"
         >
-          <div className="text-sm text-muted-foreground">Platform Users</div>
+          <div className="text-sm text-muted-foreground">Users</div>
           <div className="text-2xl font-bold">{stats.totalUsers}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {stats.superAdminCount} super-admin{stats.superAdminCount !== 1 ? 's' : ''}
-          </div>
+          {!orgId && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {stats.superAdminCount} super-admin{stats.superAdminCount !== 1 ? 's' : ''}
+            </div>
+          )}
         </Link>
 
         <Link
-          href="/admin/users?filter=assignments"
+          href={link('/admin/users?filter=assignments')}
           className="p-4 border rounded-lg hover:bg-secondary/30 transition-colors"
         >
-          <div className="text-sm text-muted-foreground">User Assignments</div>
+          <div className="text-sm text-muted-foreground">Active Assignments</div>
           <div className="text-2xl font-bold">{stats.activeAssignments}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {stats.totalAssignments - stats.activeAssignments} disabled
-          </div>
         </Link>
 
         <div className="p-4 border rounded-lg">
@@ -88,19 +129,19 @@ export default async function AdminDashboardPage() {
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/admin/users"
+            href={link('/admin/users')}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90 transition-opacity"
           >
             Manage Users
           </Link>
           <Link
-            href="/admin/users?action=new-assignment"
+            href={link('/admin/users?action=new-assignment')}
             className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
           >
             + New Assignment
           </Link>
           <Link
-            href="/admin/cases"
+            href={link('/admin/cases')}
             className="px-4 py-2 border rounded-md text-sm hover:bg-secondary transition-colors"
           >
             Legal Cases
@@ -114,22 +155,22 @@ export default async function AdminDashboardPage() {
           <h3 className="font-semibold mb-3">User Management</h3>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/admin/users" className="text-primary hover:underline">
-                View all platform users
+              <Link href={link('/admin/users')} className="text-primary hover:underline">
+                View all users
               </Link>
             </li>
             <li>
-              <Link href="/admin/users?superAdminsOnly=true" className="text-primary hover:underline">
+              <Link href={link('/admin/users?superAdminsOnly=true')} className="text-primary hover:underline">
                 View super-admins
               </Link>
             </li>
             <li>
-              <Link href="/admin/users?filter=managers" className="text-primary hover:underline">
+              <Link href={link('/admin/users?filter=managers')} className="text-primary hover:underline">
                 View managers
               </Link>
             </li>
             <li>
-              <Link href="/admin/users?filter=employees" className="text-primary hover:underline">
+              <Link href={link('/admin/users?filter=employees')} className="text-primary hover:underline">
                 View employees
               </Link>
             </li>
@@ -140,12 +181,12 @@ export default async function AdminDashboardPage() {
           <h3 className="font-semibold mb-3">Data Views</h3>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/admin/leases" className="text-primary hover:underline">
+              <Link href={link('/admin/leases')} className="text-primary hover:underline">
                 All Leases
               </Link>
             </li>
             <li>
-              <Link href="/admin/cases" className="text-primary hover:underline">
+              <Link href={link('/admin/cases')} className="text-primary hover:underline">
                 All Legal Cases
               </Link>
             </li>

@@ -44,17 +44,26 @@ function AdminUsersContent() {
   const [activationsLoading, setActivationsLoading] = useState(false);
   const [override, setOverride] = useState<OverrideState | null>(null);
 
+  const orgId = searchParams.get('orgId') ?? undefined;
   const superAdminsOnly = searchParams.get('superAdminsOnly') === 'true';
   const filter = searchParams.get('filter');
   const created = searchParams.get('created');
   const showPending = filter === 'pending';
 
+  // Helper to build filter tab hrefs preserving orgId
+  const filterHref = (extra: string) => {
+    const parts = [orgId ? `orgId=${orgId}` : '', extra].filter(Boolean).join('&');
+    return `/admin/users${parts ? `?${parts}` : ''}`;
+  };
+
   const fetchUsers = useCallback(async () => {
+    if (!orgId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
 
     try {
       const params = new URLSearchParams();
+      params.set('accountId', orgId);
       params.set('includeAssignments', 'true');
       if (superAdminsOnly) params.set('superAdminsOnly', 'true');
       if (searchQuery) params.set('search', searchQuery);
@@ -99,7 +108,7 @@ function AdminUsersContent() {
     } finally {
       setLoading(false);
     }
-  }, [router, superAdminsOnly, filter, searchQuery]);
+  }, [router, superAdminsOnly, filter, searchQuery, orgId]);
 
   const fetchPendingActivations = useCallback(async () => {
     setActivationsLoading(true);
@@ -230,6 +239,17 @@ function AdminUsersContent() {
   const filterLinkClass = (active: boolean) =>
     `px-3 py-1.5 rounded-md text-sm ${active ? 'bg-primary text-primary-foreground' : 'border hover:bg-secondary'}`;
 
+  if (!orgId) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">Users</h1>
+        <div className="text-center py-16 border rounded-lg text-muted-foreground">
+          Select an organization to view users.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -241,7 +261,7 @@ function AdminUsersContent() {
           <h1 className="text-2xl font-bold inline">Users</h1>
         </div>
         <Link
-          href="/admin/users/new"
+          href={`/admin/users/new${orgId ? `?orgId=${orgId}` : ''}`}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:opacity-90"
         >
           Add User
@@ -250,25 +270,25 @@ function AdminUsersContent() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <Link href="/admin/users" className={filterLinkClass(!superAdminsOnly && !filter)}>
+        <Link href={filterHref('')} className={filterLinkClass(!superAdminsOnly && !filter)}>
           All Users
         </Link>
-        <Link href="/admin/users?superAdminsOnly=true" className={filterLinkClass(superAdminsOnly)}>
+        <Link href={filterHref('superAdminsOnly=true')} className={filterLinkClass(superAdminsOnly)}>
           Super Admins
         </Link>
-        <Link href="/admin/users?filter=admins" className={filterLinkClass(filter === 'admins')}>
+        <Link href={filterHref('filter=admins')} className={filterLinkClass(filter === 'admins')}>
           Admins
         </Link>
-        <Link href="/admin/users?filter=managers" className={filterLinkClass(filter === 'managers')}>
+        <Link href={filterHref('filter=managers')} className={filterLinkClass(filter === 'managers')}>
           Managers
         </Link>
-        <Link href="/admin/users?filter=employees" className={filterLinkClass(filter === 'employees')}>
+        <Link href={filterHref('filter=employees')} className={filterLinkClass(filter === 'employees')}>
           Employees
         </Link>
-        <Link href="/admin/users?filter=tenants" className={filterLinkClass(filter === 'tenants')}>
+        <Link href={filterHref('filter=tenants')} className={filterLinkClass(filter === 'tenants')}>
           Tenants
         </Link>
-        <Link href="/admin/users?filter=pending" className={filterLinkClass(filter === 'pending')}>
+        <Link href={filterHref('filter=pending')} className={filterLinkClass(filter === 'pending')}>
           Pending Activations
         </Link>
       </div>

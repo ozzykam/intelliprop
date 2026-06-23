@@ -91,10 +91,14 @@ export async function listUsers(options?: {
   userType?: UserType;
   superAdminsOnly?: boolean;
   status?: UserStatus;
+  accountId?: string;
 }): Promise<User[]> {
-  let query = adminDb.collection(COLLECTION).orderBy('email', 'asc');
+  // When scoping by accountId, start from that field (can't combine with orderBy('email') without a composite index)
+  let query: FirebaseFirestore.Query = options?.accountId
+    ? adminDb.collection(COLLECTION).where('accountIds', 'array-contains', options.accountId)
+    : adminDb.collection(COLLECTION).orderBy('email', 'asc');
 
-  if (options?.userType) {
+  if (options?.userType && !options?.accountId) {
     query = query.where('userType', '==', options.userType);
   }
 
@@ -102,7 +106,7 @@ export async function listUsers(options?: {
     query = query.where('isPlatformSuperAdmin', '==', true);
   }
 
-  if (options?.status) {
+  if (options?.status && !options?.accountId) {
     query = query.where('status', '==', options.status);
   }
 
@@ -111,7 +115,14 @@ export async function listUsers(options?: {
   }
 
   const snapshot = await query.get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+  let users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+
+  // Apply userType filter client-side when accountId scoping is active
+  if (options?.accountId && options?.userType) {
+    users = users.filter(u => u.userType === options.userType);
+  }
+
+  return users;
 }
 
 /**

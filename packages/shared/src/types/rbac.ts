@@ -46,6 +46,10 @@ export interface User {
   mailingAddress?: Address;
   emergencyContact?: EmergencyContact;
 
+  // Org membership — accountIds the user belongs to (org admins, staff, tenants)
+  // Not set for platform-level admins (isPlatformSuperAdmin / isPlatformAdmin)
+  accountIds?: string[];
+
   // Tenant-specific fields (when userType === 'tenant')
   // Links to tenant records: /llcs/{llcId}/tenants/{tenantId}
   tenantLinks?: TenantLink[];

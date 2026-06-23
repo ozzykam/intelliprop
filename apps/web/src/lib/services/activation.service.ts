@@ -386,6 +386,22 @@ export async function createAccount(
 
   await adminDb.collection('users').doc(userId).set(userData);
 
+  // Stamp accountIds on the user document by resolving each LLC's org
+  if (activation.llcIds.length > 0) {
+    const llcRefs = activation.llcIds.map(id => adminDb.collection('llcs').doc(id));
+    const llcDocs = await adminDb.getAll(...llcRefs);
+    const accountIds = [...new Set(
+      llcDocs
+        .filter(d => d.exists && d.data()?.accountId)
+        .map(d => d.data()!.accountId as string)
+    )];
+    if (accountIds.length > 0) {
+      await adminDb.collection('users').doc(userId).update(
+        { accountIds: FieldValue.arrayUnion(...accountIds) }
+      );
+    }
+  }
+
   // For staff roles, create user assignment
   if (activation.role !== 'tenant' && activation.llcIds.length > 0) {
     const assignmentData = {

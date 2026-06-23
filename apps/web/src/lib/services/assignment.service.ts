@@ -144,6 +144,23 @@ export async function createAssignment(
 
   await adminDb.collection(COLLECTION).doc(id).set(assignmentData);
 
+  // Stamp accountIds on the user document by resolving each LLC's org
+  if (input.llcIds && input.llcIds.length > 0) {
+    const llcRefs = input.llcIds.map(llcId => adminDb.collection('llcs').doc(llcId));
+    const llcDocs = await adminDb.getAll(...llcRefs);
+    const accountIds = [...new Set(
+      llcDocs
+        .filter(d => d.exists && d.data()?.accountId)
+        .map(d => d.data()!.accountId as string)
+    )];
+    if (accountIds.length > 0) {
+      await adminDb.collection('users').doc(input.userId).set(
+        { accountIds: FieldValue.arrayUnion(...accountIds) },
+        { merge: true }
+      );
+    }
+  }
+
   return {
     id,
     ...assignmentData,

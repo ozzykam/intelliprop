@@ -11,11 +11,19 @@ export interface LlcMemberContext {
 }
 
 /**
- * Verify that the current user is an active member of the specified LLC.
- * Returns the user + membership context, or throws if unauthorized.
+ * Verify that the current user has access to the specified LLC.
+ * Platform super admins and platform admins are granted access unconditionally.
+ * All others must have an active membership document.
  */
 export async function requireLlcMember(llcId: string): Promise<LlcMemberContext> {
   const user = await requireUser();
+
+  // Platform-level admins bypass LLC membership checks
+  const userDoc = await adminDb.collection('users').doc(user.uid).get();
+  const userData = userDoc.data();
+  if (userData?.isPlatformSuperAdmin || userData?.isPlatformAdmin) {
+    return { user, llcId, role: 'admin' as MemberRole };
+  }
 
   const memberDoc = await adminDb
     .collection('llcs')

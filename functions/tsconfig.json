@@ -9,6 +9,7 @@
     "noEmit": false,
     "declaration": true,
     "sourceMap": true,
+    "typescript.tsserver.maxTsServerMemory": 4096,
     "paths": {
       "@shared/*": ["../packages/shared/src/*"]
     }

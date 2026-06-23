@@ -112,7 +112,7 @@ export default function NewCasePage({ params }: NewCasePageProps) {
   const [caseType, setCaseType] = useState('other');
 
   // Plaintiff
-  const [plaintiffType, setPlaintiffType] = useState<'individual' | 'llc' | 'assignee'>('individual');
+  const [plaintiffType, setPlaintiffType] = useState<'individual' | 'business' | 'assignee'>('individual');
   const [plaintiffName, setPlaintiffName] = useState('');
   const [plaintiffLlcId, setPlaintiffLlcId] = useState('');
   const [plaintiffAocId, setPlaintiffAocId] = useState('');
@@ -145,7 +145,7 @@ export default function NewCasePage({ params }: NewCasePageProps) {
   useEffect(() => {
     // Fetch LLCs, tenants, properties, and members in parallel
     Promise.all([
-      fetch('/api/llcs').then((r) => r.json()),
+      fetch(`/api/llcs?accountId=${orgId}`).then((r) => r.json()),
       fetch(`/api/llcs/${llcId}/tenants`).then((r) => r.json()),
       fetch(`/api/llcs/${llcId}/properties`).then((r) => r.json()),
       fetch(`/api/llcs/${llcId}/members`).then((r) => r.json()),
@@ -170,7 +170,7 @@ export default function NewCasePage({ params }: NewCasePageProps) {
     }).catch(() => {
       // Silently handle - dropdowns will just be empty
     });
-  }, [llcId]);
+  }, [llcId, orgId]);
 
   const getPropertyAddress = (propertyId: string | undefined): string => {
     if (!propertyId) return '';
@@ -223,7 +223,7 @@ export default function NewCasePage({ params }: NewCasePageProps) {
       // Plaintiff
       if (plaintiffType === 'individual' && plaintiffName) {
         body.plaintiff = { type: 'individual', name: plaintiffName };
-      } else if (plaintiffType === 'llc' && plaintiffLlcId) {
+      } else if (plaintiffType === 'business' && plaintiffLlcId) {
         const selectedLlc = llcs.find((l) => l.id === plaintiffLlcId);
         if (selectedLlc) {
           body.plaintiff = { type: 'llc', llcId: selectedLlc.id, llcName: selectedLlc.legalName };
@@ -397,10 +397,10 @@ export default function NewCasePage({ params }: NewCasePageProps) {
               Individual
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="radio" name="plaintiffType" value="llc"
-                checked={plaintiffType === 'llc'}
-                onChange={() => setPlaintiffType('llc')} />
-              Business/LLC
+              <input type="radio" name="plaintiffType" value="business"
+                checked={plaintiffType === 'business'}
+                onChange={() => setPlaintiffType('business')} />
+              Business
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" name="plaintiffType" value="assignee"
@@ -417,12 +417,12 @@ export default function NewCasePage({ params }: NewCasePageProps) {
                 placeholder="Plaintiff name"
                 className="w-full px-3 py-2 border rounded-md bg-background text-sm" />
             </div>
-          ) : plaintiffType === 'llc' ? (
+          ) : plaintiffType === 'business' ? (
             <div>
-              <label htmlFor="plaintiffLlc" className="block text-sm font-medium mb-1">Select LLC</label>
+              <label htmlFor="plaintiffLlc" className="block text-sm font-medium mb-1">Select Business</label>
               <select id="plaintiffLlc" value={plaintiffLlcId} onChange={(e) => setPlaintiffLlcId(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md bg-background text-sm">
-                <option value="">-- Select an LLC --</option>
+                <option value="">-- Select a Business --</option>
                 {llcs.map((l) => (
                   <option key={l.id} value={l.id}>{l.legalName}</option>
                 ))}

@@ -33,6 +33,12 @@ export async function createOrg(
     addedAt: FieldValue.serverTimestamp(),
     addedByUserId: actorUserId,
   });
+  // Stamp the org on the owner's user document
+  batch.set(
+    adminDb.collection('users').doc(input.ownerUserId),
+    { accountIds: FieldValue.arrayUnion(orgRef.id) },
+    { merge: true }
+  );
   await batch.commit();
 
   return { id: orgRef.id, name: orgData.name, ownerUserId: orgData.ownerUserId, status: orgData.status, createdBy: actorUserId };
@@ -89,6 +95,12 @@ export async function addOrgMember(
     addedAt: FieldValue.serverTimestamp(),
     addedByUserId: actorUserId,
   });
+
+  // Stamp the org on the member's user document
+  await adminDb.collection('users').doc(input.userId).set(
+    { accountIds: FieldValue.arrayUnion(accountId) },
+    { merge: true }
+  );
 }
 
 export async function updateOrgMember(

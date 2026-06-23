@@ -42,7 +42,11 @@ export async function GET(request: NextRequest) {
     const refs = [...allLlcIds].map(id => adminDb.collection('llcs').doc(id));
     const docs = await adminDb.getAll(...refs);
     const llcs = docs
-      .filter(d => d.exists && d.data()?.status !== 'archived')
+      .filter(d => {
+        if (!d.exists || d.data()?.status === 'archived') return false;
+        if (accountId && d.data()?.accountId !== accountId) return false;
+        return true;
+      })
       .map(d => ({ id: d.id, ...d.data() }));
 
     return NextResponse.json({ ok: true, data: llcs });
