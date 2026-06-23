@@ -88,7 +88,7 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
       const data = await res.json();
       if (!data.ok) { setMemberError(data.error?.message ?? 'Failed to add member'); return; }
       setShowAddMember(false);
-      setMemberSearch(''); setMemberUserId(''); setMemberUserDisplay(''); setMemberRole('admin');
+      setMemberUserId(''); setMemberUserDisplay(''); setMemberRole('admin');
       fetchData();
     } catch { setMemberError('Failed to add member'); }
     finally { setAddingMember(false); }
