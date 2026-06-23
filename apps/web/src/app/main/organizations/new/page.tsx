@@ -1,58 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-interface UserResult {
-  id: string;
-  email: string;
-  displayName?: string;
-}
+import UserSearchInput, { UserOption } from '@/components/UserSearchInput';
 
 export default function NewOrganizationPage() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [ownerSearch, setOwnerSearch] = useState('');
   const [ownerUserId, setOwnerUserId] = useState('');
   const [ownerDisplay, setOwnerDisplay] = useState('');
-  const [userResults, setUserResults] = useState<UserResult[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const searchRef = useRef<HTMLDivElement>(null);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  function handleOwnerSearchChange(value: string) {
-    setOwnerSearch(value);
-    setOwnerUserId('');
-    setOwnerDisplay('');
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (!value.trim()) { setUserResults([]); setShowDropdown(false); return; }
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/admin/users?search=${encodeURIComponent(value)}`);
-        const data = await res.json();
-        if (data.ok) { setUserResults(data.data.slice(0, 8)); setShowDropdown(true); }
-      } catch { /* silent */ }
-    }, 300);
-  }
-
-  function selectOwner(user: UserResult) {
+  function handleOwnerSelect(user: UserOption) {
     setOwnerUserId(user.id);
     setOwnerDisplay(user.displayName ? `${user.displayName} (${user.email})` : user.email);
-    setOwnerSearch(user.displayName ?? user.email);
-    setShowDropdown(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -110,36 +73,13 @@ export default function NewOrganizationPage() {
           />
         </div>
 
-        <div ref={searchRef} className="relative">
-          <label className="block text-sm font-medium mb-1.5">Owner</label>
-          <p className="text-xs text-muted-foreground mb-1.5">The user who will be the primary owner of this organization.</p>
-          <input
-            type="text"
-            value={ownerSearch}
-            onChange={e => handleOwnerSearchChange(e.target.value)}
-            onFocus={() => userResults.length > 0 && setShowDropdown(true)}
-            placeholder="Search by name or email..."
-            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {ownerUserId && (
-            <p className="mt-1 text-xs text-muted-foreground">Selected: {ownerDisplay}</p>
-          )}
-          {showDropdown && userResults.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full bg-card border rounded-md shadow-lg divide-y max-h-48 overflow-y-auto">
-              {userResults.map(user => (
-                <button
-                  key={user.id}
-                  type="button"
-                  onClick={() => selectOwner(user)}
-                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                >
-                  <div className="font-medium">{user.displayName ?? user.email}</div>
-                  {user.displayName && <div className="text-xs text-muted-foreground">{user.email}</div>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <UserSearchInput
+          label="Owner"
+          description="The user who will be the primary owner of this organization."
+          onSelect={handleOwnerSelect}
+          onClear={() => { setOwnerUserId(''); setOwnerDisplay(''); }}
+          selectedDisplay={ownerUserId ? ownerDisplay : undefined}
+        />
 
         <div className="flex items-center justify-end gap-3 pt-2">
           <Link href="/main/organizations" className="px-4 py-2 text-sm border rounded-md hover:bg-muted transition-colors">

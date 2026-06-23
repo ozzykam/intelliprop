@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, use, useRef, useCallback } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
 import { useRole } from '@/lib/contexts/RoleContext';
+import UserSearchInput, { UserOption } from '@/components/UserSearchInput';
 
 interface OrgMember {
   userId: string;
@@ -16,12 +17,6 @@ interface OrgLlc {
   id: string;
   legalName: string;
   status: string;
-}
-
-interface UserResult {
-  id: string;
-  email: string;
-  displayName?: string;
 }
 
 interface OrgDetail {
@@ -45,16 +40,11 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
 
   // Add member
   const [showAddMember, setShowAddMember] = useState(false);
-  const [memberSearch, setMemberSearch] = useState('');
   const [memberUserId, setMemberUserId] = useState('');
   const [memberUserDisplay, setMemberUserDisplay] = useState('');
   const [memberRole, setMemberRole] = useState<'owner' | 'admin'>('admin');
-  const [memberResults, setMemberResults] = useState<UserResult[]>([]);
-  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [memberError, setMemberError] = useState('');
-  const memberSearchRef = useRef<HTMLDivElement>(null);
-  const memberSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -77,37 +67,11 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (memberSearchRef.current && !memberSearchRef.current.contains(e.target as Node)) {
-        setShowMemberDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const isOwner = org ? (currentUserId === org.ownerUserId || isPlatformSuperAdmin) : false;
 
-  function handleMemberSearchChange(value: string) {
-    setMemberSearch(value);
-    setMemberUserId(''); setMemberUserDisplay('');
-    if (memberSearchTimeout.current) clearTimeout(memberSearchTimeout.current);
-    if (!value.trim()) { setMemberResults([]); setShowMemberDropdown(false); return; }
-    memberSearchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/admin/users?search=${encodeURIComponent(value)}`);
-        const data = await res.json();
-        if (data.ok) { setMemberResults(data.data.slice(0, 8)); setShowMemberDropdown(true); }
-      } catch { /* silent */ }
-    }, 300);
-  }
-
-  function selectMemberUser(user: UserResult) {
+  function handleMemberSelect(user: UserOption) {
     setMemberUserId(user.id);
     setMemberUserDisplay(user.displayName ? `${user.displayName} (${user.email})` : user.email);
-    setMemberSearch(user.displayName ?? user.email);
-    setShowMemberDropdown(false);
   }
 
   async function handleAddMember(e: React.FormEvent) {
@@ -226,29 +190,12 @@ export default function OrgAdminDetailPage({ params }: { params: Promise<{ orgId
         {showAddMember && isOwner && (
           <form onSubmit={handleAddMember} className="mb-4 p-4 border rounded-lg bg-muted/20 space-y-3">
             {memberError && <p className="text-sm text-destructive">{memberError}</p>}
-            <div ref={memberSearchRef} className="relative">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">User</label>
-              <input
-                type="text"
-                value={memberSearch}
-                onChange={e => handleMemberSearchChange(e.target.value)}
-                onFocus={() => memberResults.length > 0 && setShowMemberDropdown(true)}
-                placeholder="Search by name or email..."
-                className="w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              {showMemberDropdown && memberResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-card border rounded-md shadow-lg divide-y max-h-40 overflow-y-auto">
-                  {memberResults.map(user => (
-                    <button key={user.id} type="button" onClick={() => selectMemberUser(user)}
-                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm">
-                      <div className="font-medium">{user.displayName ?? user.email}</div>
-                      {user.displayName && <div className="text-xs text-muted-foreground">{user.email}</div>}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {memberUserId && <p className="mt-1 text-xs text-muted-foreground">Selected: {memberUserDisplay}</p>}
-            </div>
+            <UserSearchInput
+              label="User"
+              onSelect={handleMemberSelect}
+              onClear={() => { setMemberUserId(''); setMemberUserDisplay(''); }}
+              selectedDisplay={memberUserId ? memberUserDisplay : undefined}
+            />
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Role</label>
               <select value={memberRole} onChange={e => setMemberRole(e.target.value as 'owner' | 'admin')}

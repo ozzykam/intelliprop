@@ -37,15 +37,32 @@ const NAV_ITEMS = [
   },
 ];
 
+function getPlatformViewOrgCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)__platform_view_org=([^;]+)/);
+  return match ? (match[1] ?? null) : null;
+}
+
 export default function PlatformSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [activeOrg, setActiveOrg] = useState<{ id: string; name: string } | null>(null);
 
   // Persist collapsed state
   useEffect(() => {
     const saved = localStorage.getItem('platform-sidebar-collapsed');
     if (saved === 'true') setCollapsed(true);
   }, []);
+
+  // Read cookie and fetch org name if one is active
+  useEffect(() => {
+    const orgId = getPlatformViewOrgCookie();
+    if (!orgId) { setActiveOrg(null); return; }
+    fetch(`/api/admin/organizations/${orgId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setActiveOrg({ id: orgId, name: d.data.name }); })
+      .catch(() => {});
+  }, [pathname]);
 
   const toggleCollapsed = () => {
     setCollapsed(p => {
@@ -100,19 +117,23 @@ export default function PlatformSidebar() {
         })}
       </nav>
 
-      {/* Divider + org link */}
-      <div className="px-2 py-3 border-t">
-        <Link
-          href="/llcs"
-          title={collapsed ? 'Go to Org View' : undefined}
-          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg>
-          {!collapsed && <span>Org View</span>}
-        </Link>
-      </div>
+      {/* Back to org — only shown when a platform view org cookie is active */}
+      {activeOrg && (
+        <div className="px-2 py-3 border-t">
+          <Link
+            href={`/${activeOrg.id}`}
+            title={collapsed ? `Back to ${activeOrg.name}` : undefined}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            {!collapsed && (
+              <span className="truncate">Back to {activeOrg.name}</span>
+            )}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

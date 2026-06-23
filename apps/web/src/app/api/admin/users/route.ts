@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperAdmin } from '@/lib/auth/checkPermission';
+import { requirePermissionContext } from '@/lib/auth/permissionContext';
 import {
   listUsers,
   searchUsersByEmail,
@@ -63,21 +64,30 @@ export async function GET(request: NextRequest) {
     const userType = searchParams.get('userType') as 'staff' | 'tenant' | null;
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    if (!accountId) {
+    // Platform admins without an accountId see all users (platform-level view).
+    // Org-level admins (not platform) must scope to an account.
+    const context = await requirePermissionContext();
+    const isPlatformLevel = context.isPlatformSuperAdmin || context.isPlatformAdmin;
+
+    if (!accountId && !isPlatformLevel) {
       return NextResponse.json({ ok: true, data: [] });
     }
 
     let users;
     if (search) {
-      // For search, resolve org user IDs and post-filter
-      const orgUserIds = await getOrgUserIds(accountId);
-      if (orgUserIds.size === 0) return NextResponse.json({ ok: true, data: [] });
-      users = await searchUsersByEmail(search, limit);
-      users = users.filter(u => orgUserIds.has(u.id));
+      if (accountId) {
+        // Org-scoped search: resolve org user IDs and post-filter
+        const orgUserIds = await getOrgUserIds(accountId);
+        if (orgUserIds.size === 0) return NextResponse.json({ ok: true, data: [] });
+        users = await searchUsersByEmail(search, limit);
+        users = users.filter(u => orgUserIds.has(u.id));
+      } else {
+        // Platform-level search: no org filter
+        users = await searchUsersByEmail(search, limit);
+      }
     } else {
-      // Use the accountIds index for direct org-scoped listing
       users = await listUsers({
-        accountId,
+        accountId: accountId ?? undefined,
         limit,
         superAdminsOnly,
         userType: userType || undefined,

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { adminDb } from '@/lib/firebase/admin';
+import EnterOrgButton from '@/components/EnterOrgButton';
 
 interface StatCardProps {
   label: string;
@@ -155,12 +156,15 @@ export default async function PlatformDashboard() {
                         : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/main/organizations/${org.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        Manage
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/main/organizations/${org.id}`}
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Manage
+                        </Link>
+                        <EnterOrgButton orgId={org.id} />
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { adminDb } from '@/lib/firebase/admin';
+import EnterOrgButton from '@/components/EnterOrgButton'
 
 async function getAllOrgs() {
   const snap = await adminDb.collection('accounts').orderBy('createdAt', 'desc').get();
@@ -93,12 +94,15 @@ export default async function OrganizationsPage() {
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
                     <Link
                       href={`/main/organizations/${org.id}`}
                       className="text-primary hover:underline"
                     >
                       Manage
                     </Link>
+                    <EnterOrgButton orgId={org.id} />
+                    </div>
                   </td>
                 </tr>
               ))

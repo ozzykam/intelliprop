@@ -2,8 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
+
+function getPlatformViewOrgCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)__platform_view_org=([^;]+)/);
+  return match ? (match[1] ?? null) : null;
+}
 
 interface PlatformTopBarProps {
   displayName?: string;
@@ -13,8 +19,19 @@ interface PlatformTopBarProps {
 export default function PlatformTopBar({ displayName, email }: PlatformTopBarProps) {
   const { signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeOrg, setActiveOrg] = useState<{ id: string; name: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const orgId = getPlatformViewOrgCookie();
+    if (!orgId) { setActiveOrg(null); return; }
+    fetch(`/api/admin/organizations/${orgId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setActiveOrg({ id: orgId, name: d.data.name }); })
+      .catch(() => {});
+  }, [pathname]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -73,17 +90,21 @@ export default function PlatformTopBar({ displayName, email }: PlatformTopBarPro
                   <p className="text-sm font-medium truncate">{displayName ?? email}</p>
                   <p className="text-xs text-muted-foreground truncate">{email}</p>
                 </div>
-                <Link
-                  href="/llcs"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
-                  </svg>
-                  Go to Org View
-                </Link>
-                <div className="border-t my-1" />
+                {activeOrg && (
+                  <>
+                    <Link
+                      href={`/${activeOrg.id}`}
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-primary hover:bg-muted transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                      </svg>
+                      <span className="truncate">Back to {activeOrg.name}</span>
+                    </Link>
+                    <div className="border-t my-1" />
+                  </>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
