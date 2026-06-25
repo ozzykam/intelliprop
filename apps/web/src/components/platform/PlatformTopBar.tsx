@@ -61,7 +61,7 @@ export default function PlatformTopBar({ displayName, email }: PlatformTopBarPro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <span className="text-base font-semibold tracking-tight">IntelliProp</span>
+            <span className="text-base font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'IntelliProp'}</span>
           </div>
           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
             Platform

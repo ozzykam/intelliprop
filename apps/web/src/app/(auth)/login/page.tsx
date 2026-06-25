@@ -52,7 +52,7 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-md">
-      <h1 className="text-2xl font-bold mb-2 text-center">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Property Platform'}</h1>
+      <h1 className="text-2xl font-bold mb-2 text-center">{process.env.NEXT_PUBLIC_APP_NAME ?? 'IntelliProp'}</h1>
       <p className="text-sm text-muted-foreground mb-6 text-center">
         Sign in to your account
       </p>
