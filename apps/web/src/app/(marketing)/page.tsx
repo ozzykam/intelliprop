@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRole } from '@/lib/contexts/RoleContext';
 import { RoleSelectionModal } from '@/components/RoleSelectionModal';
@@ -22,6 +23,7 @@ const PILLARS = [
       'Expiring lease alerts and renewal workflows',
     ],
     visual: 'bg-slate-200',
+    image: '/images/marketing/properties-dashboard.webp',
     reverse: false,
   },
   {
@@ -36,6 +38,7 @@ const PILLARS = [
       'Screening, application, and onboarding',
     ],
     visual: 'bg-slate-300',
+    image: '/images/marketing/leases-and-tenants.webp',
     reverse: true,
   },
   {
@@ -50,6 +53,7 @@ const PILLARS = [
       'Monthly income and occupancy dashboards',
     ],
     visual: 'bg-slate-200',
+    image: '/images/marketing/financials-dashboard.webp',
     reverse: false,
   },
   {
@@ -64,6 +68,7 @@ const PILLARS = [
       'Document storage and case history',
     ],
     visual: 'bg-slate-300',
+    image: '/images/marketing/legal-cases.webp',
     reverse: true,
   },
 ];
@@ -241,21 +246,33 @@ export default function HomePage() {
           className={`py-20 lg:py-28 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className={`grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center ${pillar.reverse ? 'lg:flex lg:flex-row-reverse' : ''}`}>
-              {/* Visual placeholder */}
-              <div className={`rounded-2xl aspect-[4/3] ${pillar.visual} flex items-center justify-center`}>
-                <div className="text-center text-slate-400 p-8">
-                  <div className="w-16 h-16 rounded-full bg-slate-300 mx-auto mb-3 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              {/* Visual — order-2 on desktop when reversed so it appears on the right */}
+              <div className={pillar.reverse ? 'lg:order-2' : ''}>
+                {pillar.image ? (
+                    <Image
+                      src={pillar.image}
+                      alt={pillar.label}
+                      width={800}
+                      height={600}
+                      className="w-full h-auto object-cover"
+                    />
+                ) : (
+                  <div className={`rounded-2xl aspect-[4/3] ${pillar.visual} flex items-center justify-center`}>
+                    <div className="text-center text-slate-400 p-8">
+                      <div className="w-16 h-16 rounded-full bg-slate-300 mx-auto mb-3 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium">Product screenshot</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-medium">Product screenshot</p>
-                </div>
+                )}
               </div>
 
-              {/* Text */}
-              <div>
+              {/* Text — order-1 on desktop when reversed so it appears on the left */}
+              <div className={pillar.reverse ? 'lg:order-1' : ''}>
                 <span className="inline-block text-xs font-semibold uppercase tracking-widest text-primary mb-3">{pillar.label}</span>
                 <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">{pillar.heading}</h2>
                 <p className="text-slate-500 text-lg leading-relaxed mb-6">{pillar.body}</p>
