@@ -129,7 +129,7 @@ export default function AlertsPanel({ maxItems = 10, compact = false, orgId }: A
     }
 
     fetchAlerts();
-  }, []);
+  }, [orgId]);
 
   const header = (
     <div className="flex items-center justify-between mb-4">

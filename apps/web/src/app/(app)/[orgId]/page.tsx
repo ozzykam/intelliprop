@@ -6,6 +6,7 @@ import StatsCard from '@/components/dashboard/StatsCard';
 import AlertsPanel from '@/components/dashboard/AlertsPanel';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import ExpandableLlcCard from '@/components/dashboard/ExpandableLlcCard';
+import OnboardingTracker from '@/components/OnboardingTracker';
 
 interface LlcItem {
   id: string;
@@ -79,6 +80,7 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <OnboardingTracker orgId={orgId} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>

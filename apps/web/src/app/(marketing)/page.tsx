@@ -144,7 +144,7 @@ export default function HomePage() {
 
   function handleHeroSubmit(e: React.FormEvent) {
     e.preventDefault();
-    router.push(`/login${heroEmail ? `?email=${encodeURIComponent(heroEmail)}` : ''}`);
+    router.push(`/signup${heroEmail ? `?email=${encodeURIComponent(heroEmail)}` : ''}`);
   }
 
   if (authLoading || (user && roleLoading)) {

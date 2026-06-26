@@ -3,6 +3,14 @@ import { Timestamp } from './common';
 export type OrgStatus = 'active' | 'suspended';
 export type OrgMemberRole = 'owner' | 'admin';
 export type OrgMemberStatus = 'active' | 'disabled';
+export type OrgPlan = 'starter' | 'professional' | 'enterprise';
+
+export interface OrgOnboarding {
+  createdFirstLlc: boolean;
+  createdFirstProperty: boolean;
+  createdFirstUnit: boolean;
+  addedFirstTenant: boolean;
+}
 
 /**
  * Organization - top-level multi-tenant container that owns LLCs
@@ -18,7 +26,11 @@ export interface Organization {
   createdAt: Timestamp;
   createdBy?: string;
   stripeCustomerId?: string;
+  stripePaymentMethodId?: string;
   billingStatus?: string;
+  plan?: OrgPlan;
+  trialEndsAt?: Timestamp;
+  onboarding?: OrgOnboarding;
 }
 
 /**
